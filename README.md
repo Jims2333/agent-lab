@@ -13,7 +13,7 @@
 | [02 线性模型与梯度下降](./02-linear-models/) | 1801–2014 的故事：找回谷神星、最小二乘之争、柯西下山法、高尔顿的"回归"、LMS、Adam | 用高尔顿的真实数据手写梯度下降，比较批量与随机梯度下降 | ✅ |
 | [03 神经网络与自动求导](./03-neural-nets/) | 1970–2022 的故事：反向模式自动微分、万能逼近、梯度消失、ReLU、Dropout、深度学习框架 | 手写自动求导引擎并用它训练网络，观察 30 层网络里的梯度消失与爆炸 | ✅ |
 | [04 从 CNN 到 Transformer](./04-cnn-to-transformer/) | 1959–2020 的故事：猫的视觉皮层、Neocognitron、ResNet、LSTM、注意力的诞生、Transformer、ViT | 手写卷积与注意力，比较 RNN 和注意力，组装一个完整的 Transformer | ✅ |
-| 05 大语言模型与 API | token、上下文窗口、调用 Claude / GPT / DeepSeek | 用 API 做第一个小应用 | 🚧 |
+| [05 大语言模型与 API](./05-llm-and-api/) | 1913–2025 的故事：马尔可夫数字母、香农猜字母、词向量、BPE、规模定律、RLHF、DeepSeek-R1 | 训练 n-gram 模型和 BPE 分词器，玩转采样参数，用统一客户端调用 Claude / GPT / DeepSeek | ✅ |
 | 06 Agent 循环 | ReAct、工具调用：从"会说"到"会做" | 从零写一个能调用工具的 agent | 🚧 |
 | 07 Harness 工程 | 上下文管理、权限、反馈回路、测试 | 给 agent 加上沙箱、检查器和自动重试 | 🚧 |
 | 08 多 Agent 协同 | 编排者-工作者、路由、写-审、辩论 | 搭一个主 agent + 多个子 agent 的调研系统 | 🚧 |
@@ -59,6 +59,13 @@ python attention.py
 python rnn_vs_attention.py
 python transformer_block.py
 
+# 第五章的四个实验（默认用假模型，不需要 API key）
+cd ../05-llm-and-api
+python markov_1913.py
+python bpe_tokenizer.py
+python sampling.py
+python chat_api.py
+
 # 番外 1：两个 AI 聊天（mock 模式，不需要 API key）
 cd ../side-quests/ai-talks-to-ai
 python relay.py --show-history
@@ -68,7 +75,7 @@ cd ../app-bridge
 python wire_demo.py
 ```
 
-需要 Python 3.10+。前几章只依赖 numpy，从第 5 章开始才需要各家的 API key。
+需要 Python 3.10+。前几章只依赖 numpy。从第 5 章开始可以接入真实的大模型（需要对应的 API key），但所有实验默认都用假模型，不需要任何 key 也能跑通。
 
 ## 写作约定
 
@@ -106,6 +113,15 @@ agent-lab/
 │   ├── attention.py
 │   ├── rnn_vs_attention.py
 │   └── transformer_block.py
+├── 05-llm-and-api/            # 第五章：大语言模型与 API
+│   ├── README.md
+│   ├── markov_1913.py
+│   ├── bpe_tokenizer.py
+│   ├── sampling.py
+│   ├── chat_api.py
+│   └── data/corpus.txt         #   第 1～4 章的正文，当作训练语料
+├── common/
+│   └── llm.py                  # 第 5～9 章共用：统一调用 Claude / GPT / DeepSeek / 假模型
 └── side-quests/
     ├── ai-talks-to-ai/         # 番外 1：两个 AI 是怎么聊天的
     │   ├── README.md
