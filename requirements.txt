@@ -1,8 +1,11 @@
+# 第 1～4 章需要：
 numpy>=1.24
 
-# 番外 1（side-quests/ai-talks-to-ai）的真实模型模式才需要，mock 模式不需要：
-# anthropic>=1.11
-# openai>=1.0
+# 第 5～9 章默认用假模型，只需要标准库。
+# 想接真实模型（--provider claude/gpt/deepseek 或第九章的 --live），按需安装：
+# anthropic>=1.11      # Claude
+# openai>=1.0          # GPT 和 DeepSeek（DeepSeek 兼容 OpenAI 的接口）
 
+# 番外 1（side-quests/ai-talks-to-ai）的真实模型模式同上。
 # 番外 2（side-quests/app-bridge）需要：
 # mcp[cli]>=1.20

@@ -1,6 +1,6 @@
 # 🤖 agent-lab
 
-**边做边学：从 1958 年的感知机，一路学到今天的 Harness 与多 Agent 协同。**
+**边做边学：从 1958 年的感知机，一路学到今天的 Harness、多 Agent 协同，以及让 Claude、GPT、DeepSeek 一起干活。**
 
 1958 年，《纽约时报》报道第一台会学习的机器时，用的标题是 *"New Navy Device Learns By Doing"*（边做边学）。
 这个仓库沿用同一个思路：每一章都先讲**真实发生过的故事**，再**亲手跑代码**复现关键时刻，最后才解释**概念**。
@@ -17,7 +17,7 @@
 | [06 Agent 循环](./06-agent-loop/) | 1966–2025 的故事：ELIZA、Shakey、SHRDLU、ReAct、函数调用、SWE-bench、Claude Code | 迷你 ELIZA、用 JSON Schema 定义并安全执行工具、从零写一个 ReAct agent | ✅ |
 | [07 Harness 工程](./07-harness/) | 2024–2026 的故事：SWE-agent 的 ACI、Replit 删库事件、上下文工程、长时 agent 的交接、OpenAI 的 harness engineering | 给编程 agent 加上沙箱、权限闸门、预算、上下文整理、验收和日志；比较五种上下文管理策略 | ✅ |
 | [08 多 Agent 协同](./08-multi-agent/) | 1973–2025 的故事：Actor 模型、Hearsay-II 的黑板、合同网、《心智社会》、2023 年的组队热潮、MAST 失败分类、Anthropic 与 Cognition 的争论 | 编排者-工作者并行调研；合同网投标分活；多 agent 辩论；写-审循环在子进程里跑测试 | ✅ |
-| 09 跨模型协作 | Claude × GPT × DeepSeek，MCP 与 A2A | 让不同厂商的模型分工完成一个任务 | 🚧 |
+| [09 跨模型协作](./09-cross-model/) | 1969–2026 的故事：浴室里写成的 RFC 1、TCP/IP、万维网、LSP、MCP、A2A | 在三家模型之间路由和故障转移；跨厂商交叉核对；用标准库实现迷你 A2A；毕业项目：三家模型分工做学习路线卡片 | ✅ |
 
 **番外篇**
 
@@ -84,6 +84,13 @@ python contract_net.py
 python debate.py
 python write_review.py
 
+# 第九章的四个实验（加 --live 让配置了 key 的厂商用真实模型）
+cd ../09-cross-model
+python router.py
+python cross_check.py
+python a2a_mini.py
+python capstone.py
+
 # 番外 1：两个 AI 聊天（mock 模式，不需要 API key）
 cd ../side-quests/ai-talks-to-ai
 python relay.py --show-history
@@ -93,7 +100,27 @@ cd ../app-bridge
 python wire_demo.py
 ```
 
-需要 Python 3.10+。前几章只依赖 numpy。从第 5 章开始可以接入真实的大模型（需要对应的 API key），但所有实验默认都用假模型，不需要任何 key 也能跑通。
+需要 Python 3.10+。前四章只依赖 numpy，第 5～9 章的假模型模式只用标准库。
+从第 5 章开始可以接入真实的大模型（需要对应的 API key，只放在环境变量里），但所有实验默认都用假模型，不需要任何 key 也能跑通。
+
+| 厂商 | 环境变量 | 默认型号 |
+|---|---|---|
+| Claude | `ANTHROPIC_API_KEY` | `claude-opus-5-5` |
+| GPT | `OPENAI_API_KEY` | `gpt-5.5` |
+| DeepSeek | `DEEPSEEK_API_KEY` | `deepseek-v4-flash` |
+
+> 关于真实模型模式：所有调用真实 API 的代码路径，作者都用模拟服务器测试过，但**没有用真实的 API key 跑过**。
+> 如果你遇到问题，欢迎提 issue。
+
+## 学完之后
+
+九章走完，你手里已经有了一整套"玩具零件"：自动求导引擎、注意力、分词器、ReAct 循环、harness、多 agent 编排、适配层和迷你 A2A。接下来可以这样继续：
+
+1. **换上真实模型重跑一遍**：配置一两家的 key，用 `--provider` 或 `--live` 运行第 5～9 章，对比真实模型和假模型剧本的差别。真实模型不会按剧本"犯错"，这本身就很有启发。
+2. **建一个自己的小评测集**：第九章的路由表、交叉核对都依赖"哪家在哪类任务上够用"，这个问题只有你自己的测试数据能回答。
+3. **把手写的零件换成正式工具**：自动求导换成 PyTorch，模型调用换成各家官方 SDK，MCP 用官方的 `mcp` Python SDK，A2A 用 `a2a-sdk`。因为你知道它们里面在做什么，换起来会很快。
+4. **读原始资料**：每章末尾的参考资料都是一手来源，论文和原文往往比任何转述都精彩。
+5. **做一个自己的项目**：比如把番外 2 的 MCP 信箱和第九章的 A2A 结合起来，或者给第七章的 harness 加一道"委托给外部 agent 之前先问人"的权限闸门。
 
 ## 写作约定
 
@@ -153,6 +180,13 @@ agent-lab/
 │   ├── contract_net.py
 │   ├── debate.py
 │   └── write_review.py
+├── 09-cross-model/             # 第九章：跨模型协作
+│   ├── README.md
+│   ├── team.py                 #   三家厂商的名单：--live 时有 key 的用真实模型
+│   ├── router.py
+│   ├── cross_check.py
+│   ├── a2a_mini.py             #   用标准库实现的 A2A 1.0 最小子集
+│   └── capstone.py             #   毕业项目：复用第 6～9 章的零件
 ├── common/
 │   └── llm.py                  # 第 5～9 章共用：统一调用 Claude / GPT / DeepSeek / 假模型
 └── side-quests/
