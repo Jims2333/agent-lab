@@ -651,4 +651,4 @@ OpenAI 的经验是：同一个模型，harness 做得好不好，结果天差�
 
 ---
 
-⬅️ [返回目录](../README.md)　|　➡️ 番外：[两个 AI 是怎么聊天的](../side-quests/ai-talks-to-ai/)
+⬅️ [返回目录](../README.md)　|　➡️ [第二章 线性模型与梯度下降](../02-linear-models/)　|　番外：[两个 AI 是怎么聊天的](../side-quests/ai-talks-to-ai/)

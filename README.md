@@ -10,7 +10,7 @@
 | 章节 | 内容 | 动手做什么 | 状态 |
 |---|---|---|---|
 | [01 机器学习从哪里来](./01-ml-origins/) | 1943–2026 的故事：感知机、AI 寒冬、反向传播、ImageNet、Transformer、Agent | 复现 1958 感知机、1969 XOR 困境、1986 反向传播 | ✅ |
-| 02 线性模型与梯度下降 | 从一条直线开始：回归、分类、损失函数 | 手写梯度下降，画出下山的路径 | 🚧 |
+| [02 线性模型与梯度下降](./02-linear-models/) | 1801–2014 的故事：找回谷神星、最小二乘之争、柯西下山法、高尔顿的"回归"、LMS、Adam | 用高尔顿的真实数据手写梯度下降，比较批量与随机梯度下降 | ✅ |
 | 03 神经网络与反向传播 | 多层网络、激活函数、自动求导 | 不用框架，手写一个迷你自动求导引擎 | 🚧 |
 | 04 从 CNN 到 Transformer | 卷积、注意力、为什么 Transformer 赢了 | 手写一个迷你注意力层 | 🚧 |
 | 05 大语言模型与 API | token、上下文窗口、调用 Claude / GPT / DeepSeek | 用 API 做第一个小应用 | 🚧 |
@@ -38,6 +38,13 @@ cd 01-ml-origins
 python perceptron_1958.py
 python xor_1969.py
 python backprop_1986.py
+
+# 第二章的四个实验
+cd ../02-linear-models
+python ceres_1801.py
+python gradient_descent_1847.py
+python galton_1886.py
+python lms_1960.py
 
 # 番外 1：两个 AI 聊天（mock 模式，不需要 API key）
 cd ../side-quests/ai-talks-to-ai
@@ -68,6 +75,13 @@ agent-lab/
 │   ├── perceptron_1958.py
 │   ├── xor_1969.py
 │   └── backprop_1986.py
+├── 02-linear-models/           # 第二章：线性模型与梯度下降
+│   ├── README.md
+│   ├── ceres_1801.py
+│   ├── gradient_descent_1847.py
+│   ├── galton_1886.py
+│   ├── lms_1960.py
+│   └── data/galton_1886.csv    #   高尔顿 1886 年的真实身高数据
 └── side-quests/
     ├── ai-talks-to-ai/         # 番外 1：两个 AI 是怎么聊天的
     │   ├── README.md
