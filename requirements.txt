@@ -1,0 +1,5 @@
+numpy>=1.24
+
+# 以下只有番外 side-quests/ai-talks-to-ai 的真实模型模式才需要（mock 模式不需要）：
+# anthropic>=1.11
+# openai>=1.0
