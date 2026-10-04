@@ -11,7 +11,7 @@
 |---|---|---|---|
 | [01 机器学习从哪里来](./01-ml-origins/) | 1943–2026 的故事：感知机、AI 寒冬、反向传播、ImageNet、Transformer、Agent | 复现 1958 感知机、1969 XOR 困境、1986 反向传播 | ✅ |
 | [02 线性模型与梯度下降](./02-linear-models/) | 1801–2014 的故事：找回谷神星、最小二乘之争、柯西下山法、高尔顿的"回归"、LMS、Adam | 用高尔顿的真实数据手写梯度下降，比较批量与随机梯度下降 | ✅ |
-| 03 神经网络与反向传播 | 多层网络、激活函数、自动求导 | 不用框架，手写一个迷你自动求导引擎 | 🚧 |
+| [03 神经网络与自动求导](./03-neural-nets/) | 1970–2022 的故事：反向模式自动微分、万能逼近、梯度消失、ReLU、Dropout、深度学习框架 | 手写自动求导引擎并用它训练网络，观察 30 层网络里的梯度消失与爆炸 | ✅ |
 | 04 从 CNN 到 Transformer | 卷积、注意力、为什么 Transformer 赢了 | 手写一个迷你注意力层 | 🚧 |
 | 05 大语言模型与 API | token、上下文窗口、调用 Claude / GPT / DeepSeek | 用 API 做第一个小应用 | 🚧 |
 | 06 Agent 循环 | ReAct、工具调用：从"会说"到"会做" | 从零写一个能调用工具的 agent | 🚧 |
@@ -45,6 +45,12 @@ python ceres_1801.py
 python gradient_descent_1847.py
 python galton_1886.py
 python lms_1960.py
+
+# 第三章的三个实验
+cd ../03-neural-nets
+python autograd.py
+python mlp_moons.py
+python vanishing_gradient.py
 
 # 番外 1：两个 AI 聊天（mock 模式，不需要 API key）
 cd ../side-quests/ai-talks-to-ai
@@ -82,6 +88,11 @@ agent-lab/
 │   ├── galton_1886.py
 │   ├── lms_1960.py
 │   └── data/galton_1886.csv    #   高尔顿 1886 年的真实身高数据
+├── 03-neural-nets/             # 第三章：神经网络与自动求导
+│   ├── README.md
+│   ├── autograd.py             #   手写的自动求导引擎（Value 类）
+│   ├── mlp_moons.py
+│   └── vanishing_gradient.py
 └── side-quests/
     ├── ai-talks-to-ai/         # 番外 1：两个 AI 是怎么聊天的
     │   ├── README.md
