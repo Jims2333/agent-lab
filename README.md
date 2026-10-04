@@ -12,7 +12,7 @@
 | [01 机器学习从哪里来](./01-ml-origins/) | 1943–2026 的故事：感知机、AI 寒冬、反向传播、ImageNet、Transformer、Agent | 复现 1958 感知机、1969 XOR 困境、1986 反向传播 | ✅ |
 | [02 线性模型与梯度下降](./02-linear-models/) | 1801–2014 的故事：找回谷神星、最小二乘之争、柯西下山法、高尔顿的"回归"、LMS、Adam | 用高尔顿的真实数据手写梯度下降，比较批量与随机梯度下降 | ✅ |
 | [03 神经网络与自动求导](./03-neural-nets/) | 1970–2022 的故事：反向模式自动微分、万能逼近、梯度消失、ReLU、Dropout、深度学习框架 | 手写自动求导引擎并用它训练网络，观察 30 层网络里的梯度消失与爆炸 | ✅ |
-| 04 从 CNN 到 Transformer | 卷积、注意力、为什么 Transformer 赢了 | 手写一个迷你注意力层 | 🚧 |
+| [04 从 CNN 到 Transformer](./04-cnn-to-transformer/) | 1959–2020 的故事：猫的视觉皮层、Neocognitron、ResNet、LSTM、注意力的诞生、Transformer、ViT | 手写卷积与注意力，比较 RNN 和注意力，组装一个完整的 Transformer | ✅ |
 | 05 大语言模型与 API | token、上下文窗口、调用 Claude / GPT / DeepSeek | 用 API 做第一个小应用 | 🚧 |
 | 06 Agent 循环 | ReAct、工具调用：从"会说"到"会做" | 从零写一个能调用工具的 agent | 🚧 |
 | 07 Harness 工程 | 上下文管理、权限、反馈回路、测试 | 给 agent 加上沙箱、检查器和自动重试 | 🚧 |
@@ -51,6 +51,13 @@ cd ../03-neural-nets
 python autograd.py
 python mlp_moons.py
 python vanishing_gradient.py
+
+# 第四章的四个实验
+cd ../04-cnn-to-transformer
+python convolution.py
+python attention.py
+python rnn_vs_attention.py
+python transformer_block.py
 
 # 番外 1：两个 AI 聊天（mock 模式，不需要 API key）
 cd ../side-quests/ai-talks-to-ai
@@ -93,6 +100,12 @@ agent-lab/
 │   ├── autograd.py             #   手写的自动求导引擎（Value 类）
 │   ├── mlp_moons.py
 │   └── vanishing_gradient.py
+├── 04-cnn-to-transformer/      # 第四章：从 CNN 到 Transformer
+│   ├── README.md
+│   ├── convolution.py
+│   ├── attention.py
+│   ├── rnn_vs_attention.py
+│   └── transformer_block.py
 └── side-quests/
     ├── ai-talks-to-ai/         # 番外 1：两个 AI 是怎么聊天的
     │   ├── README.md

@@ -301,4 +301,4 @@ PyTorch、TensorFlow、JAX 这些框架，核心功能和实验 1 的 Value 类�
 
 ---
 
-⬅️ [第二章 线性模型与梯度下降](../02-linear-models/)　|　[返回目录](../README.md)
+⬅️ [第二章 线性模型与梯度下降](../02-linear-models/)　|　[返回目录](../README.md)　|　➡️ [第四章 从 CNN 到 Transformer](../04-cnn-to-transformer/)
