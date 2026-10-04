@@ -291,4 +291,4 @@ agent 读到的文件、网页、邮件、工具结果里，可能藏着"给 AI 
 
 ---
 
-⬅️ [第六章 Agent 循环](../06-agent-loop/)　|　[返回目录](../README.md)
+⬅️ [第六章 Agent 循环](../06-agent-loop/)　|　[返回目录](../README.md)　|　➡️ [第八章 多 Agent 协同](../08-multi-agent/)
