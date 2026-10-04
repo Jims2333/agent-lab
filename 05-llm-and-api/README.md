@@ -341,4 +341,4 @@ Chinchilla 又补充了一点：参数和数据要按比例一起增长，只堆
 
 ---
 
-⬅️ [第四章 从 CNN 到 Transformer](../04-cnn-to-transformer/)　|　[返回目录](../README.md)
+⬅️ [第四章 从 CNN 到 Transformer](../04-cnn-to-transformer/)　|　[返回目录](../README.md)　|　➡️ [第六章 Agent 循环](../06-agent-loop/)
