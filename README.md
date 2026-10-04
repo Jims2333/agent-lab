@@ -24,6 +24,7 @@
 | 番外 | 内容 |
 |---|---|
 | [两个 AI 是怎么"聊天"的](./side-quests/ai-talks-to-ai/) | 让 Claude 和 DeepSeek / GPT 对话的原理：无状态 API、角色翻转、传话 harness、多 agent 分工、MCP / A2A。附可运行的 `relay.py` |
+| [两个 App 之间的桥梁](./side-quests/app-bridge/) | 让 ChatGPT 和 Claude 两个桌面 App 互相传话：软件之间的通信方式、MCP 协议底层、本地与远程服务器、隧道。附可运行的 MCP 信箱服务器 |
 
 ## 快速开始
 
@@ -38,9 +39,13 @@ python perceptron_1958.py
 python xor_1969.py
 python backprop_1986.py
 
-# 番外：两个 AI 聊天（mock 模式，不需要 API key）
+# 番外 1：两个 AI 聊天（mock 模式，不需要 API key）
 cd ../side-quests/ai-talks-to-ai
 python relay.py --show-history
+
+# 番外 2：看看 App 和 MCP 服务器之间说了什么（需要 pip install "mcp[cli]"）
+cd ../app-bridge
+python wire_demo.py
 ```
 
 需要 Python 3.10+。前几章只依赖 numpy，从第 5 章开始才需要各家的 API key。
@@ -64,7 +69,11 @@ agent-lab/
 │   ├── xor_1969.py
 │   └── backprop_1986.py
 └── side-quests/
-    └── ai-talks-to-ai/         # 番外：两个 AI 是怎么聊天的
+    ├── ai-talks-to-ai/         # 番外 1：两个 AI 是怎么聊天的
+    │   ├── README.md
+    │   └── relay.py
+    └── app-bridge/             # 番外 2：ChatGPT 和 Claude 两个 App 之间的桥梁
         ├── README.md
-        └── relay.py
+        ├── bridge_server.py
+        └── wire_demo.py
 ```

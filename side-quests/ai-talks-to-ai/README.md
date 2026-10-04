@@ -142,6 +142,7 @@ DeepSeek 和 GPT 用的是同一套代码，**只是换了 `base_url` 和密钥*
 - **A2A**（Agent2Agent 协议，谷歌，2025，现属 Linux 基金会）：规定**agent 和 agent 之间怎么互相发现、通信、协作**，即使它们来自不同厂商。
 
 `relay.py` 是手工传话；MCP 和 A2A 是把传话这件事标准化了。
+想看 MCP 的实战，可以接着读番外 2：[让 ChatGPT 和 Claude 两个桌面 App 互相传话](../app-bridge/)。
 
 ---
 
@@ -173,4 +174,4 @@ python relay.py --a claude --b claude
 
 ---
 
-⬅️ [返回目录](../../README.md)　|　📖 回顾：[第一章 机器学习从哪里来](../../01-ml-origins/)
+⬅️ [返回目录](../../README.md)　|　📖 回顾：[第一章 机器学习从哪里来](../../01-ml-origins/)　|　➡️ 番外 2：[两个 App 之间的桥梁](../app-bridge/)
