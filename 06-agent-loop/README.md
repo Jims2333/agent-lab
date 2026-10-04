@@ -282,4 +282,4 @@ Workflow 更可控、更便宜、更容易调试；agent 更灵活，适合步�
 
 ---
 
-⬅️ [第五章 大语言模型与 API](../05-llm-and-api/)　|　[返回目录](../README.md)
+⬅️ [第五章 大语言模型与 API](../05-llm-and-api/)　|　[返回目录](../README.md)　|　➡️ [第七章 Harness 工程](../07-harness/)
