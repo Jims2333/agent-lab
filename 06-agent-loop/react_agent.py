@@ -1,21 +1,22 @@
 """
-实验 3：从零写一个 ReAct agent
-================================
+Lab 3: A ReAct agent from scratch
+=================================
 
-2022 年的 ReAct 论文提出了一个简单的循环，今天几乎所有 agent 都是它的变体：
+The 2022 ReAct paper proposed a simple loop, and almost every agent today is a variation of it:
 
-    while 还没完成:
-        思考（Reason）：下一步该做什么？
-        行动（Act）：   调用一个工具
-        观察（Observe）：看工具返回了什么，然后继续思考
+    while not done:
+        Reason:  what should I do next?
+        Act:     call a tool
+        Observe: look at what the tool returned, then keep reasoning
 
-这里用不到 100 行实现这个循环，配上 tools.py 里的四个工具。
-默认用假模型演示一个完整的任务；它的剧本会读取每一步的观察结果，也会犯错再改正，和真模型的行为方式一样。
-换成真实模型后，你可以给它任何关于本仓库的问题。
+Here we implement that loop in under 100 lines, together with the four tools from tools.py.
+By default a mock model demonstrates one complete task. Its script reads the observation at each step,
+and it makes a mistake and then corrects it, the same way a real model behaves.
+Switch to a real model and you can ask it any question about this repo.
 
-运行：
-  python react_agent.py                                # 假模型，演示内置任务
-  python react_agent.py --provider claude --task "第三章用的是哪种激活函数？"
+Run:
+  python react_agent.py                                # mock model, built-in task
+  python react_agent.py --provider claude --task "Which activation function does Chapter 3 use?"
 """
 
 import argparse
@@ -29,47 +30,57 @@ from common.llm import (MockLLM, add_provider_args, assistant_message, chat,  # 
                         tool_message, user_message)
 from tools import TOOLS, run_tool  # noqa: E402
 
-SYSTEM = """你是一个研究助手，可以使用工具查阅 agent-lab 这个学习仓库。
-工作方式：每一步先用一两句话说明你的想法，再调用工具；拿到足够的信息后，直接给出最终答案，并注明出处（文件和行号）。
-不要编造仓库里没有的内容。"""
+SYSTEM = """You are a research assistant. You can use tools to look things up in agent-lab, a learning repo.
+How to work: at each step, first explain your thinking in a sentence or two, then call a tool. Once you have enough
+information, give the final answer directly and cite your source (file and line number).
+Do not make up anything that isn't in the repo."""
 
-DEFAULT_TASK = "第一章里说，AlexNet 的 top-5 错误率比第二名低了多少个百分点？请先在仓库里查到原文，再用计算器算出来。"
+DEFAULT_TASK = ("According to Chapter 1, how many percentage points lower was AlexNet's top-5 error rate than "
+                "the runner-up's? First find the original sentence in the repo, then work it out with the calculator.")
 
 
-# ---------------------------------------------------------------- 假模型的剧本
+# ---------------------------------------------------------------- the mock model's script
 def last_observation(messages):
     return next(m for m in reversed(messages) if m["role"] == "tool")["content"]
 
 
+def result_line(text):
+    """The first search-result line that mentions AlexNet and the runner-up and gives at least two percentages."""
+    return next((l for l in text.splitlines() if "AlexNet" in l and "runner-up" in l
+                 and len(re.findall(r"\d+(?:\.\d+)?%", l)) >= 2), None)
+
+
 def step_guess_file(messages, tools):
-    return {"text": "我先猜一下：第一章可能有一个专门讲 AlexNet 的文件。",
+    return {"text": "Let me guess first: Chapter 1 probably has a file just about AlexNet.",
             "tool_calls": [{"name": "read_file", "args": {"path": "01-ml-origins/alexnet.md"}}]}
 
 
 def step_search(messages, tools):
-    return {"text": "文件不存在，猜错了。那我直接在整个仓库里搜索关键词。",
-            "tool_calls": [{"name": "search_repo", "args": {"query": "top-5 错误率"}}]}
+    return {"text": "That file doesn't exist, so my guess was wrong. I'll search the whole repo for the phrase instead.",
+            "tool_calls": [{"name": "search_repo", "args": {"query": "top-5 error rate"}}]}
 
 
 def step_calculate(messages, tools):
-    obs = last_observation(messages)
-    line = next(l for l in obs.splitlines() if "AlexNet" in l and "第二名" in l)
+    line = result_line(last_observation(messages))
+    if line is None:
+        return "I couldn't find a sentence with both numbers in the search results, so I can't answer yet."
     ours, second = re.findall(r"(\d+(?:\.\d+)?)%", line)[:2]
-    return {"text": f"找到了：AlexNet 是 {ours}%，第二名是 {second}%。用计算器算差值。",
+    return {"text": f"Found it: AlexNet was at {ours}% and the runner-up at {second}%. I'll use the calculator "
+                    "for the difference.",
             "tool_calls": [{"name": "calculator", "args": {"expression": f"{second} - {ours}"}}]}
 
 
 def step_answer(messages, tools):
-    found = next(m["content"] for m in messages if m["role"] == "tool" and "第二名" in m["content"])
-    source = next(l for l in found.splitlines() if "AlexNet" in l and "第二名" in l).split(": ")[0]
+    source = next(result_line(m["content"]) for m in messages
+                  if m["role"] == "tool" and result_line(m["content"])).split(": ")[0]
     diff = last_observation(messages)
-    return f"AlexNet 的 top-5 错误率比第二名低了 {diff} 个百分点（出处：{source}）。"
+    return f"AlexNet's top-5 error rate was {diff} percentage points lower than the runner-up's (source: {source})."
 
 
 DEMO_SCRIPT = [step_guess_file, step_search, step_calculate, step_answer]
 
 
-# ---------------------------------------------------------------- agent 循环本身
+# ---------------------------------------------------------------- the agent loop itself
 def run_agent(task, provider="mock", model=None, mock=None, max_steps=8, verbose=True):
     messages = [user_message(task)]
     usage = {"input_tokens": 0, "output_tokens": 0}
@@ -79,53 +90,59 @@ def run_agent(task, provider="mock", model=None, mock=None, max_steps=8, verbose
         messages.append(assistant_message(reply))
         usage = {k: usage[k] + reply.usage[k] for k in usage}
         if verbose and reply.text and reply.tool_calls:
-            print(f"   🤔 第 {step} 步 思考：{reply.text}")
+            print(f"   🤔 Step {step} Thought: {reply.text}")
 
-        if not reply.tool_calls:                    # 不再调用工具 = 给出了最终答案
+        if not reply.tool_calls:                    # no more tool calls = this is the final answer
             return reply.text, messages, usage
 
-        for call in reply.tool_calls:               # 执行模型要求的每一个工具调用
+        for call in reply.tool_calls:               # run every tool call the model asked for
             result, is_error = run_tool(call["name"], call["args"])
             messages.append(tool_message(call, result, is_error))
             if verbose:
                 args = ", ".join(f"{k}={v!r}" for k, v in call["args"].items())
-                print(f"   🔧        行动：{call['name']}({args})")
+                print(f"   🔧        Action: {call['name']}({args})")
                 lines = result.splitlines()
-                more = f"  ……（共 {len(lines)} 行）" if len(lines) > 2 else ""
-                print(f"   {'❌' if is_error else '👀'}        观察：" + " / ".join(lines[:2])[:110] + more)
-    return f"（达到了 {max_steps} 步的上限，任务没有完成。）", messages, usage
+                more = f"  ... ({len(lines)} lines in total)" if len(lines) > 2 else ""
+                print(f"   {'❌' if is_error else '👀'}        Observation: " + " / ".join(lines[:2])[:110] + more)
+    return f"(Hit the {max_steps}-step limit; the task is not finished.)", messages, usage
 
 
 def main():
-    parser = add_provider_args(argparse.ArgumentParser(description="从零写一个 ReAct agent"))
+    parser = add_provider_args(argparse.ArgumentParser(description="A ReAct agent from scratch"))
     parser.add_argument("--task", default=DEFAULT_TASK)
     parser.add_argument("--max-steps", type=int, default=8)
     args = parser.parse_args()
     if args.provider == "mock" and args.task != DEFAULT_TASK:
-        raise SystemExit("假模型只会演示内置任务。想问别的问题，请加上 --provider claude / gpt / deepseek。")
+        raise SystemExit("The mock model can only demo the built-in task. To ask something else, "
+                         "add --provider claude / gpt / deepseek.")
 
-    print(f"任务：{args.task}\n")
+    print(f"Task: {args.task}\n")
     answer, messages, usage = run_agent(args.task, args.provider, args.model,
                                         mock=MockLLM(DEMO_SCRIPT), max_steps=args.max_steps)
-    print(f"\n   ✅ 最终答案：{answer}\n")
+    print(f"\n   ✅ Final answer: {answer}\n")
 
-    roles = " → ".join({"user": "用户", "assistant": "模型", "tool": "工具结果"}[m["role"]] for m in messages)
-    print(f"整个过程中，对话历史是这样一条一条长出来的：\n   {roles}")
-    print(f"   一共 {len(messages)} 条消息，调用模型 {sum(m['role'] == 'assistant' for m in messages)} 次，"
-          f"累计发送 {usage['input_tokens']} 个 token。")
+    roles = " → ".join({"user": "user", "assistant": "model", "tool": "tool result"}[m["role"]] for m in messages)
+    print(f"Here is how the conversation history grew, one message at a time:\n   {roles}")
+    print(f"   {len(messages)} messages in total, {sum(m['role'] == 'assistant' for m in messages)} model calls, "
+          f"{usage['input_tokens']} tokens sent in all.")
     print("""
-   每一轮，程序都把完整的历史（包括所有工具结果）重新发给模型（第五章讲过 API 是无状态的）。
-   模型决定下一步做什么；程序负责执行工具、把结果写回历史、决定什么时候停下来。
-   第二步那个"猜错文件名"很有代表性：agent 的价值不在于每一步都对，而在于能根据观察结果改正。
+   Every round, the program sends the whole history (including every tool result) to the model again
+   (Chapter 5 explained that the API is stateless).
+   The model decides what to do next; the program runs the tools, writes the results back into the history,
+   and decides when to stop.
+   The "wrong file name" moment at step 2 is typical: an agent's value isn't that every step is right,
+   but that it can correct itself based on what it observes.
 
-想一想：
-  1. 用 --max-steps 2 再跑一次，会发生什么？为什么一定要有步数上限？
-  2. 如果把第二步的错误信息改成只返回"错误"两个字，模型还能知道该怎么改正吗？
-  3. 这个任务如果写成固定流程（先搜索、再计算、再回答），还需要 agent 吗？什么样的任务才值得用 agent？""")
+Think about it:
+  1. Run it again with --max-steps 2. What happens? Why must there always be a step limit?
+  2. If the error message the model reads at step 2 were just the word "Error", could it still figure out
+     how to correct itself?
+  3. If you wrote this task as a fixed flow (search, then calculate, then answer), would you still need an agent?
+     What kind of task is worth using an agent for?""")
 
 
 if __name__ == "__main__":
     try:
         main()
     except RuntimeError as e:
-        raise SystemExit(f"出错了：{e}")
+        raise SystemExit(f"Error: {e}")

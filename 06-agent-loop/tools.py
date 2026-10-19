@@ -1,21 +1,22 @@
 """
-实验 2：给模型准备"工具"
-==========================
+Lab 2: Getting "tools" ready for the model
+==========================================
 
-模型只会输出文字。要让它"做事"，我们得提供工具，并用一份**说明书**告诉它每个工具能干什么、要传什么参数。
-这份说明书用 JSON Schema 写，三家 API（Claude、GPT、DeepSeek）都认这个格式。
+A model can only output text. To let it "do" things, we have to provide tools, plus a **manual** that tells it
+what each tool can do and what arguments to pass.
+The manual is written in JSON Schema, a format all three APIs (Claude, GPT, DeepSeek) accept.
 
-模型从来不会自己执行工具。它只是说"我想调用 calculator，参数是 {...}"，
-**真正执行的是我们的程序**，执行完再把结果告诉它。
+The model never runs a tool itself. It only says "I want to call calculator with arguments {...}";
+**our program does the actual running**, and then tells the model the result.
 
-这里定义四个工具：
-  calculator   安全地计算算术表达式
-  search_repo  在本仓库的文档和代码里搜索关键词
-  read_file    读取仓库里某个文件的几行
-  list_dir     列出仓库里某个目录下的文件
+Four tools are defined here:
+  calculator   safely evaluates an arithmetic expression
+  search_repo  searches this repo's docs and code for a keyword
+  read_file    reads a few lines of a file in the repo
+  list_dir     lists the files in a directory of the repo
 
-运行：python tools.py （打印模型看到的工具说明书，并演示几次调用，包括出错的情况）
-其他实验会 import 这里的 TOOLS 和 run_tool。
+Run: python tools.py  (prints the tool manual the model sees, and demos a few calls, including ones that fail)
+Other labs import TOOLS and run_tool from here.
 """
 
 import ast
@@ -23,47 +24,51 @@ import json
 import operator
 from pathlib import Path
 
-REPO = Path(__file__).resolve().parents[1]          # 工具只能在本仓库里活动
+REPO = Path(__file__).resolve().parents[1]          # the tools can only work inside this repo
 TEXT_SUFFIXES = {".md", ".py", ".txt", ".csv"}
 
 TOOLS = [
     {
         "name": "calculator",
-        "description": "计算一个算术表达式，支持 + - * / ** 和括号。例如 '26.2 - 15.3'。",
+        "description": "Evaluates an arithmetic expression. Supports + - * / ** and parentheses, e.g. '26.2 - 15.3'.",
         "parameters": {
             "type": "object",
-            "properties": {"expression": {"type": "string", "description": "要计算的算术表达式"}},
+            "properties": {"expression": {"type": "string", "description": "The arithmetic expression to evaluate"}},
             "required": ["expression"],
         },
     },
     {
         "name": "search_repo",
-        "description": "在 agent-lab 仓库的所有文档和代码里搜索一个关键词，返回匹配的行（文件路径:行号: 内容），最多 8 条。",
+        "description": ("Searches all docs and code in the agent-lab repo for a keyword. "
+                        "Returns matching lines (file path:line number: content), at most 8."),
         "parameters": {
             "type": "object",
-            "properties": {"query": {"type": "string", "description": "要搜索的关键词，越具体越好"}},
+            "properties": {"query": {"type": "string",
+                                     "description": "The keyword to search for; the more specific, the better"}},
             "required": ["query"],
         },
     },
     {
         "name": "read_file",
-        "description": "读取仓库里一个文件的若干行。路径相对于仓库根目录，例如 '02-linear-models/README.md'。",
+        "description": ("Reads some lines of a file in the repo. The path is relative to the repo root, "
+                        "e.g. '02-linear-models/README.md'."),
         "parameters": {
             "type": "object",
             "properties": {
-                "path": {"type": "string", "description": "相对于仓库根目录的文件路径"},
-                "start": {"type": "integer", "description": "从第几行开始（从 1 开始），默认 1"},
-                "end": {"type": "integer", "description": "读到第几行（含），默认 start + 39"},
+                "path": {"type": "string", "description": "File path relative to the repo root"},
+                "start": {"type": "integer", "description": "Line to start from (counting from 1); default 1"},
+                "end": {"type": "integer", "description": "Last line to read (inclusive); default start + 39"},
             },
             "required": ["path"],
         },
     },
     {
         "name": "list_dir",
-        "description": "列出仓库里一个目录下的文件和子目录。路径相对于仓库根目录，'.' 表示根目录。",
+        "description": ("Lists the files and subdirectories of a directory in the repo. "
+                        "The path is relative to the repo root; '.' means the root."),
         "parameters": {
             "type": "object",
-            "properties": {"path": {"type": "string", "description": "相对于仓库根目录的目录路径"}},
+            "properties": {"path": {"type": "string", "description": "Directory path relative to the repo root"}},
             "required": ["path"],
         },
     },
@@ -71,16 +76,16 @@ TOOLS = [
 
 
 class ToolError(Exception):
-    """工具执行失败。错误信息会原样告诉模型，让它有机会改正。"""
+    """A tool failed. The error message is passed to the model as is, so it gets a chance to correct itself."""
 
 
-# ---------------------------------------------------------------- 工具的实现
+# ---------------------------------------------------------------- tool implementations
 _OPS = {ast.Add: operator.add, ast.Sub: operator.sub, ast.Mult: operator.mul,
         ast.Div: operator.truediv, ast.Pow: operator.pow, ast.USub: operator.neg, ast.UAdd: operator.pos}
 
 
 def calculator(expression):
-    """只允许数字和四则运算。不能用 eval：模型给的字符串可能包含任意代码。"""
+    """Only numbers and arithmetic are allowed. No eval: the string from the model could contain arbitrary code."""
     def ev(node):
         if isinstance(node, ast.Constant) and isinstance(node.value, (int, float)):
             return node.value
@@ -88,27 +93,28 @@ def calculator(expression):
             return _OPS[type(node.op)](ev(node.left), ev(node.right))
         if isinstance(node, ast.UnaryOp) and type(node.op) in _OPS:
             return _OPS[type(node.op)](ev(node.operand))
-        raise ToolError(f"不支持的表达式成分：{ast.dump(node)[:40]}")
+        raise ToolError(f"unsupported part of the expression: {ast.dump(node)[:40]}")
     try:
         value = ev(ast.parse(expression, mode="eval").body)
     except SyntaxError:
-        raise ToolError(f"表达式写错了：{expression!r}")
+        raise ToolError(f"invalid expression: {expression!r}")
     except ZeroDivisionError:
-        raise ToolError("除数不能为 0")
+        raise ToolError("division by zero")
     return str(round(value, 10))
 
 
 def _resolve(path):
-    """把模型给的相对路径转成真实路径，并确保它还在仓库里面（防止 ../../ 跑出去）。"""
+    """Turn the model's relative path into a real path, and make sure it is still inside the repo
+    (no escaping with ../../)."""
     target = (REPO / path).resolve()
     if target != REPO and REPO not in target.parents:
-        raise ToolError(f"不允许访问仓库以外的路径：{path}")
+        raise ToolError(f"access outside the repo is not allowed: {path}")
     return target
 
 
 def search_repo(query):
     if not query.strip():
-        raise ToolError("关键词不能为空")
+        raise ToolError("the keyword must not be empty")
     hits = []
     for f in sorted(REPO.rglob("*")):
         if f.suffix not in TEXT_SUFFIXES or ".git" in f.parts or "data" in f.parts:
@@ -118,24 +124,24 @@ def search_repo(query):
                 hits.append(f"{f.relative_to(REPO)}:{i}: {line.strip()[:120]}")
                 if len(hits) >= 8:
                     return "\n".join(hits)
-    return "\n".join(hits) if hits else f"没有找到包含 {query!r} 的内容"
+    return "\n".join(hits) if hits else f"no matches for {query!r}"
 
 
 def read_file(path, start=1, end=None):
     f = _resolve(path)
     if not f.is_file():
-        raise ToolError(f"文件不存在：{path}（可以先用 list_dir 或 search_repo 找一找）")
+        raise ToolError(f"file not found: {path} (try list_dir or search_repo to find it first)")
     lines = f.read_text(errors="ignore").splitlines()
     start = max(1, int(start))
     end = min(len(lines), int(end) if end else start + 39)
     body = "\n".join(f"{i}: {lines[i - 1]}" for i in range(start, end + 1))
-    return f"{path}（共 {len(lines)} 行，显示第 {start}～{end} 行）\n{body}"
+    return f"{path} ({len(lines)} lines in total, showing lines {start}–{end})\n{body}"
 
 
 def list_dir(path):
     d = _resolve(path)
     if not d.is_dir():
-        raise ToolError(f"目录不存在：{path}")
+        raise ToolError(f"directory not found: {path}")
     names = sorted(p.name + ("/" if p.is_dir() else "") for p in d.iterdir()
                    if not p.name.startswith(".") and p.name != "__pycache__")
     return "\n".join(names)
@@ -146,38 +152,38 @@ IMPLEMENTATIONS = {"calculator": calculator, "search_repo": search_repo,
 
 
 def check_args(tool, args):
-    """按 JSON Schema 做最基本的检查：必填参数在不在、类型对不对。"""
+    """The most basic check against the JSON Schema: are the required arguments there, and are the types right?"""
     schema = tool["parameters"]
     for name in schema.get("required", []):
         if name not in args:
-            raise ToolError(f"缺少必填参数：{name}")
+            raise ToolError(f"missing required argument: {name}")
     types = {"string": str, "integer": int, "number": (int, float)}
     for name, value in args.items():
         spec = schema["properties"].get(name)
         if spec is None:
-            raise ToolError(f"未知参数：{name}")
+            raise ToolError(f"unknown argument: {name}")
         if not isinstance(value, types[spec["type"]]):
-            raise ToolError(f"参数 {name} 应该是 {spec['type']}，收到的是 {type(value).__name__}")
+            raise ToolError(f"argument {name} should be {spec['type']}, got {type(value).__name__}")
 
 
 def run_tool(name, args, tools=TOOLS, implementations=IMPLEMENTATIONS):
-    """执行一个工具调用。返回 (结果文字, 是否出错)。出错不抛异常，而是把错误告诉模型。"""
+    """Run one tool call. Returns (result text, is_error). Errors don't raise; they are reported to the model."""
     tool = next((t for t in tools if t["name"] == name), None)
     if tool is None:
-        return f"没有叫 {name} 的工具。可用的工具：{', '.join(t['name'] for t in tools)}", True
+        return f"No tool called {name}. Available tools: {', '.join(t['name'] for t in tools)}", True
     try:
         check_args(tool, args)
         return implementations[name](**args), False
     except ToolError as e:
-        return f"出错了：{e}", True
+        return f"Error: {e}", True
 
 
 if __name__ == "__main__":
-    print("【1】模型看到的工具说明书（JSON Schema）：")
+    print("[1] The tool manual the model sees (JSON Schema):")
     print(json.dumps(TOOLS[0], ensure_ascii=False, indent=2))
-    print(f"   ……一共 {len(TOOLS)} 个工具：{', '.join(t['name'] for t in TOOLS)}\n")
+    print(f"   ...{len(TOOLS)} tools in total: {', '.join(t['name'] for t in TOOLS)}\n")
 
-    print("【2】我们的程序替模型执行工具：")
+    print("[2] Our program runs the tools on the model's behalf:")
     demos = [
         ("calculator", {"expression": "26.2 - 15.3"}),
         ("calculator", {"expression": "__import__('os').system('rm -rf /')"}),
@@ -192,18 +198,20 @@ if __name__ == "__main__":
         result, is_error = run_tool(name, args)
         flag = "❌" if is_error else "✅"
         first = result.splitlines()[0] if result else ""
-        more = f"（共 {len(result.splitlines())} 行）" if len(result.splitlines()) > 1 else ""
+        more = f"  (result: {len(result.splitlines())} lines)" if len(result.splitlines()) > 1 else ""
         print(f"   {flag} {name}({json.dumps(args, ensure_ascii=False)})")
         print(f"      → {first[:90]}{more}")
 
     print("""
-   注意那几个 ❌：
-   * 计算器不用 eval，所以"表达式"里藏的代码不会被执行；
-   * read_file 不允许用 ../ 跑出仓库；
-   * 参数名写错、调用不存在的工具，都会返回一条清楚的错误信息，而不是让程序崩溃。
-   模型看到错误信息后，通常能自己改正。这些"防护"是第七章 harness 的雏形。
+   Look at the ❌ lines:
+   * The calculator doesn't use eval, so code hidden in an "expression" is never run.
+   * read_file won't let you escape the repo with ../
+   * A misspelled argument name, or a call to a tool that doesn't exist, returns a clear error message
+     instead of crashing the program.
+   After seeing the error message, the model can usually correct itself. These "guards" are an early form
+   of the harness in Chapter 7.
 
-想一想：
-  1. 工具的 description 写得含糊（比如只写"搜索"），模型会犯什么错？
-  2. 为什么工具出错时，要把错误信息返回给模型，而不是直接抛异常结束程序？
-  3. 如果给模型一个能执行任意 shell 命令的工具，需要加哪些限制？""")
+Think about it:
+  1. If a tool's description is vague (say, just "search"), what mistakes will the model make?
+  2. Why should a tool error be returned to the model as a message, instead of raising and ending the program?
+  3. If you gave the model a tool that can run any shell command, what limits would you need to add?""")

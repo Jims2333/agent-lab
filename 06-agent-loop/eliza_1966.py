@@ -1,109 +1,107 @@
 """
-实验 1：迷你 ELIZA：1966 年的"心理医生"
-=========================================
+Lab 1: Mini ELIZA, the 1966 "therapist"
+=======================================
 
-1966 年，MIT 的魏岑鲍姆（Joseph Weizenbaum）写出了 ELIZA。它最有名的剧本 DOCTOR 扮演一位心理治疗师：
-找到你话里的关键词，套进预先写好的句式，再把问题抛回给你。它对你说的内容**一无所知**。
-可据魏岑鲍姆回忆，连他的秘书都请他离开房间，好和 ELIZA 单独"聊一会儿"。
+In 1966, Joseph Weizenbaum at MIT wrote ELIZA. Its most famous script, DOCTOR, played a psychotherapist:
+it found a keyword in what you said, dropped part of your words into a pre-written sentence pattern,
+and tossed the question back to you. It understood **nothing** of what you said.
+Yet, as Weizenbaum recalled, even his secretary asked him to leave the room so she could "chat" with ELIZA alone.
 
-这里用几十行代码做一个中文版。看完它是怎么工作的，再对比第 3 个实验里的 agent：
-  ELIZA：规则全是人写的，只会"说"，不会"做"
-  agent：由模型自己决定下一步，能调用工具改变外部世界
+Here we build a small version in a few dozen lines. Once you see how it works, compare it with the agent in Lab 3:
+  ELIZA: every rule is written by a person; it can only "talk," not "do"
+  agent: the model decides the next step itself, and can call tools that change the outside world
 
-运行：
-  python eliza_1966.py                # 看一段演示对话
-  python eliza_1966.py --interactive  # 自己和它聊
+Run:
+  python eliza_1966.py                # watch a demo conversation
+  python eliza_1966.py --interactive  # chat with it yourself
 """
 
 import argparse
 import random
 import re
 
-# 人称转换：你说"我的工作"，它要回"你的工作"
-REFLECT = [("我的", "你的"), ("我", "你"), ("你的", "我的"), ("你", "我")]
+# Pronoun reflection: you say "my job", it answers "your job"
+REFLECT = {"i": "you", "me": "you", "my": "your", "am": "are", "you": "me", "your": "my"}
 
-# 规则：（关键词模式, 回答模板）。{0} 会被替换成从你的话里截取的部分
+# Rules: (keyword pattern, reply templates). {0} is replaced by the part cut out of what you said
 RULES = [
-    (r"我(?:觉得|感觉)(.+)", ["你为什么觉得{0}？", "你经常觉得{0}吗？", "觉得{0}的时候，你会做什么？"]),
-    (r"我(?:想要|想)(.+)", ["如果真的{0}了，会怎么样？", "你为什么想{0}？"]),
-    (r"我是(.+)", ["你是{0}多久了？", "你觉得自己是{0}，是因为什么？"]),
-    (r"我很(.+)", ["你为什么很{0}？", "很{0}的时候，你会怎么办？"]),
-    (r"因为(.+)", ["这是真正的原因吗？", "还有别的原因吗？"]),
-    (r".*(妈妈|爸爸|家人|父母).*", ["和我说说你的家人吧。", "你和{0}的关系怎么样？"]),
-    (r".*(电脑|机器|程序|人工智能|AI).*", ["你担心机器吗？", "你觉得我真的能理解你吗？"]),
-    (r".*(对不起|抱歉).*", ["不用道歉。"]),
-    (r".+", ["请继续说。", "我明白了。这对你意味着什么？", "嗯……能多说一点吗？"]),
+    (r"I (?:feel|am feeling) (.+)", ["Why do you feel {0}?", "Do you often feel {0}?",
+                                     "When you feel {0}, what do you do?"]),
+    (r"I (?:want|would like) (.+)", ["What would it mean to you if you got {0}?", "Why do you want {0}?"]),
+    (r"I am (?:so|very|really) (.+)", ["Why are you so {0}?", "What do you do when you are so {0}?"]),
+    (r"I am (.+)", ["How long have you been {0}?", "Do you believe it is normal to be {0}?"]),
+    (r"Because (.+)", ["Is that the real reason?", "Don't any other reasons come to mind?"]),
+    (r".*\b(mother|father|family|parents)\b.*", ["Tell me more about your family.",
+                                              "How do you get along with your {0}?"]),
+    (r".*\b(computers?|machines?|programs?|AI)\b.*", ["Do computers worry you?",
+                                                    "Do you think I can really understand you?"]),
+    (r".*\b(sorry|apologize)\b.*", ["Please don't apologize."]),
+    (r".+", ["Please go on.", "I see. What does that suggest to you?", "Hmm... can you tell me more?"]),
 ]
 
 
 def reflect(text):
-    out, i = "", 0
-    while i < len(text):
-        for a, b in REFLECT:                         # 依次尝试替换（先长后短）
-            if text.startswith(a, i):
-                out += b
-                i += len(a)
-                break
-        else:
-            out += text[i]
-            i += 1
-    return out.strip("。！？!?，, ")
+    # swap the pronouns one word at a time ("my" → "your", "me" → "you", ...)
+    out = re.sub(r"[A-Za-z']+", lambda m: REFLECT.get(m.group().lower(), m.group()), text)
+    return out.strip(".!?,;: ")
 
 
 def pad(text, width):
-    """按显示宽度补空格（一个汉字占两格）。"""
+    """Pad with spaces to a display width (a CJK character takes two columns)."""
     return text + " " * max(width - sum(2 if ord(c) > 127 else 1 for c in text), 0)
 
 
 def respond(text, rng):
     for pattern, templates in RULES:
-        m = re.match(pattern, text.strip())
+        m = re.match(pattern, text.strip(), re.IGNORECASE)
         if m:
             parts = [reflect(g) for g in m.groups()]
             return rng.choice(templates).format(*parts), pattern
-    return "请继续说。", ".+"
+    return "Please go on.", ".+"
 
 
 def main():
-    parser = argparse.ArgumentParser(description="迷你 ELIZA")
+    parser = argparse.ArgumentParser(description="Mini ELIZA")
     parser.add_argument("--interactive", action="store_true")
     args = parser.parse_args()
     rng = random.Random(1966)
 
     if args.interactive:
-        print("ELIZA：你好，我是 ELIZA。说说你最近的心事吧。（输入空行退出）")
+        print("ELIZA: Hello, I am ELIZA. Tell me what has been on your mind lately. (Enter an empty line to quit)")
         while True:
             try:
-                text = input("你：").strip()
+                text = input("You:   ").strip()
             except EOFError:
                 break
             if not text:
                 break
-            print("ELIZA：" + respond(text, rng)[0])
+            print("ELIZA: " + respond(text, rng)[0])
         return
 
-    demo = ["我觉得最近学习压力很大。", "因为我想学会怎么做 AI agent。", "我是一个初学者。",
-            "我妈妈觉得我应该先打好基础。", "你说人工智能会取代程序员吗？", "对不起，我扯远了。"]
-    print("一段演示对话（右边是 ELIZA 匹配到的规则）：\n")
+    demo = ["I feel stressed about my studies lately.", "Because I want to learn how to build AI agents.",
+            "I am a beginner.", "My mother thinks I should learn the basics first.",
+            "Do you think AI will replace programmers?", "Sorry, I got off track."]
+    print("A demo conversation (on the right: the rule ELIZA matched):\n")
     for line in demo:
         reply, rule = respond(line, rng)
-        print(f"   你：   {line}")
-        print(f"   ELIZA：{pad(reply, 34)} ← 规则 {rule}")
+        print(f"   You:   {line}")
+        print(f"   ELIZA: {pad(reply, 51)} ← rule {rule}")
     print("""
-看起来像在认真倾听，其实它只做了三件事：
-  1. 找关键词（"我觉得""因为""妈妈"……）
-  2. 把你的话截一段下来，换一下人称（我 → 你）
-  3. 套进事先写好的句式
-它没有记忆，不懂你说的意思，也不能为你做任何事。
+It looks like it is listening carefully, but it only does three things:
+  1. Find a keyword ("I feel", "because", "mother", ...)
+  2. Cut out a piece of what you said and swap the pronouns (my → your)
+  3. Drop it into a sentence pattern written in advance
+It has no memory, doesn't understand what you mean, and can't do anything for you.
 
-魏岑鲍姆后来在《计算机能力与人类理性》（1976）里反思了这件事：
-人们会不由自主地把理解和情感投射到一台简单的程序上。这种现象后来被称为"ELIZA 效应"。
-今天和大模型聊天时，这个提醒依然有用。
+Weizenbaum later reflected on this in Computer Power and Human Reason (1976):
+people can't help projecting understanding and feelings onto a simple program. This became known as the "ELIZA effect."
+The warning is still useful today when you chat with a large language model.
 
-想一想：
-  1. 输入"我是被一部电影吓到的"，ELIZA 会说出什么奇怪的话？为什么？
-  2. 给 ELIZA 加一条规则，让它能回应"我讨厌……"。
-  3. ELIZA 和第 3 个实验里的 agent，最本质的区别是什么？（提示：谁决定下一步？能不能改变外部世界？）""")
+Think about it:
+  1. Type "I am telling you, it was a movie that scared me." What strange thing does ELIZA say? Why?
+  2. Add a rule so that ELIZA can respond to "I hate ...".
+  3. What is the most fundamental difference between ELIZA and the agent in Lab 3?
+     (Hint: who decides the next step? Can it change the outside world?)""")
 
 
 if __name__ == "__main__":

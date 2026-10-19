@@ -1,276 +1,276 @@
-# 第六章　Agent 循环：从"会说"到"会做"
+# Chapter 6 — The Agent Loop: From Talking to Doing
 
-> 第五章的大模型很会说话，但它说完就结束了：不能查资料，不能算数，不能改文件。
-> 这一章讲人类怎么花了将近六十年，让机器从"陪你聊天"走到"替你做事"，
-> 以及今天几乎所有 AI agent 共用的那个核心：一个简单的循环。
+> The large language models of Chapter 5 are great talkers, but once they finish talking, that's it: they can't look things up, can't do math, can't edit files.
+> This chapter is about how people spent nearly sixty years getting machines from "chatting with you" to "doing things for you,"
+> and about the core that almost every AI agent today shares: a simple loop.
 
-**怎么读这一章：** 先看故事，再跑实验，最后看[概念解释](#概念解释)。实验默认用假模型，不需要 API key。
+**How to read this chapter:** Read the stories first, then run the labs, and save the [Concepts](#concepts) for last. The labs use a mock model by default, so no API key is needed.
 
-| 年份 | 发生了什么 | 对应实验 / 概念 |
+| When | What happened | Lab / concept |
 |---|---|---|
-| 1966 | ELIZA：第一个让人"动了感情"的聊天程序 | 🧪 `eliza_1966.py` |
-| 1966–1972 | Shakey：第一个会规划自己行动的机器人 | 规划 |
-| 1968–1970 | SHRDLU：能听懂命令的积木世界 | — |
-| 2022 | ReAct：边想边做 | 🧪 `react_agent.py` |
-| 2023 | Toolformer 和函数调用 | 🧪 `tools.py` |
-| 2023 | SWE-bench：用真实的 GitHub 问题考 agent | — |
-| 2024–2025 | Computer Use 和 Claude Code | Agent 与 Workflow |
+| 1966 | ELIZA: the first chat program that people got emotionally attached to | 🧪 `eliza_1966.py` |
+| 1966–1972 | Shakey: the first robot that could plan its own actions | Planning |
+| 1968–1970 | SHRDLU: a blocks world that understood commands | — |
+| 2022 | ReAct: thinking while doing | 🧪 `react_agent.py` |
+| 2023 | Toolformer and function calling | 🧪 `tools.py` |
+| 2023 | SWE-bench: testing agents with real GitHub issues | — |
+| 2024–2025 | Computer Use and Claude Code | Agents vs. workflows |
 
 ---
 
-## 序幕　1966 年，MIT：请你出去一下
+## Prologue — 1966, MIT: Please Leave the Room
 
-1964 到 1966 年间，MIT 的计算机科学家**约瑟夫·魏岑鲍姆（Joseph Weizenbaum）** 写了一个叫 **ELIZA** 的程序。
-它最有名的剧本叫 DOCTOR，扮演一位心理治疗师：你说"我觉得很累"，它就问"你为什么觉得很累？"
-它的原理极其简单：找关键词，截取你的一部分原话，换一下人称，套进写好的句式。它对你在说什么**一无所知**。
+Between 1964 and 1966, MIT computer scientist **Joseph Weizenbaum** wrote a program called **ELIZA**.
+Its most famous script, DOCTOR, played a psychotherapist: you said "I feel tired," and it asked "Why do you feel tired?"
+How it worked was extremely simple: find a keyword, cut out part of your own words, swap the pronouns, and drop them into a pre-written sentence pattern. It had **no idea** what you were talking about.
 
-可人们的反应出乎魏岑鲍姆的意料。据他回忆，连他自己的秘书，一个看着他写出这个程序的人，
-在和 ELIZA 聊了几句之后，都请他离开房间，好让她和 ELIZA 单独谈谈。
+But people's reactions took Weizenbaum by surprise. As he recalled, even his own secretary, someone who had watched him write the program,
+asked him to leave the room after exchanging just a few lines with ELIZA, so that she could talk to it alone.
 
-这件事让魏岑鲍姆深感不安。他后来写道："我没有意识到……极短时间地接触一个相对简单的计算机程序，
-就能在相当正常的人身上引发强烈的妄想。"1976 年，他出版了《计算机能力与人类理性》，警告人们不要把理解和情感投射到机器身上。
-这种现象后来被称为 **ELIZA 效应**。
+This deeply disturbed Weizenbaum. He later wrote: "What I had not realized is that extremely short exposures to a relatively simple computer program
+could induce powerful delusional thinking in quite normal people." In 1976 he published *Computer Power and Human Reason*, warning people not to project understanding and feelings onto machines.
+The phenomenon later became known as the **ELIZA effect**.
 
-> 🧪 **动手**：运行 [`eliza_1966.py`](./eliza_1966.py)。几十行规则就能做出一个"心理医生"，再看看它在哪里露馅。
+> 🧪 **Try it**: run [`eliza_1966.py`](./eliza_1966.py). A few dozen lines of rules are enough to make a "therapist"; then see where it gives itself away.
 
-> 💡 伏笔：→ [ELIZA 效应](#9-eliza-效应)
-
----
-
-## 第一幕　1966–1972 年，斯坦福研究所：会想的机器人
-
-ELIZA 只会说。同一时期，在加州的斯坦福研究所（SRI），一个团队想让机器**在真实世界里行动**。
-
-他们造了一台机器人：底座上装着电视摄像头、测距仪和天线，走起路来摇摇晃晃，所以大家叫它 **Shakey**。
-Shakey 是第一个能**推理自己行动**的移动机器人。别的机器人需要人一步步告诉它怎么做，
-而你可以对 Shakey 说"去 D 房间，把 9 号积木推到 4 号门口"，它会自己把目标拆成一连串基本动作，
-规划路线，然后执行。
-
-为了 Shakey，研究者们发明了两样影响深远的东西：
-- **A\* 搜索算法**：今天的导航软件、游戏里的寻路，很多还在用它；
-- **STRIPS 规划器**：用"当前状态、目标状态、可用的动作"来自动推出行动步骤。
-
-1970 年，《生活》杂志称 Shakey 为"第一个电子人"。
-
-> 💡 伏笔：→ [规划](#7-规划)
+> 💡 Look ahead: → [The ELIZA effect](#9-the-eliza-effect)
 
 ---
 
-## 第二幕　1968–1970 年，MIT：积木世界
+## Act 1 — 1966–1972, Stanford Research Institute: A Robot That Thinks
 
-几乎同时，MIT 的研究生**特里·维诺格拉德（Terry Winograd）** 写出了 **SHRDLU**。
-它活在一个虚拟的"积木世界"里：桌上有大大小小、红红绿绿的积木和金字塔。你可以用英语对它说：
-"拿起那块大的红积木"，"把它放进盒子里"，"你为什么要拿那块绿的？"它不但能照做，还能理解"它"指的是什么，
-解释自己为什么这么做。
+ELIZA could only talk. Around the same time, at the Stanford Research Institute (SRI) in California, a team wanted a machine that could **act in the real world**.
 
-在当时，这看起来就像真正的智能。但 SHRDLU 的每一条知识、每一个语法规则都是人手写的。
-一离开那个小小的积木世界，它就什么都不会了。这类"手写规则"的系统很难扩展，也是第一章讲的 AI 寒冬的原因之一。
+They built a robot: a TV camera, a range finder and an antenna mounted on a base. It wobbled as it moved, so everyone called it **Shakey**.
+Shakey was the first mobile robot that could **reason about its own actions**. Other robots had to be told what to do step by step,
+but you could tell Shakey something like "go to room D and push block 9 to door 4," and it would break the goal down into a series of basic actions by itself,
+plan a route, and then carry it out.
 
-> 💡 伏笔：几十年后，大模型用"从数据里学"代替了"手写规则"，但"理解指令、规划步骤、动手执行"这个目标没有变。
+For Shakey, the researchers invented two things with a far-reaching influence:
+- **The A\* search algorithm**: much of today's navigation software and pathfinding in games still uses it;
+- **The STRIPS planner**: it automatically works out the steps to take from "the current state, the goal state, and the available actions."
 
----
+In 1970, *Life* magazine called Shakey the "first electronic person."
 
-## 第三幕　2022 年：边想边做
-
-大模型会说话之后，一个自然的问题是：能不能让它也像 Shakey 一样，自己决定下一步，再去执行？
-
-2022 年 10 月，普林斯顿大学的**姚顺雨（Shunyu Yao）** 和谷歌的合作者发表了 **ReAct**（Reasoning + Acting）。
-方法很简单：让模型交替输出"想法"和"行动"。
-- 想法：我需要先查一下 X；
-- 行动：调用搜索工具，查 X；
-- 观察：工具返回了一段文字；
-- 想法：根据这段文字，我还需要查 Y……
-
-在需要查资料的问答任务上，让模型通过一个简单的维基百科接口"边查边想"，明显减少了它凭空编造的情况。
-今天几乎所有的 agent，骨架都是这个 **思考 → 行动 → 观察** 的循环。
-
-> 🧪 **动手**：运行 [`react_agent.py`](./react_agent.py)。从零写一个 ReAct agent，看它怎么查仓库、用计算器、
-> 在猜错文件名之后自己改正，最后给出带出处的答案。
-
-> 💡 伏笔：→ [ReAct 循环](#4-react-循环)
+> 💡 Look ahead: → [Planning](#7-planning)
 
 ---
 
-## 第四幕　2023 年：给模型一份工具说明书
+## Act 2 — 1968–1970, MIT: The Blocks World
 
-ReAct 里的"行动"，最初是让模型在文字里写出特定格式的命令，再由程序去解析。这很容易出错：模型稍微写错一个括号，程序就看不懂了。
+At almost the same time, MIT graduate student **Terry Winograd** wrote **SHRDLU**.
+It lived in a virtual "blocks world": a table with blocks and pyramids, big and small, red and green. You could talk to it in plain English,
+with requests along the lines of *pick up the big red block*, *put it in the box*, or *why did you pick up the green one?* Not only would it do what you asked, it also understood what "it" referred to,
+and could explain why it had done something.
 
-2023 年 2 月，Meta 和庞培法布拉大学的研究者发表了 **Toolformer**：
-让模型自己学会在什么时候、以什么参数调用计算器、搜索引擎、翻译器等工具。
+At the time, this looked like real intelligence. But every piece of SHRDLU's knowledge and every grammar rule was written by hand.
+Outside that tiny blocks world, it couldn't do anything at all. Systems built on "hand-written rules" like this were hard to scale up, which was one of the causes of the AI winter described in Chapter 1.
 
-同年 6 月 13 日，OpenAI 在 API 里推出了**函数调用（function calling）**：
-开发者用 JSON Schema 描述有哪些函数、每个参数是什么；模型需要时，就输出一段结构化的 JSON，说明"我要调用哪个函数、参数是什么"。
-**模型只负责提出调用，真正执行的是开发者的程序。** 很快，Anthropic、谷歌等厂商也都提供了类似的"工具调用"功能，
-这成了 agent 的标准接口。
-
-> 🧪 **动手**：运行 [`tools.py`](./tools.py)。看模型看到的工具说明书长什么样，以及程序怎么安全地执行工具调用，
-> 包括挡住藏在"算术表达式"里的恶意代码。
-
-> 💡 伏笔：→ [工具调用](#2-工具调用)、[JSON Schema](#3-json-schema)
+> 💡 Look ahead: Decades later, large language models replaced "hand-written rules" with "learning from data," but the goal of "understand the instruction, plan the steps, carry them out" stayed the same.
 
 ---
 
-## 第五幕　2023 年：用真实的 GitHub 问题来考试
+## Act 3 — 2022: Thinking While Doing
 
-agent 到底有多大本事？2023 年 10 月，普林斯顿大学的研究者发布了 **SWE-bench**：
-从 12 个流行的 Python 开源项目里收集了 **2294 个真实的 GitHub 问题**，让 AI 去修改代码、修复它们，
-再用项目自带的测试来检验修得对不对。
+Once large language models could talk, a natural question was: could they also, like Shakey, decide the next step themselves and then carry it out?
 
-结果很不乐观：当时表现最好的模型 Claude 2，只解决了 **1.96%**。
-一年后的 2024 年 10 月，升级后的 Claude 3.5 Sonnet 在经过人工核验的子集（SWE-bench Verified）上已经能解决 49%。
-进步的原因，一半在模型本身，另一半在模型外面的那一套：工具怎么设计、反馈怎么给、出错了怎么办（第七章的主题）。
+In October 2022, **Shunyu Yao** of Princeton University and collaborators at Google published **ReAct** (Reasoning + Acting).
+The method is simple: have the model alternate between writing out "thoughts" and "actions."
+- Thought: I need to look up X first;
+- Action: call the search tool to look up X;
+- Observation: the tool returns a passage of text;
+- Thought: based on this text, I also need to look up Y...
 
----
+On question-answering tasks that require looking things up, letting the model "think while it searches" through a simple Wikipedia interface clearly cut down on how often it made things up.
+The skeleton of almost every agent today is this **think → act → observe** loop.
 
-## 第六幕　2024–2025 年：agent 走进电脑和终端
+> 🧪 **Try it**: run [`react_agent.py`](./react_agent.py). Write a ReAct agent from scratch and watch how it searches the repo, uses a calculator,
+> corrects itself after guessing the wrong file name, and finally gives an answer with its source.
 
-- **2024 年 10 月 22 日**，Anthropic 发布了 **Computer Use** 公测：Claude 可以看屏幕截图，移动鼠标、点击、打字，像人一样操作电脑；
-- **2024 年 12 月**，Anthropic 发表了《构建高效的 agent》。总结和几十个团队合作的经验后，他们的建议出奇地朴素：
-  最成功的系统往往不靠复杂的框架，而是由简单、可组合的模式搭起来的；**先用最简单的方案，只在确实需要时才增加复杂度**。
-  文章还区分了两种系统：由代码预先规定流程的 **workflow**，和由模型自己决定流程的 **agent**；
-- **2025 年 2 月 24 日**，Anthropic 发布了 **Claude Code** 研究预览版：一个在终端里运行的编程 agent，能读写文件、运行命令、
-  自己调试，直到把任务完成。
-
-从 1966 年只会"说"的 ELIZA，到今天能在你电脑上"做"事的 agent，中间隔着近六十年。核心的循环，却简单得可以用几十行代码写完。
-
-> 💡 伏笔：→ [Agent 与 Workflow](#8-agent-与-workflow)
+> 💡 Look ahead: → [The ReAct loop](#4-the-react-loop)
 
 ---
 
-## 尾声
+## Act 4 — 2023: Giving the Model a Tool Manual
 
-这一章的三个实验，对应 agent 的三个组成部分：
-1. **模型**：负责思考和决定下一步（`common/llm.py`）；
-2. **工具**：模型的"手和眼"，由程序真正执行（`tools.py`）；
-3. **循环**：把模型的决定变成行动，再把结果喂回去，直到完成（`react_agent.py`）。
+In ReAct, an "action" was originally a command that the model wrote out in a specific format inside its text, which the program then parsed. That broke easily: if the model got a single bracket wrong, the program couldn't understand it.
 
-但当 agent 能读写文件、执行命令时，新的问题就来了：它会不会删掉不该删的东西？上下文越来越长怎么办？
-它说"修好了"，怎么确认真的修好了？下一章讲包在 agent 外面的那一整套东西：**harness**。
+In February 2023, researchers at Meta and Pompeu Fabra University published **Toolformer**:
+the model teaches itself when to call tools such as a calculator, a search engine or a translator, and with what arguments.
+
+On June 13 of the same year, OpenAI added **function calling** to its API:
+developers describe in JSON Schema which functions exist and what each parameter is; when the model needs one, it outputs a piece of structured JSON saying "which function I want to call, and with what arguments."
+**The model only proposes the call; the developer's program does the actual running.** Soon Anthropic, Google and other providers offered similar "tool calling" features,
+and it became the standard interface for agents.
+
+> 🧪 **Try it**: run [`tools.py`](./tools.py). See what the tool manual the model sees looks like, and how the program runs tool calls safely,
+> including blocking malicious code hidden in an "arithmetic expression."
+
+> 💡 Look ahead: → [Tool calling](#2-tool-calling), [JSON Schema](#3-json-schema)
 
 ---
 
-## 动手：三个小实验
+## Act 5 — 2023: An Exam Made of Real GitHub Issues
+
+Just how capable are agents? In October 2023, researchers at Princeton University released **SWE-bench**:
+**2,294 real GitHub issues** collected from 12 popular open-source Python projects. The AI has to change the code to fix them,
+and then the projects' own tests check whether each fix is right.
+
+The results were sobering: the best model at the time, Claude 2, solved only **1.96%**.
+A year later, in October 2024, the upgraded Claude 3.5 Sonnet could already solve 49% on a human-verified subset (SWE-bench Verified).
+Half of the progress came from the models themselves; the other half came from everything around the model: how the tools are designed, how feedback is given, what happens when something goes wrong (the subject of Chapter 7).
+
+---
+
+## Act 6 — 2024–2025: Agents Move into Computers and Terminals
+
+- **October 22, 2024**: Anthropic released **Computer Use** as a public beta: Claude can look at screenshots, move the mouse, click and type, operating a computer the way a person does;
+- **December 2024**: Anthropic published *Building effective agents*. Summing up their experience working with dozens of teams, their advice was surprisingly plain:
+  the most successful systems usually don't rely on complex frameworks, but are built from simple, composable patterns; **start with the simplest solution, and add complexity only when it is truly needed**.
+  The article also distinguishes two kinds of systems: **workflows**, where code lays out the flow in advance, and **agents**, where the model decides the flow itself;
+- **February 24, 2025**: Anthropic released a research preview of **Claude Code**: a coding agent that runs in the terminal and can read and write files, run commands,
+  and debug on its own until the task is done.
+
+From ELIZA in 1966, which could only "talk," to today's agents that can "do" things on your computer, nearly sixty years have passed. Yet the core loop is simple enough to write in a few dozen lines of code.
+
+> 💡 Look ahead: → [Agents vs. workflows](#8-agents-vs-workflows)
+
+---
+
+## Epilogue — Model, Tools, Loop
+
+The three labs in this chapter match the three parts of an agent:
+1. **The model**: does the thinking and decides the next step (`common/llm.py`);
+2. **The tools**: the model's "hands and eyes," actually run by the program (`tools.py`);
+3. **The loop**: turns the model's decisions into actions and feeds the results back in, until the job is done (`react_agent.py`).
+
+But once an agent can read and write files and run commands, new problems appear: will it delete something it shouldn't? What do you do as the context keeps getting longer?
+When it says "fixed it," how do you make sure it really is fixed? The next chapter is about the whole layer wrapped around the agent: the **harness**.
+
+---
+
+## Labs
 
 ```bash
-python eliza_1966.py                  # 1966：迷你 ELIZA（--interactive 可以自己聊）
-python tools.py                       # 工具说明书和安全执行
-python react_agent.py                 # 从零写一个 ReAct agent（默认用假模型）
+python eliza_1966.py                  # 1966: mini ELIZA (use --interactive to chat with it yourself)
+python tools.py                       # the tool manual and safe execution
+python react_agent.py                 # a ReAct agent from scratch (uses the mock model by default)
 
-# 换成真实模型，问任何关于这个仓库的问题（需要 API key）
-python react_agent.py --provider claude --task "第三章的 mlp_moons.py 用了几个隐藏层？每层多少个神经元？"
-python react_agent.py --provider deepseek --task "这个仓库一共有几章？每章的标题是什么？"
+# Switch to a real model and ask anything about this repo (needs an API key)
+python react_agent.py --provider claude --task "How many hidden layers does mlp_moons.py in Chapter 3 use? How many neurons does each layer have?"
+python react_agent.py --provider deepseek --task "How many chapters does this repo have? What is each chapter's title?"
 ```
 
-| 实验 | 你应该看到 | 思考题（脚本末尾也有） |
+| Lab | What you should see | Think about it (also at the end of each script) |
 |---|---|---|
-| `eliza_1966.py` | 每句回答都能追溯到一条手写规则；"我是被一部电影吓到的"会被套成一句怪话 | ELIZA 和 agent 最本质的区别是什么？ |
-| `tools.py` | 模型看到的 JSON Schema；藏着代码的"算术表达式"、`../` 路径、写错的参数都被挡下 | 为什么出错时要把错误信息告诉模型？ |
-| `react_agent.py` | 4 步完成任务：猜错文件 → 改用搜索 → 用计算器 → 带出处的答案（10.9 个百分点） | 什么样的任务才值得用 agent？ |
+| `eliza_1966.py` | Every reply can be traced back to a hand-written rule; "I am telling you, it was a movie that scared me." gets forced into a strange sentence | What is the most fundamental difference between ELIZA and an agent? |
+| `tools.py` | The JSON Schema the model sees; an "arithmetic expression" hiding code, a `../` path and a misspelled argument are all blocked | Why should error messages be passed back to the model? |
+| `react_agent.py` | The task is done in 4 steps: wrong file guess → switches to search → uses the calculator → answer with a source (10.9 percentage points) | What kind of task is worth using an agent for? |
 
-关于真实模型模式：agent 循环通过 `common/llm.py` 调用真实模型，这条路径我用模拟 API 服务器测试过，但没有用真实的 API key 跑过。
+About real-model mode: the agent loop calls real models through `common/llm.py`. I tested this path against a mock API server, but have not run it with a real API key.
 
 ---
 
-## 概念解释
+## Concepts
 
 ### 1. Agent
 
-教科书里的经典定义是：能**感知环境**、并**采取行动**来达成目标的系统。
-在大模型时代，agent 通常指：**大模型 + 工具 + 循环**，并且由**模型自己决定**下一步做什么、什么时候结束。
+The classic textbook definition: a system that can **perceive its environment** and **take actions** to achieve a goal.
+In the era of large language models, "agent" usually means **an LLM + tools + a loop**, where **the model itself decides** what to do next and when to stop.
 
-📖 登场：[第一幕](#第一幕19661972-年斯坦福研究所会想的机器人)、[第三幕](#第三幕2022-年边想边做)
+📖 First appears in: [Act 1](#act-1--19661972-stanford-research-institute-a-robot-that-thinks), [Act 3](#act-3--2022-thinking-while-doing)
 
-### 2. 工具调用
+### 2. Tool Calling
 
-也叫函数调用（function calling）。流程是：
-1. 你在请求里附上一份工具清单（名字、说明、参数格式）；
-2. 模型如果觉得需要，就在回复里给出结构化的调用请求：哪个工具、什么参数；
-3. **你的程序**执行这个工具，把结果作为一条新消息发回给模型；
-4. 模型根据结果继续回答，或者继续调用工具。
+Also called function calling. Here's how it goes:
+1. You attach a list of tools to the request (names, descriptions, parameter formats);
+2. If the model thinks it needs one, its reply contains a structured call request: which tool, with what arguments;
+3. **Your program** runs the tool and sends the result back to the model as a new message;
+4. The model continues its answer based on the result, or calls more tools.
 
-记住：**模型从不亲自执行任何东西**。执行权始终在你的程序手里，这也是所有安全措施的落脚点。
+Remember: **the model never runs anything itself**. The power to execute always stays with your program, and that's where every safety measure is anchored.
 
-📖 登场：[第四幕](#第四幕2023-年给模型一份工具说明书)　🧪 `tools.py`
+📖 First appears in: [Act 4](#act-4--2023-giving-the-model-a-tool-manual)　🧪 `tools.py`
 
 ### 3. JSON Schema
 
-一种描述"JSON 数据应该长什么样"的标准格式：有哪些字段、每个字段是什么类型、哪些是必填的。
-工具说明书用它来告诉模型参数的格式，程序也可以用它来检查模型给的参数对不对（`tools.py` 里的 `check_args`）。
+A standard format for describing "what a piece of JSON data should look like": which fields it has, what type each field is, and which ones are required.
+A tool manual uses it to tell the model the format of the arguments, and the program can use it to check whether the model's arguments are right (`check_args` in `tools.py`).
 
-**说明文字（description）非常重要**：模型完全靠它来判断什么时候该用这个工具、该怎么填参数。写得越具体，模型越不容易用错。
+**The description text matters a lot**: the model relies entirely on it to decide when to use the tool and how to fill in the arguments. The more specific it is, the less likely the model is to misuse the tool.
 
 🧪 `tools.py`
 
-### 4. ReAct 循环
+### 4. The ReAct Loop
 
 ```
-while 没有完成 且 没超过步数上限:
-    回复 = 模型(完整的历史)
-    把回复加进历史
-    if 回复里没有工具调用:
-        return 回复（最终答案）
-    for 每个工具调用:
-        结果 = 执行工具
-        把结果加进历史
+while not done and under the step limit:
+    reply = model(the full history)
+    add reply to the history
+    if reply has no tool calls:
+        return reply (the final answer)
+    for each tool call:
+        result = run the tool
+        add result to the history
 ```
-因为 API 是无状态的（第五章），每一轮都要把完整的历史（包括所有的工具结果）重新发给模型。
+Because the API is stateless (Chapter 5), every round has to send the full history (including every tool result) to the model again.
 
-📖 登场：[第三幕](#第三幕2022-年边想边做)　🧪 `react_agent.py`
+📖 First appears in: [Act 3](#act-3--2022-thinking-while-doing)　🧪 `react_agent.py`
 
-### 5. 工具结果与错误处理
+### 5. Tool Results and Error Handling
 
-工具出错时，**不要让程序崩溃，而是把清楚的错误信息当作工具结果返回给模型**（并标记为出错）。
-好的错误信息会告诉模型哪里错了、可以怎么改，比如"文件不存在，可以先用 list_dir 找一找"。
-实验 3 里的 agent，正是读到这样的信息后，才从"猜文件名"改成了"搜索"。
+When a tool fails, **don't let the program crash; return a clear error message to the model as the tool result** (and mark it as an error).
+A good error message tells the model what went wrong and how it might fix it, for example "file not found; try list_dir to find it first."
+The agent in Lab 3 switched from "guessing the file name" to "searching" precisely after reading a message like that.
 
 🧪 `react_agent.py`
 
-### 6. 停止条件
+### 6. Stopping Conditions
 
-agent 必须知道什么时候停下来：
-- **正常结束**：模型不再调用工具，直接给出答案；
-- **步数上限**：防止它陷入死循环，或者在一个做不到的任务上无限尝试；
-- **预算上限**：token 或费用用完了就停（第七章）；
-- **人工中断**：用户随时可以叫停。
+An agent has to know when to stop:
+- **Normal finish**: the model stops calling tools and gives its answer directly;
+- **Step limit**: keeps it from getting stuck in an endless loop, or trying forever at a task it can't do;
+- **Budget limit**: stop when the tokens or the money run out (Chapter 7);
+- **Human interrupt**: the user can call a halt at any time.
 
 🧪 `react_agent.py --max-steps 2`
 
-### 7. 规划
+### 7. Planning
 
-把一个大目标拆成一串可以执行的小步骤。Shakey 用 STRIPS 这样的符号规划器，从"状态 + 目标 + 可用动作"推出步骤；
-今天的大模型 agent 用语言来规划，常见两种风格：
-- **先规划，再执行**：先列出完整计划，再一步步做；
-- **边想边做**（ReAct）：每一步根据最新的观察决定下一步。
+Breaking a big goal into a series of small steps that can be carried out. Shakey used a symbolic planner like STRIPS to derive the steps from "state + goal + available actions";
+today's LLM agents plan in language, usually in one of two styles:
+- **Plan first, then execute**: write out the full plan, then work through it step by step;
+- **Think while doing** (ReAct): decide each next step based on the latest observation.
 
-实践中两者经常结合：先有一个粗略的计划，执行中再随时调整。
+In practice the two are often combined: start with a rough plan, then adjust it as you go.
 
-📖 登场：[第一幕](#第一幕19661972-年斯坦福研究所会想的机器人)
+📖 First appears in: [Act 1](#act-1--19661972-stanford-research-institute-a-robot-that-thinks)
 
-### 8. Agent 与 Workflow
+### 8. Agents vs. Workflows
 
-Anthropic 在《构建高效的 agent》里做了一个很有用的区分：
-- **Workflow（工作流）**：大模型和工具按**代码里预先写好的路径**执行，比如"先翻译，再摘要，再检查"；
-- **Agent**：**模型自己决定**调用什么工具、走几步、什么时候结束。
+In *Building effective agents*, Anthropic draws a very useful distinction:
+- **Workflow**: LLMs and tools run along **a path written into the code in advance**, for example "translate, then summarize, then check";
+- **Agent**: **the model itself decides** which tools to call, how many steps to take, and when to stop.
 
-Workflow 更可控、更便宜、更容易调试；agent 更灵活，适合步骤无法事先确定的开放性任务。
-经验法则：**能用 workflow 解决的，就不要用 agent**。第八章会讲几种常用的 workflow 模式和多 agent 模式。
+Workflows are more controllable, cheaper and easier to debug; agents are more flexible and suit open-ended tasks whose steps can't be known in advance.
+Rule of thumb: **if a workflow can solve it, don't use an agent**. Chapter 8 covers several common workflow patterns and multi-agent patterns.
 
-📖 登场：[第六幕](#第六幕20242025-年agent-走进电脑和终端)
+📖 First appears in: [Act 6](#act-6--20242025-agents-move-into-computers-and-terminals)
 
-### 9. ELIZA 效应
+### 9. The ELIZA Effect
 
-人们会不由自主地认为计算机程序"理解"了自己，甚至对它产生感情，哪怕程序本身非常简单。
-今天的大模型说话自然得多，这个效应也强得多。使用 AI 时，要记得区分"它说得像懂了"和"它真的做对了"，
-这也是为什么 agent 的结果需要检验（第七章的"反馈回路"）。
+People can't help believing that a computer program "understands" them, and may even develop feelings for it, however simple the program actually is.
+Today's large language models talk far more naturally, so the effect is much stronger. When you use AI, remember to tell apart "it sounds like it understood" and "it actually got it right."
+That is also why an agent's results need to be checked (the "feedback loop" in Chapter 7).
 
-📖 登场：[序幕](#序幕1966-年mit请你出去一下)　🧪 `eliza_1966.py`
+📖 First appears in: [Prologue](#prologue--1966-mit-please-leave-the-room)　🧪 `eliza_1966.py`
 
 ---
 
-## 参考资料
+## References
 
-- Wikipedia, [ELIZA](https://en.wikipedia.org/wiki/ELIZA)；J. Weizenbaum, *ELIZA—A Computer Program for the Study of Natural Language Communication between Man and Machine*, *Communications of the ACM*, 1966；*Computer Power and Human Reason*, 1976
-- Computer History Museum, [Shakey the robot](https://www.computerhistory.org/revolution/artificial-intelligence-robotics/13/289)；IEEE, [Milestones: Shakey, the World's First Mobile, Intelligent Robot, 1972](https://ieeemilestones.ethw.org/Milestones:Shakey:_The_World%E2%80%99s_First_Mobile,_Intelligent_Robot,_1972)
+- Wikipedia, [ELIZA](https://en.wikipedia.org/wiki/ELIZA); J. Weizenbaum, *ELIZA—A Computer Program for the Study of Natural Language Communication between Man and Machine*, *Communications of the ACM*, 1966; *Computer Power and Human Reason*, 1976
+- Computer History Museum, [Shakey the robot](https://www.computerhistory.org/revolution/artificial-intelligence-robotics/13/289); IEEE, [Milestones: Shakey, the World's First Mobile, Intelligent Robot, 1972](https://ieeemilestones.ethw.org/Milestones:Shakey:_The_World%E2%80%99s_First_Mobile,_Intelligent_Robot,_1972)
 - Wikipedia, [SHRDLU](https://en.wikipedia.org/wiki/SHRDLU)
 - S. Yao et al., [ReAct: Synergizing Reasoning and Acting in Language Models](https://arxiv.org/abs/2210.03629), 2022
 - T. Schick et al., *Toolformer: Language Models Can Teach Themselves to Use Tools*, 2023
@@ -278,8 +278,8 @@ Workflow 更可控、更便宜、更容易调试；agent 更灵活，适合步�
 - C. E. Jimenez et al., [SWE-bench: Can Language Models Resolve Real-World GitHub Issues?](https://arxiv.org/abs/2310.06770), 2023
 - Anthropic, *Introducing computer use, a new Claude 3.5 Sonnet, and Claude 3.5 Haiku*, 2024-10-22
 - Anthropic, [Building effective agents](https://www.anthropic.com/research/building-effective-agents), 2024-12
-- Anthropic, [Claude Code 发布说明](https://docs.anthropic.com/en/release-notes/claude-code)
+- Anthropic, [Claude Code release notes](https://docs.anthropic.com/en/release-notes/claude-code)
 
 ---
 
-⬅️ [第五章 大语言模型与 API](../05-llm-and-api/)　|　[返回目录](../README.md)　|　➡️ [第七章 Harness 工程](../07-harness/)
+⬅️ [Chapter 5 · Large Language Models and APIs](../05-llm-and-api/) | [Contents](../README.md) | ➡️ [Chapter 7 · Harness Engineering](../07-harness/)
