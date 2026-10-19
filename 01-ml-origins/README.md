@@ -1,642 +1,642 @@
-# 第一章　机器学习从哪里来
+# Chapter 1 — Where Machine Learning Came From
 
-> 1958 年 7 月 8 日，《纽约时报》登了一条新闻，标题是：
-> **"New Navy Device Learns By Doing"**（海军新装置：边做边学）。
+> On July 8, 1958, *The New York Times* ran a story under the headline
+> **"New Navy Device Learns By Doing"**.
 >
-> 六十多年后，我们用同样的方式开始这个仓库。
+> More than sixty years later, we start this repo the same way.
 
-这一章讲的是：机器是怎么一步步学会"学习"的。从 1943 年一个流浪少年写下的神经元方程，
-到 2026 年一群 AI agent 分工合作写代码。中间有天才、有赌局、有寒冬，也有一个人在卧室里用两块游戏显卡改变了历史。
+This chapter is about how machines learned, step by step, to "learn." It runs from the neuron equations a runaway teenager wrote down in 1943
+to a team of AI agents splitting up the work of writing code in 2026. Along the way there are geniuses, gambles and winters, and one person who changed history with two gaming graphics cards in his bedroom.
 
-**怎么读这一章：**
+**How to read this chapter:**
 
-1. 先看故事（第 1～12 幕）。所有人名、时间、地点、引语都有出处，列在文末的参考资料里。
-   只有一个来源的轶事，我会写明"据某某回忆/报道"。
-2. 再跑三个小实验，亲手复现 1958、1969、1986 年的三个关键时刻。
-3. 最后看[概念解释](#概念解释)。故事里埋下的每个概念，都在那里展开讲。
+1. Read the stories first (Acts 1–12). Every name, date, place and quote has a source, listed in the References at the end.
+   For anecdotes that rest on a single source, I say so: "according to X's recollection" or "as X reported."
+2. Then run the three small labs and recreate three key moments, from 1958, 1969 and 1986, yourself.
+3. Save the [Concepts](#concepts) for last. Every concept planted in the stories is explained in full there.
 
-| 年份 | 发生了什么 | 对应实验 / 概念 |
+| When | What happened | Lab / concept |
 |---|---|---|
-| 1943 | McCulloch 和 Pitts 用逻辑描述神经元 | 神经元 |
-| 1949 | Hebb 提出"一起放电的神经元，连接会变强" | 学习规则 |
-| 1950 | 图灵发表《计算机器与智能》 | — |
-| 1956 | 达特茅斯会议，"人工智能"得名 | — |
-| 1958 | Rosenblatt 的感知机登上《纽约时报》 | 🧪 `perceptron_1958.py` |
-| 1959 | Samuel 的跳棋论文让"机器学习"这个词流传开来 | 机器学习的定义 |
-| 1969 | Minsky 和 Papert 出版《Perceptrons》 | 🧪 `xor_1969.py` |
-| 1973 | Lighthill 报告，第一次 AI 寒冬 | — |
-| 1986 | 反向传播登上《Nature》 | 🧪 `backprop_1986.py` |
-| 1989 | LeCun 用卷积网络读手写邮编 | CNN |
-| 1997 | 深蓝击败卡斯帕罗夫 | 搜索 vs 学习 |
-| 2009 | ImageNet 首次亮相 | 数据 |
-| 2012 | AlexNet 夺冠，DNNresearch 被拍卖 | GPU、深度学习 |
-| 2014 | GAN 在酒吧里诞生 | 生成模型 |
-| 2016 | AlphaGo 对李世石，第 37 手 | 强化学习 |
-| 2017 | 《Attention Is All You Need》 | Transformer |
-| 2022 | ChatGPT 上线 | 大语言模型 |
-| 2023– | ReAct、AutoGPT、斯坦福小镇、多 agent、harness | Agent、Harness、多 Agent |
+| 1943 | McCulloch and Pitts describe the neuron with logic | Neuron |
+| 1949 | Hebb proposes that "neurons that fire together grow stronger connections" | Learning rule |
+| 1950 | Turing publishes *Computing Machinery and Intelligence* | — |
+| 1956 | The Dartmouth conference gives "artificial intelligence" its name | — |
+| 1958 | Rosenblatt's perceptron makes *The New York Times* | 🧪 `perceptron_1958.py` |
+| 1959 | Samuel's checkers paper makes the term "machine learning" catch on | Defining machine learning |
+| 1969 | Minsky and Papert publish *Perceptrons* | 🧪 `xor_1969.py` |
+| 1973 | The Lighthill Report, the first AI winter | — |
+| 1986 | Backpropagation appears in *Nature* | 🧪 `backprop_1986.py` |
+| 1989 | LeCun uses a convolutional network to read handwritten ZIP codes | CNN |
+| 1997 | Deep Blue defeats Kasparov | Search vs. learning |
+| 2009 | ImageNet makes its debut | Data |
+| 2012 | AlexNet wins, and DNNresearch is auctioned off | GPUs, deep learning |
+| 2014 | The GAN is born in a bar | Generative models |
+| 2016 | AlphaGo vs. Lee Sedol, Move 37 | Reinforcement learning |
+| 2017 | *Attention Is All You Need* | Transformer |
+| 2022 | ChatGPT launches | Large language models |
+| 2023– | ReAct, AutoGPT, Stanford's Smallville, multi-agent systems, harnesses | Agents, harness, multi-agent |
 
 ---
 
-## 序幕　1958 年 7 月，华盛顿："边做边学"的机器
+## Prologue — Jul 1958, Washington: A Machine That "Learns By Doing"
 
-1958 年 7 月 7 日，美国海军研究办公室在华盛顿的美国气象局召开了一场发布会。
-台上的主角是康奈尔航空实验室一位 29 岁的心理学家，**弗兰克·罗森布拉特（Frank Rosenblatt）**，
-道具是一台重达 5 吨、塞满一个房间的 IBM 704 计算机。
+On July 7, 1958, the US Office of Naval Research held a press conference at the US Weather Bureau in Washington.
+The star of the show was a 29-year-old psychologist from the Cornell Aeronautical Laboratory, **Frank Rosenblatt**.
+His prop was an IBM 704 computer that weighed 5 tons and filled a whole room.
 
-演示内容听起来很简单：给机器看一张张打孔卡片，有的在左边打了标记，有的在右边。
-没有人写规则告诉它"左"和"右"是什么。看了 50 张卡片之后，**它自己学会了分辨左右**。
+The demo sounded simple: show the machine one punched card after another, some marked on the left, some on the right.
+Nobody wrote rules telling it what "left" and "right" meant. After 50 cards, **it had learned on its own to tell left from right**.
 
-第二天，《纽约时报》的标题是"New Navy Device Learns By Doing; Psychologist Shows Embryo of Computer
-Designed to Read and Grow Wiser"（海军新装置边做边学；心理学家展示能阅读、会变聪明的计算机雏形）。
-报道里还写道，海军期待它将来"能走、能说、能看、能写、能自我复制，并意识到自己的存在"。
-罗森布拉特本人称它是"第一台能够产生原创想法的机器"。《纽约客》的评价更夸张：
-"在我们看来，这是人类大脑有史以来第一个真正的对手。"
+The next day, the headline in *The New York Times* read "New Navy Device Learns By Doing; Psychologist Shows Embryo of Computer
+Designed to Read and Grow Wiser."
+The article also said the Navy expected it would one day "be able to walk, talk, see, write, reproduce itself and be conscious of its existence."
+Rosenblatt himself called it the first machine capable of having an original idea. *The New Yorker* went even further:
+in its view, this was the first serious rival to the human brain ever devised.
 
-这台机器叫 **感知机（Perceptron）**。要理解它为什么让人这么激动，又为什么后来跌得那么惨，
-我们得先回到 15 年前的芝加哥。
+The machine was called the **perceptron**. To understand why it got people so excited, and why it later fell so hard,
+we first have to go back 15 years, to Chicago.
 
-> 💡 伏笔：机器"学会"了，可它到底学到了什么？→ [模型与参数](#2-模型参数训练推理)
-
----
-
-## 第一幕　1943 年，芝加哥：流浪少年和神经元的逻辑
-
-**沃尔特·皮茨（Walter Pitts）** 1923 年出生在底特律一个贫穷的家庭。
-据他的朋友 Jerome Lettvin 回忆（Nautilus 杂志 2015 年的长文转述了这些故事）：
-12 岁那年，皮茨为了躲避街头的霸凌者钻进了公共图书馆，在那里发现了罗素和怀特海的《数学原理》。
-他在图书馆里待了三天，把这部近 2000 页的巨著从头读到尾，还找出了几处错误，写信寄给了罗素。
-罗素回信邀请他去剑桥读研究生，可他当时只有 12 岁。
-
-15 岁时，皮茨听说罗素要来芝加哥大学讲学，就离家出走去了芝加哥。
-他没有学籍，靠打零工过活，偷偷溜进教室听课，在那里认识了医学生 Lettvin。
-Lettvin 把他介绍给了神经生理学家 **沃伦·麦卡洛克（Warren McCulloch）**。
-麦卡洛克一直想用逻辑来解释大脑，听完这个少年的想法后被迷住了，干脆邀请他住进自己在郊区的家。
-
-1943 年，两人发表了论文《神经活动中内在思想的逻辑演算》。
-论文的核心想法是：**一个神经元可以看成一个开关**。它接收其他神经元传来的信号，
-信号加起来超过某个阈值，它就"放电"，否则就沉默。把这样的开关连成网络，就能计算任何逻辑命题。
-
-这是人类第一次用数学写下"人工神经元"。不过它有一个缺陷：网络里的连接是人设计好的，**不会学习**。
-
-皮茨后来的人生是个悲剧。他去了 MIT，和控制论之父维纳共事，被视为天才。
-1952 年，维纳突然和麦卡洛克以及所有与他相关的人断绝往来，其中也包括皮茨。皮茨深受打击，开始酗酒，始终没有拿到博士学位。据 Nautilus 记载，他烧掉了自己的博士论文和多年的笔记。
-1969 年 5 月，他在 46 岁时去世；同年 9 月，麦卡洛克也离开了人世。
-
-> 💡 伏笔：神经元 = 加权求和 + 阈值。→ [神经元与感知机](#7-神经元与感知机)
+> 💡 Look ahead: The machine "learned," but what exactly did it learn? → [Models and parameters](#2-models-parameters-training-inference)
 
 ---
 
-## 第二幕　1949–1950 年：学习的规则，思考的机器
+## Act 1 — 1943, Chicago: The Runaway Boy and the Logic of Neurons
 
-神经元有了，可大脑是怎么"学会"东西的？
+**Walter Pitts** was born in 1923 into a poor family in Detroit.
+According to his friend Jerome Lettvin's recollections (retold in a long 2015 article in *Nautilus*),
+at age 12 Pitts ducked into the public library to escape some street bullies, and there he found Russell and Whitehead's *Principia Mathematica*.
+He stayed in the library for three days, read the nearly 2,000-page work from cover to cover, found several mistakes in it, and wrote to Russell about them.
+Russell wrote back inviting him to come to Cambridge as a graduate student. But he was only 12.
 
-1949 年，加拿大心理学家 **唐纳德·赫布（Donald Hebb）** 在《行为的组织》一书中提出：
-如果神经元 A 反复参与让神经元 B 放电，那么 A 到 B 的连接就会变强。
-后人把它概括成一句顺口溜："**一起放电的神经元，会连在一起**"（cells that fire together, wire together）。
-这是第一次有人明确提出，学习就是**改变连接的强度**。
+At 15, Pitts heard that Russell was coming to lecture at the University of Chicago, so he ran away from home to Chicago.
+He wasn't enrolled. He got by on odd jobs and snuck into classes, and that's where he met a medical student, Lettvin.
+Lettvin introduced him to the neurophysiologist **Warren McCulloch**.
+McCulloch had long wanted to explain the brain with logic. He was captivated by the boy's ideas, and simply invited him to live in his house in the suburbs.
 
-一年后，1950 年，**艾伦·图灵（Alan Turing）** 在哲学期刊《Mind》上发表了《计算机器与智能》。
-文章第一句就是："我提议考虑这样一个问题：'机器能思考吗？'"
-他提出了著名的"模仿游戏"，也就是后来的图灵测试。
-这篇文章的最后一节标题是《学习机器》，图灵在其中写道：
-与其编一个程序去模拟成年人的大脑，**为什么不编一个模拟儿童大脑的程序，然后去教育它？**
+In 1943, the two published a paper, *A Logical Calculus of the Ideas Immanent in Nervous Activity*.
+Its core idea: **a neuron can be thought of as a switch**. It receives signals from other neurons.
+If the signals add up to more than some threshold, it "fires"; otherwise it stays silent. Connect such switches into a network, and you can compute any logical proposition.
 
-一位心理学家说"学习就是调整连接"，一位数学家说"不如造一台会学习的机器"。
-这两个想法，要等到罗森布拉特才真正合在一起。
+It was the first time anyone had written down an "artificial neuron" in mathematics. But it had one flaw: the connections in the network were designed by people. **It couldn't learn.**
 
-> 💡 伏笔：调整连接强度 = 调整参数。→ [模型与参数](#2-模型参数训练推理)
+The rest of Pitts's life was a tragedy. He went to MIT, worked with Norbert Wiener, the father of cybernetics, and was seen as a genius.
+In 1952, Wiener abruptly cut off McCulloch and everyone connected with him, Pitts included. Pitts was devastated. He started drinking heavily and never got his PhD. According to *Nautilus*, he burned his doctoral dissertation and years of notes.
+He died in May 1969, at 46. McCulloch died that September.
 
----
-
-## 第三幕　1956–1959 年：一个夏天，和一盘跳棋
-
-1955 年，四位年轻学者联名写了一份经费申请：
-**约翰·麦卡锡（John McCarthy）**、**马文·明斯基（Marvin Minsky）**、
-**纳撒尼尔·罗切斯特（Nathaniel Rochester）** 和信息论之父 **克劳德·香农（Claude Shannon）**。
-他们提议 1956 年夏天在达特茅斯学院开一个为期两个月、十个人参加的研讨会。
-**"人工智能"（Artificial Intelligence）这个词，就是在这份申请书里第一次出现的。**
-
-申请书的语气非常乐观："我们认为，只要精心挑选一组科学家，一起工作一个夏天，
-就能在其中一个或多个问题上取得重大进展。"这些问题包括：让机器使用语言、形成抽象概念、自我改进。
-（剧透：一个夏天远远不够，七十年后这些问题仍有一部分没解决。）
-
-同一时期，IBM 的工程师 **阿瑟·塞缪尔（Arthur Samuel）** 正在做一件更"接地气"的事：教计算机下跳棋。
-他的程序会记住下过的局面，以及这些局面最后导致了输还是赢，下得越多，就下得越好。
-1956 年 2 月 24 日，这个程序在电视上公开亮相。据阿尔伯塔大学跳棋 AI 团队整理的史料记载，
-IBM 总裁托马斯·沃森安排向股东展示这个程序，并预言这会让 IBM 股价上涨 15 个点，结果真的涨了。
-
-1959 年，塞缪尔发表论文《用跳棋游戏研究机器学习》。
-**"机器学习"（Machine Learning）这个词由此流传开来。**
-1962 年，他的程序战胜了自称"跳棋大师"的罗伯特·尼利（Robert Nealey）。
-
-有一句话常被当成塞缪尔给机器学习下的定义："让计算机在没有被明确编程的情况下获得学习能力的研究领域。"
-但这句话在他 1959 年的论文里**找不到原文**，是后人的概括。论文里的原话是：
-"让计算机从经验中学习，最终应该能省掉大量这类细致的编程工作。"
-
-> 💡 伏笔：从经验中学习、越下越好。→ [什么是机器学习](#1-什么是机器学习)、[三种学习方式](#3-三种学习方式)
+> 💡 Look ahead: Neuron = weighted sum + threshold. → [Neurons and the perceptron](#7-neurons-and-the-perceptron)
 
 ---
 
-## 第四幕　1958–1960 年：罗森布拉特和他的"电子大脑"
+## Act 2 — 1949–1950: A Rule for Learning, a Machine That Thinks
 
-现在回到序幕的那场发布会。
+So now there was a neuron. But how does the brain *learn* things?
 
-罗森布拉特把前面几个想法拼到了一起：用麦卡洛克-皮茨的神经元（加权求和 + 阈值），
-加上类似赫布的规则（根据经验调整连接强度），得到一台**会学习的机器**。
-他的学习规则只有一句话：**猜对了什么都不做，猜错了就调整权重**。
+In 1949, the Canadian psychologist **Donald Hebb** proposed in his book *The Organization of Behavior*
+that if neuron A repeatedly takes part in making neuron B fire, the connection from A to B grows stronger.
+Later generations boiled it down to a catchy rhyme: "**cells that fire together, wire together**."
+It was the first time anyone had clearly proposed that learning means **changing the strength of connections**.
 
-1958 年的演示其实是在 IBM 704 上"模拟"感知机。两年后的 1960 年 6 月 23 日，
-专门制造的硬件 **Mark I 感知机** 公开亮相：
-- 它的"眼睛"是 20×20 = 400 个光电管组成的阵列，相当于一块 400 像素的视网膜；
-- 每个连接的权重存在一个电位器里；
-- 学习时，**由电机去拧这些电位器**，每次猜错，就有电机转动。
+A year later, in 1950, **Alan Turing** published *Computing Machinery and Intelligence* in the philosophy journal *Mind*.
+Its very first sentence: "I propose to consider the question, 'Can machines think?'"
+He introduced the famous "imitation game," later known as the Turing test.
+The last section of the paper is titled "Learning Machines," and in it Turing wrote that
+instead of writing a program to simulate an adult's mind, **why not write one that simulates a child's, and then educate it?**
 
-今天，Mark I 感知机陈列在美国国家历史博物馆（史密森尼学会）。
+A psychologist said learning is adjusting connections; a mathematician said we might as well build a machine that learns.
+It would take Rosenblatt to truly bring these two ideas together.
 
-罗森布拉特是个多才多艺的人：他钢琴弹得很好，还参与建造过一座天文台。
-1971 年 7 月 11 日，他在切萨皮克湾的一次划船事故中去世，那天正好是他 43 岁的生日。
-
-> 🧪 **动手**：运行 [`perceptron_1958.py`](./perceptron_1958.py)，你会亲手复现这场演示：
-> 20×20 的卡片、50 次试验、学会分辨左右。然后再多给它看 1000 张卡片，看看会发生什么。
-
-> 💡 伏笔：在训练卡片上全对，不代表在新卡片上全对。→ [泛化与过拟合](#6-训练集测试集泛化与过拟合)
+> 💡 Look ahead: Adjusting connection strengths = adjusting parameters. → [Models and parameters](#2-models-parameters-training-inference)
 
 ---
 
-## 第五幕　1969–1973 年：一本书，一堵墙，一个冬天
+## Act 3 — 1956–1959: One Summer, and a Game of Checkers
 
-马文·明斯基，也就是达特茅斯会议的发起人之一，和罗森布拉特早就认识：
-他们都上过纽约的布朗克斯科学高中，明斯基比罗森布拉特低一个年级。
-两人对神经网络的看法截然相反，在学术会议上公开辩论过，私下据说一直保持着友好关系。
+In 1955, four young scholars co-signed a funding proposal:
+**John McCarthy**, **Marvin Minsky**,
+**Nathaniel Rochester**, and **Claude Shannon**, the father of information theory.
+They proposed a two-month, ten-person workshop at Dartmouth College in the summer of 1956.
+**The term "artificial intelligence" first appeared in this very proposal.**
 
-1969 年，明斯基和 MIT 的数学家 **西摩尔·派珀特（Seymour Papert）** 出版了《感知机》（Perceptrons）。
-这本书用严格的数学证明了：**单层感知机能做的事情非常有限**。
-最有名的例子是"异或"（XOR）：两个输入"不一样"时输出 1，"一样"时输出 0。
-就这么简单的规则，感知机永远学不会。
+The proposal was wildly optimistic: "We think that a significant advance can be made in one or more of these problems
+if a carefully selected group of scientists work on it together for a summer." The problems included getting machines to use language, form abstract concepts, and improve themselves.
+(Spoiler: one summer was nowhere near enough. Seventy years later, some of these problems are still unsolved.)
 
-这本书的影响远远超出了数学本身。神经网络研究的经费和热情大幅退潮，很多研究者转向别的方向。
-两年后，罗森布拉特意外去世，这个领域失去了最有力的捍卫者。
+Around the same time, IBM engineer **Arthur Samuel** was working on something more down-to-earth: teaching a computer to play checkers.
+His program remembered the positions it had played and whether they eventually led to a loss or a win. The more it played, the better it got.
+On February 24, 1956, the program made its public debut on television. According to historical material compiled by the University of Alberta's checkers AI team,
+IBM president Thomas Watson arranged for the program to be shown to shareholders and predicted it would push IBM's stock up 15 points. It did.
 
-寒冬不只降临在神经网络头上。1973 年，英国数学家 **詹姆斯·莱特希尔（James Lighthill）**
-受英国科学研究委员会委托，写了一份评估人工智能研究的报告。他的结论很严厉：
-"这个领域迄今为止的任何发现，都没有产生当初承诺的重大影响。"
-英国政府随后削减了大部分大学的 AI 研究经费。同年 6 月，BBC 还在英国皇家研究院录了一场电视辩论：
-莱特希尔一方，对面是 John McCarthy 等三位 AI 研究者。
+In 1959, Samuel published his paper *Some Studies in Machine Learning Using the Game of Checkers*.
+**That's how the term "machine learning" caught on.**
+In 1962, his program beat Robert Nealey, a self-described checkers master.
 
-后人把这段时期称为**第一次 AI 寒冬**。
+One sentence is often cited as Samuel's definition of machine learning: "Field of study that gives computers the ability to learn without being explicitly programmed."
+But **you won't find that sentence** in his 1959 paper. It's a later paraphrase. What the paper actually says is:
+"Programming computers to learn from experience should eventually eliminate the need for much of this detailed programming effort."
 
-> 🧪 **动手**：运行 [`xor_1969.py`](./xor_1969.py)。同一个感知机，学 AND 和 OR 都很快，
-> 学 XOR 却永远停不下来。你还会看到一张小图，解释为什么一条直线分不开 XOR。
-
-> 💡 伏笔：一条直线能分开吗？→ [线性可分与 XOR](#8-线性可分与-xor)
-
----
-
-## 第六幕　1986 年：误差往回传
-
-问题其实早就有人想到了答案：**多加一层**。在输入和输出之间加一层"隐藏层"，XOR 就能解决。
-真正的难题是：隐藏层的权重该怎么调？输出错了，到底该怪哪个隐藏神经元？
-
-1986 年，**大卫·鲁梅尔哈特（David Rumelhart）**、**杰弗里·辛顿（Geoffrey Hinton）** 和
-**罗纳德·威廉姆斯（Ronald Williams）** 在《Nature》上发表了一篇只有 4 页的论文：
-《通过反向传播误差来学习表示》。方法的名字叫**反向传播（Backpropagation）**：
-先算出输出的误差，再用微积分里的链式法则，把误差一层一层**往回传**，
-算出每个权重应该承担多少"责任"，然后各自调整一点点。
-
-公平地说，这个数学方法并不是他们第一个发明的。
-芬兰学生 Seppo Linnainmaa 在 1970 年的硕士论文里就提出了相关的自动求导方法，
-美国学者 Paul Werbos 在 1974 年的博士论文里也提出过用它训练神经网络。
-但 1986 年这篇论文清楚地展示了：**隐藏层会自己学出有用的中间特征**。神经网络由此复苏。
-
-辛顿本人的故事很有意思。他是逻辑学家**乔治·布尔（George Boole）的玄孙**，
-今天每台计算机都在用的"布尔逻辑"，就是以他的高祖父命名的。
-1987 年，他离开美国去了加拿大多伦多大学，原因之一是当时美国的 AI 研究大多由国防部资助，而他不想让自己的研究被用于战争。
-后来他和学生们在加拿大坚守了几十年冷门的神经网络，直到它们改变世界。
-2018 年，他与 Yoshua Bengio、Yann LeCun 共同获得图灵奖；2024 年，他与 John Hopfield 共同获得诺贝尔物理学奖。
-
-> 🧪 **动手**：运行 [`backprop_1986.py`](./backprop_1986.py)。只用 numpy 手写反向传播，
-> 看误差一点点降下来，最后打开黑箱，看看隐藏层自己发明了哪些中间概念。
-
-> 💡 伏笔：误差往回传，每个权重往下坡走一小步。→ [损失函数与梯度下降](#4-损失函数)、[反向传播](#10-反向传播)
+> 💡 Look ahead: Learning from experience, getting better the more it plays. → [What is machine learning](#1-what-is-machine-learning), [Three ways to learn](#3-three-ways-to-learn)
 
 ---
 
-## 第七幕　1989–1997 年：读支票的网络，和不会学习的冠军
+## Act 4 — 1958–1960: Rosenblatt and His "Electronic Brain"
 
-1988 年，年轻的法国人 **杨立昆（Yann LeCun）** 加入了美国的贝尔实验室。
-1989 年，他用反向传播训练了一种特殊的神经网络，去识别美国邮政手写的邮政编码。
-这种网络的设计灵感来自视觉皮层：它不是一下子看整张图，而是用小小的"窗口"在图上滑动，
-寻找边缘、拐角这些局部图案。这就是**卷积神经网络（CNN）**。
+Now back to the press conference from the Prologue.
 
-这项技术后来被用到了银行支票识别上。据 ACM 图灵奖的介绍，LeCun 参与开发的支票识别系统被 NCR 等公司广泛部署，
-在 1990 年代末到 2000 年代初，**美国超过 10% 的支票是由它读取的**。
+Rosenblatt pieced the earlier ideas together: take the McCulloch–Pitts neuron (weighted sum + threshold),
+add a Hebb-like rule (adjust connection strengths based on experience), and you get **a machine that learns**.
+His learning rule fits in one sentence: **if it guesses right, do nothing; if it guesses wrong, adjust the weights**.
 
-但在学术界，神经网络很快又失宠了。1995 年，Corinna Cortes 和 Vladimir Vapnik 发表了**支持向量机（SVM）**，
-它有漂亮的数学理论，在当时的数据规模下效果也更稳定。整个 2000 年代，"统计学习"是主流。
-据 LeCun、Hinton 等人后来回忆，那些年神经网络的论文经常被会议拒收。这有时被称为神经网络的"第二次冷遇"。
+The 1958 demo actually *simulated* the perceptron on the IBM 704. Two years later, on June 23, 1960,
+purpose-built hardware, the **Mark I Perceptron**, was unveiled to the public:
+- Its "eye" was an array of 20×20 = 400 photocells, in effect a 400-pixel retina;
+- Each connection's weight was stored in a potentiometer;
+- During learning, **electric motors turned those potentiometers**. Every wrong guess set a motor turning.
 
-同一时期，另一个"AI 赢了人类"的新闻震动了世界：1997 年 5 月，IBM 的**深蓝**在纽约击败了国际象棋世界冠军卡斯帕罗夫。
-不过，深蓝几乎**不会学习**。它靠的是专用芯片每秒搜索上亿个局面，再加上象棋专家手工编写的评估规则。
-它很强，但它的强是人"写"进去的，不是自己"学"出来的。
+Today the Mark I Perceptron is on display at the National Museum of American History (part of the Smithsonian Institution).
 
-> 💡 伏笔：→ [卷积神经网络](#11-卷积神经网络cnn)
+Rosenblatt was a man of many talents: he played the piano well and even helped build an observatory.
+On July 11, 1971, he died in a boating accident on Chesapeake Bay. It was his 43rd birthday.
 
----
+> 🧪 **Try it**: run [`perceptron_1958.py`](./perceptron_1958.py) and recreate the demo yourself:
+> 20×20 cards, 50 trials, learning to tell left from right. Then show it 1,000 more cards and see what happens.
 
-## 第八幕　2006–2009 年：一座数据的大坝
-
-2006 年，年轻的助理教授 **李飞飞（Fei-Fei Li）** 开始琢磨一个问题：
-大家都在拼算法，可如果**数据**才是瓶颈呢？孩子能认识世界，是因为他们看过海量的东西。
-
-她决定建一个前所未有的图像数据库：按照英语词汇库 WordNet 的结构，给成千上万种物体各收集上千张照片。
-这个工作量大到不可能靠学生完成。2007 年，团队找到了亚马逊的众包平台 Mechanical Turk：
-来自 167 个国家的约 4.9 万名工人，从 1.6 亿多张候选图片里筛选、标注。
-
-2009 年，**ImageNet** 在计算机视觉顶会 CVPR 上第一次亮相时有 320 万张图片，
-但它只是会场角落里的一张海报。从 2010 年开始，团队每年举办 ImageNet 图像识别挑战赛（ILSVRC）：
-1000 个类别，约 120 万张训练图片。前两年，冠军都是传统方法，进步很慢。
-
-> 💡 伏笔：数据越多，泛化越好。还记得实验 1 的第二幕吗？→ [泛化与过拟合](#6-训练集测试集泛化与过拟合)
+> 💡 Look ahead: Getting every training card right doesn't mean getting every new card right. → [Generalization and overfitting](#6-training-set-test-set-generalization-and-overfitting)
 
 ---
 
-## 第九幕　2012 年：卧室里的两块显卡，赌场里的拍卖
+## Act 5 — 1969–1973: A Book, a Wall, a Winter
 
-2012 年，辛顿在多伦多的两个学生 **亚历克斯·克里泽夫斯基（Alex Krizhevsky）** 和
-**伊利亚·苏茨克维（Ilya Sutskever）** 决定参加 ImageNet 挑战赛。
-是苏茨克维说服了克里泽夫斯基，而克里泽夫斯基恰好特别擅长榨干 GPU 的性能。
+Marvin Minsky, one of the organizers of the Dartmouth conference, had known Rosenblatt for a long time:
+both went to the Bronx High School of Science in New York, with Minsky one year behind Rosenblatt.
+The two held opposite views on neural networks and debated them publicly at academic conferences, but in private they reportedly stayed on friendly terms.
 
-他们的网络后来被称为 **AlexNet**。网络太大，一块显卡的显存装不下，只好拆开放在**两块 NVIDIA GTX 580 游戏显卡**上，
-训练了五六天。据计算机历史博物馆的介绍，这台机器就放在**克里泽夫斯基父母家里他的卧室**。
+In 1969, Minsky and the MIT mathematician **Seymour Papert** published *Perceptrons*.
+The book proved with rigorous math that **a single-layer perceptron can do very little**.
+The most famous example is "exclusive or" (XOR): output 1 when the two inputs are "different," 0 when they're "the same."
+A rule this simple, and the perceptron can never learn it.
 
-结果震惊了整个领域：AlexNet 的 top-5 错误率是 **15.3%**，第二名是 **26.2%**。
-在一个习惯于一年进步零点几个百分点的领域，一下子领先了将近 11 个点。深度学习的时代开始了。
+The book's impact went far beyond the math itself. Funding and enthusiasm for neural network research drained away, and many researchers moved on to other things.
+Two years later, Rosenblatt died in an accident, and the field lost its most powerful champion.
 
-几个月后发生了更戏剧性的一幕。辛顿和两个学生成立了一家只有三个人的公司 DNNresearch，
-2012 年 12 月，趁着在太浩湖（Lake Tahoe）召开 NIPS 会议，他在会场所在的哈拉斯赌场酒店的房间里组织了一场拍卖。
-据 Cade Metz 的《深度学习革命》（Genius Makers）记载，竞拍者有谷歌、微软、百度和当时还很小的 DeepMind，
-通过电子邮件出价，价格一路涨到 **4400 万美元**。这时辛顿叫停了拍卖，把公司卖给了谷歌。
-在他看来，研究找到合适的归宿，比拿到最高的价格更重要。
+Winter didn't fall on neural networks alone. In 1973, the British mathematician **James Lighthill**,
+commissioned by the UK's Science Research Council, wrote a report assessing artificial intelligence research. His verdict was harsh:
+"In no part of the field have the discoveries made so far produced the major impact that was then promised."
+The British government went on to cut AI research funding at most of its universities. That June, the BBC also recorded a televised debate at the Royal Institution:
+Lighthill on one side, and three AI researchers, including John McCarthy, on the other.
 
-> 💡 伏笔：→ [深度学习与 GPU](#12-深度学习与-gpu)
+This period came to be known as **the first AI winter**.
 
----
+> 🧪 **Try it**: run [`xor_1969.py`](./xor_1969.py). The same perceptron learns AND and OR quickly,
+> but on XOR it never stops. You'll also see a little chart showing why no straight line can separate XOR.
 
-## 第十幕　2014–2016 年：酒吧里的灵感，棋盘上的第 37 手
-
-**2014 年，蒙特利尔。** 博士生 **伊恩·古德费洛（Ian Goodfellow）** 去一家叫 Les 3 Brasseurs 的酒吧，
-庆祝一位同学博士毕业。朋友们在讨论一个难题：怎么让计算机自己"画"出逼真的照片？
-古德费洛想到一个点子：**让两个神经网络互相对抗**。一个负责造假图，一个负责鉴别真假，
-造假的越来越会造，鉴别的越来越会鉴别。
-据《MIT 科技评论》的报道，他回家后女朋友已经睡了，他一直写代码写到凌晨，然后测试了一下，**第一次运行就成功了**。
-这就是**生成对抗网络（GAN）**。
-
-**2016 年 3 月，首尔。** DeepMind 的 **AlphaGo** 对阵世界顶尖棋手 **李世石**，五番棋。
-第二局第 37 手，AlphaGo 下出了一步"肩冲"，所有职业棋手都看不懂。
-李世石起身离开了对局室，回到棋盘前，他盯着这步棋想了将近 15 分钟才落子。
-欧洲围棋冠军樊麾在现场说："这不是人类会下的棋。我从没见过人类这么下。"然后又说："太美了。"
-AlphaGo 自己估计，人类棋手下出这一手的概率只有万分之一。
-
-第四局，轮到李世石下出了一手"神之一手"，第 78 手。AlphaGo 同样估计人类下出它的概率只有万分之一，
-随后它的判断陷入混乱，输掉了这一局。这是人类在整场比赛中唯一的胜局，最终比分 4:1。
-2019 年 11 月，李世石宣布退役。他说，AI 是"一个无法被打败的存在"。
-
-AlphaGo 和深蓝不一样：它先学习人类棋谱，再通过**自己和自己下棋**不断变强。没有人能"写"出第 37 手。
-
-> 💡 伏笔：→ [生成模型与 GAN](#13-生成模型与-gan)、[三种学习方式](#3-三种学习方式)（强化学习）
+> 💡 Look ahead: Can one straight line separate them? → [Linear separability and XOR](#8-linear-separability-and-xor)
 
 ---
 
-## 第十一幕　2017–2022 年：八个人和一篇论文
+## Act 6 — 1986: Sending the Error Backward
 
-2017 年春天，谷歌的八位研究者写了一篇论文，题目叫 **《Attention Is All You Need》**（你只需要注意力）。
-据《连线》杂志 2024 年的报道：
-- 核心想法"自注意力"最早来自 **Jakob Uszkoreit**。**"Transformer"这个名字也是他起的**，理由是他喜欢这个词的发音；
-  早期的设计文档里甚至配上了《变形金刚》（Transformers）角色的插图；
-- 论文标题是在致敬披头士的歌《All You Need Is Love》；
-- 八位作者决定打破署名排序的惯例，每个名字后面都加了星号，脚注写着"贡献相同，排名随机"；
-- 后来，**八个人全都离开了谷歌**，各自创业或加入其他 AI 公司。
+People had actually long known the answer to the problem: **add another layer**. Put a "hidden layer" between the input and the output, and XOR can be solved.
+The real puzzle was: how do you adjust the hidden layer's weights? When the output is wrong, which hidden neuron is to blame?
 
-Transformer 抛弃了以前按顺序一个词一个词读句子的做法，让句子里的每个词**同时**"注意"所有其他的词。
-这样不但效果更好，而且非常适合 GPU 并行计算，模型终于可以越做越大。
+In 1986, **David Rumelhart**, **Geoffrey Hinton**, and
+**Ronald Williams** published a paper just 4 pages long in *Nature*:
+*Learning representations by back-propagating errors*. The method is called **backpropagation**:
+first compute the error at the output, then use the chain rule from calculus to pass the error **backward**, layer by layer,
+working out how much "blame" each weight should take, and then nudge each one a little.
 
-此后的故事你可能听说过：2018 年 OpenAI 发布了 GPT（"生成式预训练 Transformer"），谷歌发布了 BERT；
-2020 年，GPT-3 有 1750 亿个参数。
+To be fair, they weren't the first to invent the math.
+The Finnish student Seppo Linnainmaa described a related automatic differentiation method in his 1970 master's thesis,
+and the American researcher Paul Werbos proposed using it to train neural networks in his 1974 PhD thesis.
+But the 1986 paper showed clearly that **the hidden layer learns useful intermediate features on its own**. With that, neural networks came back to life.
 
-**2022 年 11 月 30 日**，OpenAI 发布了 ChatGPT。据瑞银（UBS）援引 Similarweb 的数据，
-它在两个月后的 2023 年 1 月就达到约 1 亿月活跃用户，被称为史上增长最快的消费级应用。
-分析师写道："在关注互联网 20 年里，我们想不起有哪个消费级互联网应用增长得比这更快。"
+Hinton's own story is a fascinating one. He is the **great-great-grandson of the logician George Boole**:
+the "Boolean logic" every computer uses today is named after his great-great-grandfather.
+In 1987, he left the US for the University of Toronto in Canada. One reason: most American AI research at the time was funded by the Department of Defense, and he didn't want his research used for war.
+He and his students then spent decades in Canada sticking with unfashionable neural networks, until they changed the world.
+In 2018, he shared the Turing Award with Yoshua Bengio and Yann LeCun; in 2024, he shared the Nobel Prize in Physics with John Hopfield.
 
-> 💡 伏笔：→ [注意力与 Transformer](#14-注意力与-transformer)、[大语言模型](#15-大语言模型llm)
+> 🧪 **Try it**: run [`backprop_1986.py`](./backprop_1986.py). It writes backpropagation by hand with nothing but numpy.
+> Watch the error come down bit by bit, then open the black box and see which intermediate concepts the hidden layer invented on its own.
 
----
-
-## 第十二幕　2022–2026 年：从会说话，到会做事
-
-会聊天的模型有了，下一个问题是：**它能不能自己去做事？**
-
-- **2022 年 10 月**，普林斯顿和谷歌的 Shunyu Yao 等人发表了 **ReAct**：让模型交替进行"思考"和"行动"。
-  先想一步，再调用工具（比如查维基百科），看到结果后再想下一步。今天几乎所有 agent 都是这个循环。
-- **2023 年 3 月 30 日**，Toran Bruce Richards 在 GitHub 上发布了 **AutoGPT**：给 GPT-4 一个目标，让它自己拆任务、自己执行。
-  13 天里它收获了 3 万颗星，几周后突破 10 万，成为当时 GitHub 上增长最快的开源项目之一。
-  它常常绕圈子、做不成事，但它让所有人看到了 agent 的可能性。
-- **2023 年 4 月**，斯坦福和谷歌的 Joon Sung Park 等人发表了"生成式智能体"（Generative Agents）。
-  他们在一个叫 **Smallville** 的像素小镇里放了 25 个由大模型驱动的居民。
-  研究者只告诉咖啡馆老板 Isabella 一件事：她想办一场情人节派对。
-  之后，她自己发出邀请，消息在小镇里传开，有人约了暗恋对象一起去，到了那天傍晚，好几个居民真的出现在了派对上。
-  **没有人编写"办派对"的剧本**，这是多个 agent 互动"涌现"出来的。
-- **2024 年 11 月**，Anthropic 发布了 **MCP（模型上下文协议）**，用一个统一的标准把模型接到各种工具和数据源上。
-  **2025 年 4 月**，谷歌发布了 **A2A（Agent2Agent）协议**，让不同厂商的 agent 能互相发现、对话、协作，
-  同年 6 月捐给了 Linux 基金会。
-- **2025 年 6 月**，Anthropic 公开了自家多 agent 研究系统的做法：一个"主 agent"负责规划，同时派出多个"子 agent"并行搜索，
-  最后汇总。在他们的内部评测中，以 Claude Opus 4 为主 agent、Claude Sonnet 4 为子 agent 的系统，比单独使用 Claude Opus 4 的表现高出 90.2%；代价是多 agent 系统消耗的 token 约为普通聊天的 15 倍。
-- **2026 年 2 月**，OpenAI 发表了《Harness engineering》：一个小团队用约五个月时间，
-  做出一个约 100 万行代码的产品，**没有一行是人手写的**，全部由 AI agent 写成。
-  工程师的工作变成了设计 agent 的工作环境：文档、规则、测试、检查工具，以及 agent 之间互相审查的回路。
-  这套外围系统，就叫 **harness**。
-
-从 1958 年拧电位器的电机，到 2026 年互相审查代码的 agent，"边做边学"这件事从来没有停下。
-这个仓库后面的章节，就是要亲手把这些东西做一遍。
-
-> 💡 伏笔：→ [Agent](#16-agent智能体)、[Harness](#17-harness)、[多 Agent 协同](#18-多-agent-协同)
+> 💡 Look ahead: The error flows backward, and each weight takes a small step downhill. → [Loss functions and gradient descent](#4-loss-functions), [Backpropagation](#10-backpropagation)
 
 ---
 
-## 尾声：三条贯穿始终的线
+## Act 7 — 1989–1997: The Network That Read Checks, and the Champion That Couldn't Learn
 
-回头看这七十年，有三条线反复出现：
+In 1988, a young Frenchman, **Yann LeCun**, joined Bell Labs in the US.
+In 1989, he used backpropagation to train a special kind of neural network to recognize handwritten ZIP codes from the US Postal Service.
+Its design was inspired by the visual cortex: instead of looking at the whole image at once, it slides small "windows" across the image,
+looking for local patterns like edges and corners. This is the **convolutional neural network (CNN)**.
 
-1. **两种路线之争**：一派认为智能来自**规则和逻辑**（符号主义：深蓝、早期 AI），
-   另一派认为智能来自**从数据中学习的连接**（连接主义：感知机、反向传播、深度学习）。
-   1969 年前者占上风，2012 年之后后者全面胜出。今天的 agent 又把两者结合起来：用学出来的模型，去调用写出来的工具。
-2. **数据**：从 50 张卡片，到 ImageNet 的上百万张图片，再到大模型读过的大半个互联网。
-3. **算力**：从 5 吨重的 IBM 704，到卧室里的两块游戏显卡，再到今天的 GPU 集群。
+The technology was later used to read bank checks. According to the ACM's Turing Award announcement, a check-reading system LeCun helped develop was widely deployed by NCR and other companies,
+and in the late 1990s and early 2000s, **it read more than 10% of all checks in the US**.
 
-很多想法其实早就有了，比如多层网络和反向传播；它们只是在等数据和算力追上来。
+But in academia, neural networks soon fell out of favor again. In 1995, Corinna Cortes and Vladimir Vapnik published the **support vector machine (SVM)**.
+It had elegant mathematical theory behind it, and at the data sizes of the time, its results were also more reliable. Throughout the 2000s, "statistical learning" was the mainstream.
+As LeCun, Hinton and others later recalled, neural network papers in those years were often rejected by conferences. This is sometimes called neural networks' "second cold spell."
+
+Around the same time, another "AI beats human" story shook the world: in May 1997, IBM's **Deep Blue** defeated world chess champion Garry Kasparov in New York.
+But Deep Blue could hardly **learn** at all. It relied on custom chips that searched more than a hundred million positions per second, plus evaluation rules hand-written by chess experts.
+It was strong, but its strength had been "written in" by people, not "learned" on its own.
+
+> 💡 Look ahead: → [Convolutional neural networks](#11-convolutional-neural-networks-cnns)
 
 ---
 
-## 动手：三个小实验
+## Act 8 — 2006–2009: A Dam Made of Data
+
+In 2006, a young assistant professor, **Fei-Fei Li**, began turning over a question:
+everyone was competing on algorithms, but what if **data** was the real bottleneck? Children come to understand the world because they've seen an enormous number of things.
+
+She decided to build an image database unlike anything before it: following the structure of WordNet, a database of English words, collect upwards of a thousand photos for each of thousands of kinds of objects.
+That was far too much work for students to do. In 2007, the team turned to Amazon's crowdsourcing platform, Mechanical Turk:
+about 49,000 workers from 167 countries sifted through and labeled more than 160 million candidate images.
+
+When **ImageNet** made its debut in 2009 at CVPR, the top computer vision conference, it had 3.2 million images,
+but it was just a poster in a corner of the venue. Starting in 2010, the team ran the ImageNet Large Scale Visual Recognition Challenge (ILSVRC) every year:
+1,000 categories and about 1.2 million training images. For the first two years, the winners all used traditional methods, and progress was slow.
+
+> 💡 Look ahead: More data, better generalization. Remember Act 2 of Lab 1? → [Generalization and overfitting](#6-training-set-test-set-generalization-and-overfitting)
+
+---
+
+## Act 9 — 2012: Two Graphics Cards in a Bedroom, an Auction in a Casino
+
+In 2012, two of Hinton's students in Toronto, **Alex Krizhevsky** and
+**Ilya Sutskever**, decided to enter the ImageNet challenge.
+It was Sutskever who talked Krizhevsky into it, and Krizhevsky happened to be exceptionally good at squeezing every last drop of performance out of GPUs.
+
+Their network came to be known as **AlexNet**. It was too big to fit in one graphics card's memory, so they split it across **two NVIDIA GTX 580 gaming cards**
+and trained it for five or six days. According to the Computer History Museum, the machine sat **in Krizhevsky's bedroom at his parents' house**.
+
+The results stunned the field: AlexNet's top-5 error rate was **15.3%**, while the runner-up's was **26.2%**.
+In a field used to improving by a fraction of a percentage point a year, it had jumped ahead by almost 11 points in one go. The era of deep learning had begun.
+
+A few months later came an even more dramatic scene. Hinton and the two students had set up a three-person company, DNNresearch.
+In December 2012, while the NIPS conference was being held at Lake Tahoe, he ran an auction from his room at Harrah's, the casino hotel where the conference took place.
+According to Cade Metz's *Genius Makers*, the bidders were Google, Microsoft, Baidu and DeepMind, then still a small company,
+all bidding by email. The price climbed all the way to **$44 million**. At that point Hinton stopped the auction and sold the company to Google.
+In his view, finding the right home for the research mattered more than getting the highest price.
+
+> 💡 Look ahead: → [Deep learning and GPUs](#12-deep-learning-and-gpus)
+
+---
+
+## Act 10 — 2014–2016: An Idea in a Bar, Move 37 on the Board
+
+**2014, Montreal.** PhD student **Ian Goodfellow** went to a bar called Les 3 Brasseurs
+to celebrate a fellow student who had just finished a PhD. His friends were discussing a hard problem: how do you get a computer to "draw" realistic photos on its own?
+Goodfellow had an idea: **pit two neural networks against each other**. One makes fakes, the other tells real from fake.
+The forger keeps getting better at forging, and the detector keeps getting better at detecting.
+According to *MIT Technology Review*, when he got home his girlfriend was already asleep. He coded into the early hours of the morning, then gave it a test, and **it worked on the very first run**.
+This was the **generative adversarial network (GAN)**.
+
+**March 2016, Seoul.** DeepMind's **AlphaGo** faced one of the world's top players, **Lee Sedol**, in a five-game match.
+On move 37 of Game 2, AlphaGo played a "shoulder hit" that none of the professional players could make sense of.
+Lee Sedol got up and left the playing room. When he came back to the board, he stared at the move for nearly 15 minutes before he played.
+European Go champion Fan Hui, who was there, said: "It's not a human move. I've never seen a human play this move." Then he added: "So beautiful."
+AlphaGo itself estimated that the odds of a human player making this move were just 1 in 10,000.
+
+In Game 4, it was Lee Sedol's turn to play a "divine move": move 78. AlphaGo likewise estimated the odds of a human playing it at just 1 in 10,000,
+and its judgment then fell into confusion, and it lost the game. It was humanity's only win of the match; the final score was 4–1.
+In November 2019, Lee Sedol announced his retirement. AI, he said, is "an entity that cannot be defeated."
+
+AlphaGo was different from Deep Blue: it first learned from records of human games, then kept getting stronger by **playing against itself**. Nobody could have "written" move 37.
+
+> 💡 Look ahead: → [Generative models and GANs](#13-generative-models-and-gans), [Three ways to learn](#3-three-ways-to-learn) (reinforcement learning)
+
+---
+
+## Act 11 — 2017–2022: Eight People and One Paper
+
+In spring 2017, eight Google researchers wrote a paper titled ***Attention Is All You Need***.
+According to a 2024 story in *Wired*:
+- The core idea, "self-attention," came first from **Jakob Uszkoreit**. **He also came up with the name "Transformer,"** because he liked the sound of the word;
+  an early design document was even illustrated with pictures of characters from *Transformers*;
+- The paper's title is a nod to the Beatles song "All You Need Is Love";
+- The eight authors decided to break with the usual convention for ordering names. They put an asterisk after every name, with a footnote reading "Equal contribution. Listing order is random.";
+- Later, **all eight left Google**, to start their own companies or join other AI companies.
+
+The Transformer threw out the old approach of reading a sentence in order, one word at a time. Instead, every word in the sentence "attends" to every other word **at the same time**.
+This not only works better, it's also a great fit for parallel computing on GPUs, so models could finally keep getting bigger.
+
+You may have heard the rest: in 2018, OpenAI released GPT ("Generative Pre-trained Transformer") and Google released BERT;
+in 2020, GPT-3 had 175 billion parameters.
+
+On **November 30, 2022**, OpenAI released ChatGPT. According to UBS, citing data from Similarweb,
+it reached about 100 million monthly active users two months later, in January 2023, and was called the fastest-growing consumer app in history.
+The analysts wrote: "In 20 years following the internet space, we cannot recall a faster ramp in a consumer internet app."
+
+> 💡 Look ahead: → [Attention and the Transformer](#14-attention-and-the-transformer), [Large language models](#15-large-language-models-llms)
+
+---
+
+## Act 12 — 2022–2026: From Talking to Doing
+
+Now there were models that could chat. The next question: **could they go and do things on their own?**
+
+- **October 2022**: Shunyu Yao and colleagues at Princeton and Google published **ReAct**: have the model alternate between "thinking" and "acting."
+  Think one step, call a tool (say, look something up on Wikipedia), see the result, then think about the next step. Almost every agent today runs this loop.
+- **March 30, 2023**: Toran Bruce Richards released **AutoGPT** on GitHub: give GPT-4 a goal and let it break the goal into tasks and carry them out itself.
+  It collected 30,000 stars in 13 days and passed 100,000 a few weeks later, becoming one of the fastest-growing open-source projects on GitHub at the time.
+  It often went in circles and failed to get things done, but it showed everyone what agents could be.
+- **April 2023**: Joon Sung Park and colleagues at Stanford and Google published "Generative Agents."
+  They placed 25 residents, each driven by a large language model, in a pixel-art town called **Smallville**.
+  The researchers told the café owner, Isabella, just one thing: she wanted to throw a Valentine's Day party.
+  After that, she sent out the invitations herself, word spread through the town, someone asked their crush to go with them, and that evening several residents actually showed up at the party.
+  **Nobody wrote a "throw a party" script.** It "emerged" from the interactions of multiple agents.
+- **November 2024**: Anthropic released **MCP (Model Context Protocol)**, a single standard for connecting models to all kinds of tools and data sources.
+  **April 2025**: Google released the **A2A (Agent2Agent) protocol**, which lets agents from different vendors discover each other, talk and work together;
+  that June, it was donated to the Linux Foundation.
+- **June 2025**: Anthropic described how its own multi-agent research system works: a "lead agent" does the planning and sends out several "subagents" to search in parallel,
+  then pulls the results together. In their internal evaluation, a system with Claude Opus 4 as the lead agent and Claude Sonnet 4 as subagents outperformed Claude Opus 4 working alone by 90.2%; the price was that the multi-agent system used about 15 times as many tokens as an ordinary chat.
+- **February 2026**: OpenAI published "Harness engineering": over about five months, a small team
+  built a product of about 1 million lines of code, **without a single line written by a human**. AI agents wrote all of it.
+  The engineers' job became designing the agents' working environment: documentation, rules, tests, checking tools, and loops in which agents review each other's work.
+  This surrounding system is called the **harness**.
+
+From the motors turning potentiometers in 1958 to the agents reviewing each other's code in 2026, "learning by doing" has never stopped.
+The rest of the chapters in this repo are about building these things yourself, by hand.
+
+> 💡 Look ahead: → [Agents](#16-agents), [Harness](#17-harness), [Multi-agent collaboration](#18-multi-agent-collaboration)
+
+---
+
+## Epilogue — Three Threads That Run Through It All
+
+Looking back over these seventy years, three threads keep coming up:
+
+1. **A battle between two approaches**: one camp believed intelligence comes from **rules and logic** (symbolism: Deep Blue, early AI);
+   the other believed it comes from **connections learned from data** (connectionism: the perceptron, backpropagation, deep learning).
+   In 1969 the first camp had the upper hand; after 2012 the second won across the board. Today's agents combine the two: a model that was learned, calling tools that were written by hand.
+2. **Data**: from 50 cards, to ImageNet's more than a million images, to the better part of the internet that large language models have read.
+3. **Compute**: from the 5-ton IBM 704, to two gaming graphics cards in a bedroom, to today's GPU clusters.
+
+Many of the ideas, like multilayer networks and backpropagation, had been around for a long time; they were just waiting for data and compute to catch up.
+
+---
+
+## Labs
 
 ```bash
 pip install numpy
-python perceptron_1958.py   # 1958：感知机学会分辨左右
-python xor_1969.py          # 1969：感知机学不会 XOR
-python backprop_1986.py     # 1986：多加一层 + 反向传播，学会 XOR
+python perceptron_1958.py   # 1958: the perceptron learns to tell left from right
+python xor_1969.py          # 1969: the perceptron can't learn XOR
+python backprop_1986.py     # 1986: add a layer + backpropagation, and XOR is learned
 ```
 
-| 实验 | 你应该看到 | 思考题（脚本末尾也有） |
+| Lab | What you should see | Think about it (also at the end of each script) |
 |---|---|---|
-| `perceptron_1958.py` | 50 张卡片后训练集全对，新卡片约 94%；再多看 1000 张后约 99% | 权重图为什么左负右正？ |
-| `xor_1969.py` | AND / OR 几轮就学会；XOR 永远在打转，随机试 10 万条直线最多也只分对 75% | 换成"三个输入里恰好一个为 1"，感知机能学会吗？ |
-| `backprop_1986.py` | 误差从 0.34 降到 0.0002，四个样本全对；隐藏层自己学出了 NOR、NAND 这类中间概念 | 去掉隐藏层的 sigmoid，还能学会吗？ |
+| `perceptron_1958.py` | After 50 cards it gets the whole training set right and about 94% of new cards; after 1,000 more cards, about 99% | Why are the weights negative on the left and positive on the right? |
+| `xor_1969.py` | AND / OR are learned in a few epochs; XOR goes around in circles forever, and even the best of 100,000 random lines gets only 75% right | If the task were "exactly one of three inputs is 1," could a perceptron learn it? |
+| `backprop_1986.py` | The error falls from 0.34 to 0.0002 and all four examples come out right; the hidden layer learns intermediate concepts like NOR and NAND on its own | If you remove the hidden layer's sigmoid, can it still learn? |
 
 ---
 
-## 概念解释
+## Concepts
 
-> 以下概念按"故事里出现的顺序"排列，每一条都标注了它在哪一幕登场。
+> The concepts below are listed in the order they appear in the stories, and each one notes the act where it first appears.
 
-### 1. 什么是机器学习
+### 1. What Is Machine Learning
 
-**一句话**：不直接写规则，而是让程序从数据（经验）中自己总结规则。
+**In one sentence**: instead of writing the rules directly, let the program work out the rules from data (experience) on its own.
 
-传统编程是：人写规则 + 数据 → 答案。
-机器学习是：数据 + 答案 → 程序自己找出规则。
+Traditional programming: rules written by people + data → answers.
+Machine learning: data + answers → the program finds the rules itself.
 
-1997 年，Tom Mitchell 在教科书里给出了一个更精确的定义：
-> 对于某类任务 **T** 和性能度量 **P**，如果一个程序在 T 上的表现（用 P 衡量）随着经验 **E** 的增加而提高，
-> 就说这个程序从经验 E 中学习了。
+In 1997, Tom Mitchell gave a more precise definition in his textbook:
+> A computer program is said to learn from experience **E** with respect to some class of tasks **T** and performance measure **P**,
+> if its performance at tasks in T, as measured by P, improves with experience E.
 
-用实验 1 来套：T = 分辨卡片左右，P = 准确率，E = 看过的卡片。看得越多，准确率越高，它就是在"学习"。
+Applied to Lab 1: T = telling whether a card is marked on the left or the right, P = accuracy, E = the cards it has seen. The more it sees, the higher its accuracy, so it is "learning."
 
-📖 登场：[第三幕](#第三幕19561959-年一个夏天和一盘跳棋)（Samuel 的跳棋）
+📖 First appears in: [Act 3](#act-3--19561959-one-summer-and-a-game-of-checkers) (Samuel's checkers)
 
-### 2. 模型、参数、训练、推理
+### 2. Models, Parameters, Training, Inference
 
-- **模型**：一个带着很多"旋钮"的函数，输入数据，输出预测。
-- **参数**（权重）：就是那些旋钮。Mark I 感知机上，参数**真的是旋钮**：400 个由电机拧动的电位器。
-  今天的大模型有几千亿个参数，原理一样，只是旋钮多得多。
-- **训练**：根据数据，一点点调整旋钮，让预测越来越准。
-- **推理**：训练完成后，旋钮固定，拿模型去处理新数据。你和聊天机器人对话时，它就在"推理"。
+- **Model**: a function with lots of "knobs." Data goes in, predictions come out.
+- **Parameters** (weights): those knobs. On the Mark I Perceptron, the parameters **really were knobs**: 400 potentiometers turned by electric motors.
+  Today's large models have hundreds of billions of parameters. The principle is the same; there are just far more knobs.
+- **Training**: adjusting the knobs bit by bit, based on data, so the predictions get more and more accurate.
+- **Inference**: once training is done, the knobs are fixed and the model is used on new data. When you chat with a chatbot, it is doing "inference."
 
-📖 登场：[序幕](#序幕1958-年-7-月华盛顿边做边学的机器)、[第四幕](#第四幕19581960-年罗森布拉特和他的电子大脑)
+📖 First appears in: [Prologue](#prologue--jul-1958-washington-a-machine-that-learns-by-doing), [Act 4](#act-4--19581960-rosenblatt-and-his-electronic-brain)
 
-### 3. 三种学习方式
+### 3. Three Ways to Learn
 
-| 方式 | 数据长什么样 | 故事里的例子 |
+| Type | What the data looks like | Examples from the stories |
 |---|---|---|
-| **监督学习** | 每个样本都带"标准答案" | 感知机的卡片（标好了左/右）、ImageNet 的图片（标好了类别） |
-| **无监督学习** | 只有数据，没有答案，让模型自己找结构 | 把相似的新闻自动归成一组 |
-| **强化学习** | 没有标准答案，只有"做得好不好"的奖励信号 | Samuel 的跳棋（输赢）、AlphaGo 自我对弈 |
+| **Supervised learning** | Every example comes with the "right answer" | The perceptron's cards (labeled left/right), ImageNet's images (labeled with categories) |
+| **Unsupervised learning** | Just data, no answers; the model finds the structure itself | Automatically grouping similar news stories together |
+| **Reinforcement learning** | No right answers, only a reward signal for "how well it did" | Samuel's checkers (win or lose), AlphaGo playing against itself |
 
-大语言模型的预训练还用到一种变体：**自监督学习**。答案就藏在数据本身里，
-比如遮住一句话的下一个词，让模型去猜，猜完再揭开对答案。不需要人工标注，所以可以用海量文本来训练。
+Pre-training large language models also uses a variant: **self-supervised learning**. The answers are hidden in the data itself:
+for example, cover up the next word of a sentence, have the model guess it, then uncover it to check. No human labeling is needed, so you can train on huge amounts of text.
 
-📖 登场：[第三幕](#第三幕19561959-年一个夏天和一盘跳棋)、[第十幕](#第十幕20142016-年酒吧里的灵感棋盘上的第-37-手)
+📖 First appears in: [Act 3](#act-3--19561959-one-summer-and-a-game-of-checkers), [Act 10](#act-10--20142016-an-idea-in-a-bar-move-37-on-the-board)
 
-### 4. 损失函数
+### 4. Loss Functions
 
-**一句话**：用一个数字衡量"模型现在错得有多离谱"。
+**In one sentence**: a single number that measures how badly the model is wrong right now.
 
-实验 3 用的是**均方误差**：把每个样本"预测值减正确答案"的平方加起来取平均。
-完全猜对时损失为 0，错得越多损失越大。训练的目标，就是让这个数字越来越小。
+Lab 3 uses **mean squared error**: for each example, take "prediction minus correct answer," square it, add them all up, and take the average.
+A perfect guess gives a loss of 0, and the more wrong it is, the bigger the loss. The goal of training is to make this number smaller and smaller.
 
-### 5. 梯度下降与学习率
+### 5. Gradient Descent and the Learning Rate
 
-想象你在大雾中的山上，看不见山谷在哪，只能感觉到脚下哪个方向最陡。
-最简单的下山办法是：**每次朝最陡的下坡方向走一小步**，重复很多次。
+Imagine you're on a mountain in thick fog. You can't see where the valley is; you can only feel which direction is steepest under your feet.
+The simplest way down: **take a small step in the steepest downhill direction**, and repeat many times.
 
-- 那个"最陡的方向"就是**梯度**（损失对每个参数的导数）；
-- 每一步迈多大，就是**学习率**。迈太小，下山很慢；迈太大，可能一步跨过山谷，在两边来回晃。
+- That "steepest direction" is the **gradient** (the derivative of the loss with respect to each parameter);
+- How big each step is, is the **learning rate**. Too small, and the descent is slow; too big, and you might step right over the valley and bounce back and forth between the two sides.
 
-实验 3 里的 `W -= LR * d_W` 就是这一步。
+In Lab 3, `W -= LR * d_W` is that step.
 
-📖 登场：[第六幕](#第六幕1986-年误差往回传)
+📖 First appears in: [Act 6](#act-6--1986-sending-the-error-backward)
 
-### 6. 训练集、测试集、泛化与过拟合
+### 6. Training Set, Test Set, Generalization and Overfitting
 
-- **训练集**：用来调参数的数据。**测试集**：从来没给模型看过、专门用来考试的数据。
-- **泛化**：在没见过的数据上也表现好的能力。这才是我们真正想要的。
-- **过拟合**：在训练集上表现很好，在新数据上却很差，相当于死记硬背了练习题。
+- **Training set**: the data used to tune the parameters. **Test set**: data the model has never seen, kept just for the exam.
+- **Generalization**: the ability to do well on data it hasn't seen. This is what we really want.
+- **Overfitting**: doing well on the training set but poorly on new data, like memorizing the answers to the practice problems.
 
-实验 1 是一个现成的例子：只看 50 张卡片时，训练集全对，新卡片却只有约 94%；
-多看 1000 张后，新卡片的准确率升到了约 99%。**更多、更多样的数据，往往能带来更好的泛化**。这就是 ImageNet 的意义。
+Lab 1 is a ready-made example: after seeing only 50 cards, it gets the whole training set right, but only about 94% of new cards;
+after 1,000 more cards, its accuracy on new cards rises to about 99%. **More data, and more varied data, usually leads to better generalization.** That's what ImageNet was all about.
 
-📖 登场：[第四幕](#第四幕19581960-年罗森布拉特和他的电子大脑)、[第八幕](#第八幕20062009-年一座数据的大坝)
+📖 First appears in: [Act 4](#act-4--19581960-rosenblatt-and-his-electronic-brain), [Act 8](#act-8--20062009-a-dam-made-of-data)
 
-### 7. 神经元与感知机
+### 7. Neurons and the Perceptron
 
-一个人工神经元做两件事：
-1. **加权求和**：每个输入乘以一个权重再加起来，再加一个偏置：`z = w1·x1 + w2·x2 + … + b`；
-2. **激活**：如果 z 大于 0，输出 1（放电），否则输出 0（或 -1）。
+An artificial neuron does two things:
+1. **Weighted sum**: multiply each input by a weight, add them up, then add a bias: `z = w1·x1 + w2·x2 + … + b`;
+2. **Activation**: if z is greater than 0, output 1 (fire); otherwise output 0 (or -1).
 
-- **McCulloch-Pitts 神经元**（1943）：权重是人设定好的，**不会学**。
-- **感知机**（1958）：权重从 0 开始，用一条简单规则自己学。猜错时，`w ← w + y·x`（y 是正确答案 ±1）。
+- **McCulloch–Pitts neuron** (1943): the weights are set by people; **it doesn't learn**.
+- **Perceptron** (1958): the weights start at 0 and are learned with one simple rule. When it guesses wrong, `w ← w + y·x` (y is the correct answer, ±1).
 
-📖 登场：[第一幕](#第一幕1943-年芝加哥流浪少年和神经元的逻辑)、[第四幕](#第四幕19581960-年罗森布拉特和他的电子大脑)
+📖 First appears in: [Act 1](#act-1--1943-chicago-the-runaway-boy-and-the-logic-of-neurons), [Act 4](#act-4--19581960-rosenblatt-and-his-electronic-brain)
 
-### 8. 线性可分与 XOR
+### 8. Linear Separability and XOR
 
-感知机的判断规则 `w1·x1 + w2·x2 + b > 0`，在平面上画出来就是**一条直线**：一边判 1，一边判 0。
-所以感知机只能解决"用一条直线就能分开"的问题，这叫**线性可分**。
+The perceptron's decision rule, `w1·x1 + w2·x2 + b > 0`, draws **a straight line** on the plane: one side says 1, the other side says 0.
+So a perceptron can only solve problems that one straight line can separate. This is called being **linearly separable**.
 
-AND 和 OR 都是线性可分的。XOR 的两类点分别在正方形的两条对角线上，
-**任何一条直线都分不开**，所以单层感知机注定学不会它。Minsky 和 Papert 的书里还证明了比这更一般的限制。
+AND and OR are both linearly separable. XOR's two classes sit on the two diagonals of a square,
+so **no straight line can separate them**, and a single-layer perceptron is doomed never to learn it. Minsky and Papert's book also proved limits more general than this.
 
-📖 登场：[第五幕](#第五幕19691973-年一本书一堵墙一个冬天)　🧪 `xor_1969.py`
+📖 First appears in: [Act 5](#act-5--19691973-a-book-a-wall-a-winter)　🧪 `xor_1969.py`
 
-### 9. 多层网络与激活函数
+### 9. Multilayer Networks and Activation Functions
 
-解决办法是在输入和输出之间加一层或多层**隐藏层**。
-每一层都可以把数据"换个角度"重新表示，多层叠在一起，就能画出弯曲的、复杂的分界线。
+The fix is to add one or more **hidden layers** between the input and the output.
+Each layer can re-represent the data "from a new angle," and stacking several layers lets you draw curved, complicated boundaries.
 
-但有个关键：每层之后必须有一个**非线性的激活函数**（比如实验 3 里的 sigmoid，或者今天常用的 ReLU）。
-如果没有它，多层线性计算叠在一起，结果还是线性的，等于一层，XOR 照样学不会。（这就是实验 3 的思考题 3。）
+But here's the key: every layer must be followed by a **nonlinear activation function** (like the sigmoid in Lab 3, or the ReLU that's common today).
+Without it, stacked linear computations are still linear, no different from a single layer, and XOR still can't be learned. (That's Think about it question 3 in Lab 3.)
 
-### 10. 反向传播
+### 10. Backpropagation
 
-多层网络带来一个新问题：输出错了，**该怪哪一层的哪个权重？** 这叫"功劳分配问题"。
+Multilayer networks bring a new problem: when the output is wrong, **which weight in which layer is to blame?** This is called the "credit assignment problem."
 
-反向传播的答案是：
-1. **前向**：输入一层层算到输出；
-2. **算误差**：和正确答案比较，得到损失；
-3. **反向**：用链式法则，把"损失对输出的导数"一层层往回传，算出损失对每个权重的导数（梯度）；
-4. **更新**：每个权重按梯度下降迈一小步。
+Backpropagation's answer:
+1. **Forward**: compute from the input, layer by layer, to the output;
+2. **Compute the error**: compare with the correct answer to get the loss;
+3. **Backward**: use the chain rule to pass "the derivative of the loss with respect to the output" back, layer by layer, getting the derivative of the loss with respect to every weight (the gradient);
+4. **Update**: each weight takes a small gradient descent step.
 
-今天训练几千亿参数的大模型，用的仍然是这四步。PyTorch 之类的框架只是帮你自动完成了第 3 步。
+Training today's large models with hundreds of billions of parameters still uses these four steps. Frameworks like PyTorch just do step 3 for you automatically.
 
-📖 登场：[第六幕](#第六幕1986-年误差往回传)　🧪 `backprop_1986.py`
+📖 First appears in: [Act 6](#act-6--1986-sending-the-error-backward)　🧪 `backprop_1986.py`
 
-### 11. 卷积神经网络（CNN）
+### 11. Convolutional Neural Networks (CNNs)
 
-普通的网络把图片的每个像素都连到每个神经元上，参数太多，也不懂"图片"的结构。CNN 有两个巧妙的设计：
-- **局部感受野**：每个神经元只看图片的一小块（比如 5×5），专门找边缘、拐角这样的局部图案；
-- **权重共享**：同一个"图案探测器"在整张图上滑动使用。猫耳朵出现在左上角还是右下角，都用同一个探测器去找。
+An ordinary network connects every pixel of an image to every neuron. That's too many parameters, and it knows nothing about the structure of an "image." CNNs have two clever design choices:
+- **Local receptive fields**: each neuron looks at only a small patch of the image (say 5×5), hunting for local patterns like edges and corners;
+- **Weight sharing**: the same "pattern detector" slides across the whole image. Whether a cat's ear shows up in the top-left or the bottom-right corner, the same detector looks for it.
 
-浅层找线条，深层把线条组合成眼睛、轮子、人脸。
+Shallow layers find lines; deeper layers combine lines into eyes, wheels and faces.
 
-📖 登场：[第七幕](#第七幕19891997-年读支票的网络和不会学习的冠军)、[第九幕](#第九幕2012-年卧室里的两块显卡赌场里的拍卖)
+📖 First appears in: [Act 7](#act-7--19891997-the-network-that-read-checks-and-the-champion-that-couldnt-learn), [Act 9](#act-9--2012-two-graphics-cards-in-a-bedroom-an-auction-in-a-casino)
 
-### 12. 深度学习与 GPU
+### 12. Deep Learning and GPUs
 
-**深度学习**就是"层数很多的神经网络"。"深"指的是层数。
+**Deep learning** just means "neural networks with many layers." The "deep" refers to the number of layers.
 
-神经网络的计算绝大部分是**矩阵乘法**：成千上万次彼此独立的乘法和加法。
-GPU 本来是为游戏画面设计的，同时处理几百万个像素，天生擅长这种大规模并行计算。
-AlexNet 证明了：**大网络 + 大数据 + GPU**，三者凑齐，深度学习就能远远甩开传统方法。
+Most of a neural network's computation is **matrix multiplication**: thousands upon thousands of independent multiplications and additions.
+GPUs were originally designed for game graphics, processing millions of pixels at once, so they're naturally good at this kind of massively parallel computation.
+AlexNet proved that when you bring together **a big network + big data + GPUs**, deep learning can leave traditional methods far behind.
 
-📖 登场：[第九幕](#第九幕2012-年卧室里的两块显卡赌场里的拍卖)
+📖 First appears in: [Act 9](#act-9--2012-two-graphics-cards-in-a-bedroom-an-auction-in-a-casino)
 
-### 13. 生成模型与 GAN
+### 13. Generative Models and GANs
 
-前面的模型大多是**判别式**的：给一张图，判断是猫还是狗。
-**生成模型**反过来：学会数据长什么样，然后造出新的、逼真的数据。
+Most of the models so far are **discriminative**: given an image, decide whether it's a cat or a dog.
+A **generative model** works the other way around: it learns what the data looks like, then creates new, realistic data.
 
-GAN 让两个网络对抗：**生成器**负责造假，**判别器**负责鉴别真假。两者互相逼着对方进步，就像造假币的和验钞的。
-今天的图像生成更多用"扩散模型"，大语言模型本质上也是一种生成模型：生成下一个词。
+A GAN pits two networks against each other: the **generator** makes fakes, and the **discriminator** tells real from fake. Each pushes the other to improve, like a counterfeiter and the person checking for fake bills.
+Today's image generation mostly uses "diffusion models," and large language models are essentially generative models too: they generate the next word.
 
-📖 登场：[第十幕](#第十幕20142016-年酒吧里的灵感棋盘上的第-37-手)
+📖 First appears in: [Act 10](#act-10--20142016-an-idea-in-a-bar-move-37-on-the-board)
 
-### 14. 注意力与 Transformer
+### 14. Attention and the Transformer
 
-读到"它"这个字时，你会自动回头去找"它"指的是谁。**注意力机制**做的就是这件事：
-处理每个词时，模型给句子里其他所有词打一个"相关度"分数，再按分数把它们的信息加权汇总过来。
+When you read the word "it," you automatically look back to find what "it" refers to. That's exactly what the **attention mechanism** does:
+as it processes each word, the model gives every other word in the sentence a "relevance" score, then pulls in their information, weighted by those scores.
 
-**Transformer** 就是用注意力堆起来的网络。它有两个优点：
-- 句子里任意两个词都能直接"对话"，不怕距离远；
-- 所有词可以**同时**计算，非常适合 GPU，于是模型可以做得极大。
+The **Transformer** is a network built by stacking attention. It has two advantages:
+- any two words in a sentence can "talk" directly, no matter how far apart they are;
+- all the words can be computed **at the same time**, which suits GPUs perfectly, so models can be made enormous.
 
-今天几乎所有大语言模型（GPT、Claude、DeepSeek……）都是 Transformer。
+Almost every large language model today (GPT, Claude, DeepSeek…) is a Transformer.
 
-📖 登场：[第十一幕](#第十一幕20172022-年八个人和一篇论文)
+📖 First appears in: [Act 11](#act-11--20172022-eight-people-and-one-paper)
 
-### 15. 大语言模型（LLM）
+### 15. Large Language Models (LLMs)
 
-- **Token**：模型读写的最小单位，可能是一个字、一个词，或者词的一部分。
-- **预训练**：读海量文本，反复练习"猜下一个 token"（自监督学习）。这一步学会了语言、知识和一定的推理能力。
-- **微调**：在更小、更有针对性的数据上继续训练，比如教它按"对话"的格式回答。
-- **RLHF**（基于人类反馈的强化学习）：让人给模型的多个回答排序，再用强化学习让模型更倾向于人喜欢的回答。
-- **上下文窗口**：模型一次能"看到"的 token 数量上限。超出的部分它就看不到了。
+- **Token**: the smallest unit a model reads and writes. It might be a single character, a word, or part of a word.
+- **Pre-training**: reading huge amounts of text and practicing "guess the next token" over and over (self-supervised learning). This step is where the model picks up language, knowledge, and some ability to reason.
+- **Fine-tuning**: continuing training on smaller, more targeted data, for example to teach it to answer in a "conversation" format.
+- **RLHF** (reinforcement learning from human feedback): people rank several of the model's answers, and reinforcement learning then makes the model lean toward the answers people prefer.
+- **Context window**: the maximum number of tokens the model can "see" at once. Anything beyond that, it can't see.
 
-一个容易误解的点：大模型的 API 本身**没有记忆**。每次调用，你都要把完整的对话历史重新发给它。
-这一点是理解 agent 和多 agent 的钥匙，[番外篇](../side-quests/ai-talks-to-ai/)会专门讲。
+A common misunderstanding: a large model's API itself **has no memory**. On every call, you have to send it the full conversation history again.
+This is the key to understanding agents and multi-agent systems, and the [side quest](../side-quests/ai-talks-to-ai/) covers it in detail.
 
-📖 登场：[第十一幕](#第十一幕20172022-年八个人和一篇论文)
+📖 First appears in: [Act 11](#act-11--20172022-eight-people-and-one-paper)
 
-### 16. Agent（智能体）
+### 16. Agents
 
-**一句话**：Agent = 大模型 + 工具 + 循环。
+**In one sentence**: Agent = large model + tools + a loop.
 
-聊天模型只会"说"，agent 能"做"。它的工作方式就是 ReAct 循环：
+A chat model can only "talk"; an agent can "do." It works through the ReAct loop:
 ```
-while 任务没完成:
-    思考：下一步该做什么？
-    行动：调用一个工具（搜索、读文件、运行代码……）
-    观察：看工具返回了什么结果
+while the task isn't done:
+    Think: what should I do next?
+    Act: call a tool (search, read a file, run code…)
+    Observe: see what the tool returned
 ```
-关键在于：**模型自己决定下一步**，而不是人提前写死流程。
+The key: **the model decides the next step itself**, instead of people hard-coding the process in advance.
 
-📖 登场：[第十二幕](#第十二幕20222026-年从会说话到会做事)
+📖 First appears in: [Act 12](#act-12--20222026-from-talking-to-doing)
 
 ### 17. Harness
 
-"Harness"的原意是**马具**：缰绳、挽具这一套，让马的力气能被引导到正确的方向上。
-在 AI 里，模型是那匹马，**harness 是包在模型外面、让它可靠干活的所有东西**：
-- 那个 `while` 循环本身；
-- 有哪些工具可用，工具结果怎么喂回给模型；
-- 上下文怎么管理：放进什么、删掉什么、太长了怎么压缩；
-- 权限和安全边界：哪些操作要人批准，在什么沙箱里运行；
-- 反馈回路：测试、代码检查、另一个 agent 来审查，让错误能被及时发现和纠正。
+A "harness" originally means **the gear for a horse**: the reins, straps and all the rest, which let the horse's strength be guided in the right direction.
+In AI, the model is the horse, and **the harness is everything wrapped around the model that makes it work reliably**:
+- the `while` loop itself;
+- which tools are available, and how tool results are fed back to the model;
+- how the context is managed: what goes in, what gets deleted, how to compress it when it gets too long;
+- permissions and safety boundaries: which actions need human approval, and what sandbox it runs in;
+- feedback loops: tests, code checks, another agent reviewing the work, so mistakes get caught and fixed in time.
 
-OpenAI 的经验是：同一个模型，harness 做得好不好，结果天差地别。
-你现在用的 Claude Code、Codex 这类工具，本质上都是一个 harness。
+OpenAI's experience: with the same model, how good the harness is makes a world of difference.
+Tools you may be using right now, like Claude Code and Codex, are essentially harnesses.
 
-📖 登场：[第十二幕](#第十二幕20222026-年从会说话到会做事)
+📖 First appears in: [Act 12](#act-12--20222026-from-talking-to-doing)
 
-### 18. 多 Agent 协同
+### 18. Multi-Agent Collaboration
 
-一个 agent 不够用时，就让多个 agent 分工：
-- **编排者-工作者**（orchestrator-worker）：一个主 agent 拆任务、派活、汇总，多个子 agent 并行干活；
-- **写-审**：一个负责写，一个负责挑毛病；
-- **路由**：按任务类型，交给最擅长的模型；
-- **辩论**：让几个模型各自给出观点，互相反驳，再得出结论。
+When one agent isn't enough, have several agents split up the work:
+- **Orchestrator–worker**: a lead agent breaks down the task, hands out the work and pulls the results together, while several subagents work in parallel;
+- **Writer–reviewer**: one writes, the other finds fault;
+- **Routing**: hand each type of task to the model that's best at it;
+- **Debate**: several models each give their view and argue against each other, then reach a conclusion.
 
-为什么要分工？因为每个 agent 的上下文窗口有限，任务太大一个装不下；而且独立的子任务可以并行完成。
-代价是 token 消耗会成倍增加，比如 Anthropic 报告的约 15 倍。所以只有任务足够有价值时才值得。
+Why split up the work? Because each agent's context window is limited, so a task that's too big won't fit in one agent; and independent subtasks can be done in parallel.
+The price is that token use multiplies, for example the roughly 15x that Anthropic reported. So it's only worth it when the task is valuable enough.
 
-两个 AI 之间具体是怎么"说上话"的？请看番外篇：[两个 AI 是怎么聊天的](../side-quests/ai-talks-to-ai/)。
+How exactly do two AIs "talk" to each other? See the side quest: [How Do Two AIs "Talk"?](../side-quests/ai-talks-to-ai/).
 
-📖 登场：[第十二幕](#第十二幕20222026-年从会说话到会做事)
+📖 First appears in: [Act 12](#act-12--20222026-from-talking-to-doing)
 
 ---
 
-## 参考资料
+## References
 
 **1943–1973**
-- Amanda Gefter, [The Man Who Tried to Redeem the World with Logic](https://nautil.us/the-man-who-tried-to-redeem-the-world-with-logic-235253), *Nautilus*, 2015（皮茨的生平）
+- Amanda Gefter, [The Man Who Tried to Redeem the World with Logic](https://nautil.us/the-man-who-tried-to-redeem-the-world-with-logic-235253), *Nautilus*, 2015 (Pitts's life)
 - McCulloch & Pitts, *A Logical Calculus of the Ideas Immanent in Nervous Activity*, Bulletin of Mathematical Biophysics, 1943
 - D. O. Hebb, *The Organization of Behavior*, 1949
 - A. M. Turing, [Computing Machinery and Intelligence](https://academic.oup.com/mind/article/LIX/236/433/986238), *Mind*, 1950
 - McCarthy, Minsky, Rochester, Shannon, [A Proposal for the Dartmouth Summer Research Project on Artificial Intelligence](http://jmc.stanford.edu/articles/dartmouth/dartmouth.pdf), 1955
 - A. L. Samuel, *Some Studies in Machine Learning Using the Game of Checkers*, IBM Journal, 1959
-- [Arthur Samuel's Legacy](https://webdocs.cs.ualberta.ca/~chinook/project/legacy.html)（阿尔伯塔大学 Chinook 项目，电视演示与 IBM 股价的记载）
-- IBM, [The games that helped AI evolve](https://www.ibm.com/history/early-games)（1962 年对 Nealey 的比赛）
-- Cornell Chronicle, [Professor's perceptron paved the way for AI – 60 years too soon](https://nbb.cornell.edu/news/professors-perceptron-paved-way-ai-60-years-too-soon), 2019（1958 年的演示与媒体报道）
-- Wikipedia, [Perceptron](https://en.wikipedia.org/wiki/Perceptron)、[Frank Rosenblatt](https://en.wikipedia.org/wiki/Frank_Rosenblatt)、[Perceptrons (book)](https://en.wikipedia.org/wiki/Perceptrons_(book))
-- [Lighthill Report](https://www.aiai.ed.ac.uk/events/lighthill1973/)（爱丁堡大学存档，含 BBC 辩论）
+- [Arthur Samuel's Legacy](https://webdocs.cs.ualberta.ca/~chinook/project/legacy.html) (University of Alberta's Chinook project; source for the TV demo and the IBM stock price)
+- IBM, [The games that helped AI evolve](https://www.ibm.com/history/early-games) (the 1962 match against Nealey)
+- Cornell Chronicle, [Professor's perceptron paved the way for AI – 60 years too soon](https://nbb.cornell.edu/news/professors-perceptron-paved-way-ai-60-years-too-soon), 2019 (the 1958 demo and press coverage)
+- Wikipedia, [Perceptron](https://en.wikipedia.org/wiki/Perceptron), [Frank Rosenblatt](https://en.wikipedia.org/wiki/Frank_Rosenblatt), [Perceptrons (book)](https://en.wikipedia.org/wiki/Perceptrons_(book))
+- [Lighthill Report](https://www.aiai.ed.ac.uk/events/lighthill1973/) (University of Edinburgh archive, including the BBC debate)
 
 **1986–2016**
 - Rumelhart, Hinton & Williams, [Learning representations by back-propagating errors](https://www.nature.com/articles/323533a0), *Nature* 323, 1986
-- ACM, [Fathers of the Deep Learning Revolution Receive ACM A.M. Turing Award](https://www.acm.org/media-center/2019/march/turing-award-2018), 2019（含 LeCun 支票识别系统的介绍）
+- ACM, [Fathers of the Deep Learning Revolution Receive ACM A.M. Turing Award](https://www.acm.org/media-center/2019/march/turing-award-2018), 2019 (includes LeCun's check-reading system)
 - [The Nobel Prize in Physics 2024](https://www.nobelprize.org/prizes/physics/2024/summary/)
-- Wikipedia, [ImageNet](https://en.wikipedia.org/wiki/ImageNet)、[AlexNet](https://en.wikipedia.org/wiki/AlexNet)
+- Wikipedia, [ImageNet](https://en.wikipedia.org/wiki/ImageNet), [AlexNet](https://en.wikipedia.org/wiki/AlexNet)
 - Computer History Museum, [CHM Releases AlexNet Source Code](https://computerhistory.org/blog/chm-releases-alexnet-source-code/), 2025
-- Cade Metz, *Genius Makers*（中译《深度学习革命》）, 2021（DNNresearch 拍卖）
+- Cade Metz, *Genius Makers*, 2021 (the DNNresearch auction)
 - MIT Technology Review, [The GANfather](https://www.technologyreview.com/2018/02/21/145289/the-ganfather-the-man-whos-given-machines-the-gift-of-imagination/), 2018
 - Wired, *The Sadness and Beauty of Watching Google's AI Play Go*, 2016
-- [Lee Sedol](https://en.wikipedia.org/wiki/Lee_Sedol)（退役与"无法被打败的存在"）
+- [Lee Sedol](https://en.wikipedia.org/wiki/Lee_Sedol) (his retirement and "an entity that cannot be defeated")
 
 **2017–2026**
 - Vaswani et al., [Attention Is All You Need](https://arxiv.org/abs/1706.03762), 2017
@@ -645,10 +645,10 @@ OpenAI 的经验是：同一个模型，harness 做得好不好，结果天差�
 - Yao et al., [ReAct: Synergizing Reasoning and Acting in Language Models](https://arxiv.org/abs/2210.03629), 2022
 - [AutoGPT](https://en.wikipedia.org/wiki/AutoGPT)
 - Park et al., [Generative Agents: Interactive Simulacra of Human Behavior](https://arxiv.org/abs/2304.03442), 2023
-- [Model Context Protocol](https://en.wikipedia.org/wiki/Model_Context_Protocol)、[Agent2Agent](https://en.wikipedia.org/wiki/Agent2Agent)
+- [Model Context Protocol](https://en.wikipedia.org/wiki/Model_Context_Protocol), [Agent2Agent](https://en.wikipedia.org/wiki/Agent2Agent)
 - Anthropic, [How we built our multi-agent research system](https://www.anthropic.com/engineering/multi-agent-research-system), 2025
 - OpenAI, [Harness engineering: leveraging Codex in an agent-first world](https://openai.com/index/harness-engineering/), 2026
 
 ---
 
-⬅️ [返回目录](../README.md)　|　➡️ [第二章 线性模型与梯度下降](../02-linear-models/)　|　番外：[两个 AI 是怎么聊天的](../side-quests/ai-talks-to-ai/)
+⬅️ [Contents](../README.md) | ➡️ [Chapter 2 · Linear Models and Gradient Descent](../02-linear-models/) | Side quest: [How Do Two AIs "Talk"?](../side-quests/ai-talks-to-ai/)

@@ -1,30 +1,30 @@
 """
-实验 1：复现 1958 年 Rosenblatt 的感知机演示
-================================================
+Lab 1: Recreating Rosenblatt's 1958 perceptron demo
+===================================================
 
-1958 年 7 月，Rosenblatt 在华盛顿演示：一台 IBM 704 看了 50 张打孔卡片之后，
-学会了分辨"标记在左边"和"标记在右边"的卡片。
+In July 1958, Rosenblatt gave a demo in Washington: after seeing 50 punched cards, an IBM 704
+learned to tell cards "marked on the left" from cards "marked on the right".
 
-这里我们用 numpy 模拟同样的事情：
-  * 一张"卡片" = 20×20 的像素网格（Mark I 感知机正好有 20×20 = 400 个光电管）
-  * 卡片上有一个小方块，要么在左半边，要么在右半边，再撒一点噪点
-  * 感知机只有 400 个权重 + 1 个偏置，规则只有一句话：**猜错了才改**
+Here we simulate the same thing with numpy:
+  * a "card" = a 20×20 grid of pixels (the Mark I Perceptron had exactly 20×20 = 400 photocells)
+  * each card has a small square, either in the left half or in the right half, plus a sprinkle of noise
+  * the perceptron has just 400 weights + 1 bias, and its rule fits in one sentence: **change only when wrong**
 
-运行：python perceptron_1958.py
+Run: python perceptron_1958.py
 """
 
 import numpy as np
 
-SIZE = 20          # 20×20 的"视网膜"
-BLOCK = 4          # 标记方块的边长
-NOISE = 0.03       # 每个像素有 3% 的概率被随机点亮（模拟脏卡片）
+SIZE = 20          # a 20×20 "retina"
+BLOCK = 4          # side length of the marker square
+NOISE = 0.03       # each pixel has a 3% chance of lighting up at random (a dirty card)
 LEFT, RIGHT = -1, +1
 
 rng = np.random.default_rng(1958)
 
 
 def make_card(side):
-    """生成一张卡片：side=LEFT 时方块在左半边，side=RIGHT 时在右半边。"""
+    """Make one card: the square is in the left half when side=LEFT, in the right half when side=RIGHT."""
     card = (rng.random((SIZE, SIZE)) < NOISE).astype(float)
     row = rng.integers(0, SIZE - BLOCK + 1)
     if side == LEFT:
@@ -38,7 +38,7 @@ def make_card(side):
 def make_deck(n):
     sides = rng.choice([LEFT, RIGHT], size=n)
     cards = np.stack([make_card(s) for s in sides])
-    return cards.reshape(n, -1), sides          # 每张卡片拉平成 400 维向量
+    return cards.reshape(n, -1), sides          # flatten each card into a 400-dimensional vector
 
 
 def show_card(flat, title):
@@ -50,10 +50,10 @@ def show_card(flat, title):
 
 
 def show_weights(w):
-    """把 400 个权重画回 20×20：'+' 表示"看到这里亮就投右边"，'-' 表示投左边。"""
+    """Draw the 400 weights back as a 20×20 grid: '+' means "if this spot is lit, vote right", '-' means vote left."""
     grid = w.reshape(SIZE, SIZE)
     t = np.abs(w).max() * 0.15
-    print("学到的权重图（+ 投票给'右'，- 投票给'左'，空格≈0）：")
+    print("Learned weight map (+ votes 'right', - votes 'left', blank ≈ 0):")
     for r in range(SIZE):
         line = "".join("+" if v > t else "-" if v < -t else " " for v in grid[r])
         print("   |" + line + "|")
@@ -65,53 +65,55 @@ def predict(w, b, x):
 
 
 def train(w, b, xs, ys, max_epochs=20):
-    """反复看同一叠卡片，直到一整轮都不出错。"""
+    """Go through the same deck again and again until a whole epoch has no mistakes."""
     for epoch in range(1, max_epochs + 1):
         mistakes = 0
         for x, y in zip(xs, ys):
             if predict(w, b, x) != y:
-                # Rosenblatt 的学习规则：猜错了，就把这张卡片"加进"或"减出"权重
+                # Rosenblatt's learning rule: on a wrong guess, "add" this card into the weights, or "subtract" it out
                 w += y * x
                 b += y
                 mistakes += 1
-        print(f"   第 {epoch} 轮（看了 {len(xs)} 张卡片）：猜错 {mistakes:3d} 次")
+        print(f"   Epoch {epoch} ({len(xs):,} cards seen): mistakes {mistakes:3d}")
         if mistakes == 0:
-            print("   一整轮都没猜错，这叠卡片学会了。")
+            print("   A whole epoch without a single mistake: it has learned this deck.")
             break
     return w, b
 
 
 def exam(w, b):
     acc = np.mean([predict(w, b, x) == y for x, y in zip(test_x, test_y)])
-    print(f"   拿 1000 张从没见过的新卡片考试：准确率 {acc:.1%}\n")
+    print(f"   Exam on 1,000 new cards it has never seen: accuracy {acc:.1%}\n")
 
 
-# 400 个权重，对应 Mark I 上 400 个由电机拧动的电位器
+# 400 weights, matching the 400 motor-driven potentiometers on the Mark I
 w = np.zeros(SIZE * SIZE)
 b = 0.0
 test_x, test_y = make_deck(1000)
 
-# ---------------------------------------------------------------- 第一幕：50 张卡片
-train_x, train_y = make_deck(50)  # 和 1958 年的演示一样：50 次试验
-show_card(train_x[0], f"第一张训练卡片（答案：{'右' if train_y[0] == RIGHT else '左'}）：")
+# ---------------------------------------------------------------- Act 1: 50 cards
+train_x, train_y = make_deck(50)  # just like the 1958 demo: 50 trials
+show_card(train_x[0], f"The first training card (answer: {'right' if train_y[0] == RIGHT else 'left'}):")
 
-print("【第一幕】像 1958 年那样，只给它看 50 张卡片")
+print("[Act 1] Just like in 1958: show it only 50 cards")
 w, b = train(w, b, train_x, train_y)
 exam(w, b)
 show_weights(w)
 
-# ---------------------------------------------------------------- 第二幕：更多数据
+# ---------------------------------------------------------------- Act 2: more data
 more_x, more_y = make_deck(1000)
-print("【第二幕】再多给它看 1000 张卡片")
+print("[Act 2] Now show it 1,000 more cards")
 w, b = train(w, b, more_x, more_y)
 exam(w, b)
 show_weights(w)
 
-print("""在训练卡片上全对，不等于在新卡片上全对。
-50 张卡片里，方块恰好没出现过的位置，权重就还是 0，噪点一干扰就容易猜错；
-看得越多，权重图越干净，考试成绩越好。这就是"泛化"，也是后来 ImageNet 的故事要讲的：数据很重要。
+print("""Getting every training card right is not the same as getting every new card right.
+With only 50 cards, any spot where the square never happened to appear still has a weight of 0,
+so a little noise easily makes it guess wrong. The more cards it sees, the cleaner the weight map
+and the better the exam score. That's "generalization", and it's also what the ImageNet story
+later on is about: data matters.
 
-想一想：
-  1. 权重图为什么左边是 '-'、右边是 '+'？没有人告诉它"左右"这个概念。
-  2. 把 NOISE 调到 0.3，会发生什么？
-  3. 如果任务换成"方块在上半边还是下半边"，需要改学习规则吗？""")
+Think about it:
+  1. Why is the weight map '-' on the left and '+' on the right? Nobody told it the concept of "left" and "right".
+  2. What happens if you set NOISE to 0.3?
+  3. If the task became "is the square in the top half or the bottom half?", would the learning rule need to change?""")

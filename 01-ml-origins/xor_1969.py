@@ -1,23 +1,24 @@
 """
-实验 2：1969 年，感知机撞上了 XOR 这堵墙
-==========================================
+Lab 2: 1969, the perceptron hits the XOR wall
+=============================================
 
-Minsky 和 Papert 在《Perceptrons》一书中证明：单层感知机只能画"一条直线"
-来分开两类东西。AND、OR 都能用一条直线分开，XOR（异或）却不行。
+In their book *Perceptrons*, Minsky and Papert proved that a single-layer perceptron can only draw
+"one straight line" to separate two kinds of things. AND and OR can both be separated by one straight line;
+XOR (exclusive or) cannot.
 
-这个脚本用和实验 1 一模一样的感知机，分别去学 AND、OR、XOR，
-你会看到前两个很快学会，XOR 无论训练多少轮都学不会。
+This script uses exactly the same perceptron as Lab 1 to learn AND, OR and XOR in turn.
+You'll see it learn the first two quickly, while XOR never gets learned, no matter how many epochs it trains.
 
-运行：python xor_1969.py
+Run: python xor_1969.py
 """
 
 import numpy as np
 
 X = np.array([[0, 0], [0, 1], [1, 0], [1, 1]], dtype=float)
 TASKS = {
-    "AND": np.array([-1, -1, -1, +1]),   # 两个都是 1 才输出 1
-    "OR":  np.array([-1, +1, +1, +1]),   # 有一个是 1 就输出 1
-    "XOR": np.array([-1, +1, +1, -1]),   # 两个"不一样"才输出 1
+    "AND": np.array([-1, -1, -1, +1]),   # output 1 only when both are 1
+    "OR":  np.array([-1, +1, +1, +1]),   # output 1 if either one is 1
+    "XOR": np.array([-1, +1, +1, -1]),   # output 1 only when the two are "different"
 }
 MAX_EPOCHS = 1000
 
@@ -28,7 +29,7 @@ def accuracy(w, b, y):
 
 
 def train_perceptron(y):
-    """返回 (最好的 w, 最好的 b, 学会时的轮数或 None, 最高准确率, 是否出现循环)。"""
+    """Return (best w, best b, the epoch it learned in or None, best accuracy, whether it went in a loop)."""
     w, b = np.zeros(2), 0.0
     best = (w.copy(), b, accuracy(w, b, y))
     seen = set()
@@ -36,7 +37,7 @@ def train_perceptron(y):
     for epoch in range(1, MAX_EPOCHS + 1):
         mistakes = 0
         for x, t in zip(X, y):
-            if t * (x @ w + b) <= 0:          # 猜错了（或者正好在线上）
+            if t * (x @ w + b) <= 0:          # a wrong guess (or exactly on the line)
                 w += t * x
                 b += t
                 mistakes += 1
@@ -53,11 +54,11 @@ def train_perceptron(y):
 
 
 def draw(w, b, y):
-    """在 [-0.5, 1.5] 的方格里画出感知机的判断：'+' 区域输出 1，'.' 区域输出 0。"""
+    """Draw the perceptron's decision on a grid over [-0.5, 1.5]: '+' regions output 1, '.' regions output 0."""
     pts = {(0, 0): y[0], (0, 1): y[1], (1, 0): y[2], (1, 1): y[3]}
-    for x2 in np.linspace(1.5, -0.5, 9):            # 每行 0.25，正好经过 0 和 1
+    for x2 in np.linspace(1.5, -0.5, 9):            # 0.25 per row, so it passes exactly through 0 and 1
         row = ""
-        for x1 in np.linspace(-0.5, 1.5, 17):       # 每列 0.125，正好经过 0 和 1
+        for x1 in np.linspace(-0.5, 1.5, 17):       # 0.125 per column, so it passes exactly through 0 and 1
             key = (round(float(x1), 3), round(float(x2), 3))
             if key in pts:
                 row += "●" if pts[key] > 0 else "○"
@@ -65,31 +66,31 @@ def draw(w, b, y):
                 row += "+" if x1 * w[0] + x2 * w[1] + b > 0 else "."
         label = f"x2={x2:.0f} " if x2 in (0.0, 1.0) else "     "
         print("   " + label + row)
-    print("        x1 从 -0.5 到 1.5（● 应该输出 1，○ 应该输出 0；+ 区域是感知机判为 1 的地方）\n")
+    print("        x1 runs from -0.5 to 1.5 (● should output 1, ○ should output 0; + marks where the perceptron says 1)\n")
 
 
 for name, y in TASKS.items():
     print("=" * 64)
     w, b, epoch, best_acc, looped = train_perceptron(y)
     if epoch:
-        print(f"{name}：第 {epoch} 轮就学会了！")
-        print(f"   找到的直线：{w[0]:+.0f}·x1 {w[1]:+.0f}·x2 {b:+.0f} = 0")
+        print(f"{name}: learned it by epoch {epoch}!")
+        print(f"   The line it found: {w[0]:+.0f}·x1 {w[1]:+.0f}·x2 {b:+.0f} = 0")
     else:
-        print(f"{name}：训练了 {MAX_EPOCHS} 轮还是没学会。")
+        print(f"{name}: still not learned after {MAX_EPOCHS} epochs.")
         if looped:
-            print("   而且权重在原地打转：转一圈又回到以前的状态，永远停不下来。")
-        print(f"   它找到过的最好的直线，也只能分对 {best_acc:.0%} 的点：")
+            print("   And the weights are going around in circles: after each loop they return to an earlier state, so it never stops.")
+        print(f"   Even the best line it ever found gets only {best_acc:.0%} of the points right:")
     draw(w, b, y)
 
 print("=" * 64)
-# 不靠学习规则，直接暴力乱试 10 万条随机直线，看看最好能分对几个点
+# Forget the learning rule: brute-force 100,000 random lines and see how many points the best one gets right
 rng = np.random.default_rng(1969)
-lines = rng.normal(size=(100_000, 3))                     # 每行是 (w1, w2, b)
+lines = rng.normal(size=(100_000, 3))                     # each row is (w1, w2, b)
 outs = np.where(X @ lines[:, :2].T + lines[:, 2] > 0, 1, -1)   # (4, 100000)
 best_by_brute = (outs == TASKS["XOR"][:, None]).mean(axis=0).max()
-print(f"再换个思路：随机乱画 10 万条直线去分 XOR，最好的一条也只能分对 {best_by_brute:.0%}。\n")
+print(f"Now try another approach: draw 100,000 random lines to split XOR. Even the best one gets only {best_by_brute:.0%} right.\n")
 
-print("""为什么 XOR 学不会？
+print("""Why can't it learn XOR?
 
     x2
     1 |  ●(0,1)        ○(1,1)
@@ -98,10 +99,10 @@ print("""为什么 XOR 学不会？
       +-----------------------  x1
          0              1
 
-两个 ● 在一条对角线上，两个 ○ 在另一条对角线上。
-你试试看：在纸上画"一条直线"，让两个 ● 在一边、两个 ○ 在另一边，画不出来。
-感知机的本质就是画一条直线（高维时是一个平面），所以无论怎么训练，
-4 个点里最多只能分对 3 个。
+The two ● sit on one diagonal, and the two ○ sit on the other.
+Try it yourself: on paper, draw "one straight line" with both ● on one side and both ○ on the other. You can't.
+At heart, a perceptron just draws a straight line (a plane, in higher dimensions), so no matter how you train it,
+it can get at most 3 of the 4 points right.
 
-1969 年这本书出版后，神经网络研究的经费和热情大幅退潮。
-破局的办法要等到 1986 年才流行起来：多加一层，然后用反向传播训练 → 见实验 3。""")
+After this book came out in 1969, funding and enthusiasm for neural network research drained away.
+The way out didn't catch on until 1986: add a layer, then train with backpropagation → see Lab 3.""")
