@@ -1,20 +1,20 @@
 """
-实验 2：合同网：发公告、投标、中标
-=====================================
+Lab 2: The Contract Net: announce, bid, award
+=============================================
 
-1980 年 Reid G. Smith 发表的合同网协议（Contract Net Protocol），解决的是"活该交给谁干"：
-  1. 公告（announce）：经理把任务广播出去，写明需要什么技能、资格门槛是多少
-  2. 投标（bid）：每个承包者自己评估"我能不能干、多久能干完"，愿意就投标，不愿意就拒绝
-  3. 中标（award）：经理比较所有标书，把合同交给最合适的那一个
-  4. 汇报（report）：承包者干完后交回结果
-后来 FIPA 把它写成了标准，消息名字叫 cfp / propose / refuse / accept-proposal / inform。
+The Contract Net Protocol that Reid G. Smith published in 1980 answers the question "who should do this job?":
+  1. Announce: the manager broadcasts the task, saying which skill it needs and what the eligibility threshold is
+  2. Bid: each contractor assesses for itself "can I do it, and how long will it take?", then bids if it wants to, or declines
+  3. Award: the manager compares all the bids and gives the contract to the best one
+  4. Report: the contractor hands back the result when it's done
+FIPA later turned it into a standard, with the message names cfp / propose / refuse / accept-proposal / inform.
 
-关键在于：经理**不需要知道**每个承包者忙不忙、擅长什么，这些由承包者自己在标书里说清楚。
-这里还会演示：没人投标时怎么办，以及和"不看技能、轮流派活"相比效果差多少。
+The key point: the manager **doesn't need to know** whether each contractor is busy or what it's good at; the contractors say so themselves in their bids.
+This lab also shows what to do when nobody bids, and how much worse "taking turns, ignoring skills" does by comparison.
 
-运行：
-  python contract_net.py                     # 假模型：承包者按自己的技能表规则投标
-  python contract_net.py --provider claude   # 真实模型：每份标书由模型写（会调用几十次 API）
+Run:
+  python contract_net.py                     # mock model: contractors bid by rules based on their skill tables
+  python contract_net.py --provider claude   # real model: the model writes every bid (calls the API dozens of times)
 """
 
 import argparse
@@ -26,70 +26,72 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from common.llm import MockLLM, add_provider_args, chat, user_message  # noqa: E402
 
-# 承包者：技能熟练度（0～1）和每小时的价格。熟练度越高，干得越快、质量越好。
+# Contractors: skill levels (0–1) and price per hour. The higher the level, the faster and better the work.
 CONTRACTORS = [
-    {"name": "研究员", "skills": {"调研": 0.9, "写作": 0.8, "摘要": 0.7}, "price": 3},
-    {"name": "程序员", "skills": {"写代码": 0.9, "调试": 0.85, "写作": 0.4}, "price": 3},
-    {"name": "数学家", "skills": {"数学": 0.95, "写代码": 0.6}, "price": 2},
-    {"name": "速记员", "skills": {"摘要": 0.8, "翻译": 0.85, "写作": 0.6}, "price": 1},
+    {"name": "Researcher", "skills": {"research": 0.9, "writing": 0.8, "summarizing": 0.7}, "price": 3},
+    {"name": "Programmer", "skills": {"coding": 0.9, "debugging": 0.85, "writing": 0.4}, "price": 3},
+    {"name": "Mathematician", "skills": {"math": 0.95, "coding": 0.6}, "price": 2},
+    {"name": "Stenographer", "skills": {"summarizing": 0.8, "translation": 0.85, "writing": 0.6}, "price": 1},
 ]
-# 任务：(编号, 描述, 需要的技能, 工作量——熟练度为 1 的人需要几小时)
+# Tasks: (ID, description, skill needed, workload: hours needed by someone with a level of 1)
 TASKS = [
-    ("T1", "调研 2023 年以来的多 agent 框架", "调研", 4),
-    ("T2", "实现一个解析 JSON 日志的函数", "写代码", 3),
-    ("T3", "推导注意力机制的计算复杂度", "数学", 2),
-    ("T4", "把调研结果翻译成英文", "翻译", 2),
-    ("T5", "修复一个失败的单元测试", "调试", 2),
-    ("T6", "写一段 300 字的项目介绍", "写作", 2),
-    ("T7", "实现一个 BPE 分词器", "写代码", 4),
-    ("T8", "给 10 篇论文各写一段摘要", "摘要", 3),
-    ("T9", "画一张系统架构图", "画图", 2),
+    ("T1", "Research multi-agent frameworks since 2023", "research", 4),
+    ("T2", "Implement a function that parses JSON logs", "coding", 3),
+    ("T3", "Derive the computational complexity of attention", "math", 2),
+    ("T4", "Translate the research findings into Chinese", "translation", 2),
+    ("T5", "Fix a failing unit test", "debugging", 2),
+    ("T6", "Write a 300-word project introduction", "writing", 2),
+    ("T7", "Implement a BPE tokenizer", "coding", 4),
+    ("T8", "Write a one-paragraph summary for each of 10 papers", "summarizing", 3),
+    ("T9", "Draw a system architecture diagram", "drawing", 2),
 ]
-THRESHOLD = 0.6            # 公告里的资格门槛：这项技能的熟练度至少要到多少
-RELAXED = 0.3              # 没人投标时，第二次公告放宽到多少
+THRESHOLD = 0.6            # the eligibility threshold in the announcement: the minimum level for this skill
+RELAXED = 0.3              # what the second announcement relaxes it to when nobody bids
 SKILLS = sorted({s for c in CONTRACTORS for s in c["skills"]})
 
 
-# ---------------------------------------------------------------- 承包者：自己评估、自己投标
+# ---------------------------------------------------------------- contractors: assess themselves, bid themselves
 def rule_bid(contractor, task, threshold, busy_until):
-    """假模型的投标逻辑：有这项技能、而且达到门槛才投；工期 = 工作量 / 熟练度。"""
+    """The mock model's bidding logic: bid only if it has the skill at or above the threshold; duration = workload / level."""
     _, _, skill, size = task
     level = contractor["skills"].get(skill, 0)
     if level < threshold:
-        return {"bid": False, "reason": f"我的{skill}熟练度只有 {level}，达不到 {threshold} 的门槛"}
+        return {"bid": False, "reason": f"my {skill} level is only {level}, below the {threshold} threshold"}
     hours = round(size / level, 1)
-    return {"bid": True, "hours": hours, "reason": f"{skill}熟练度 {level}，手头的活到第 {busy_until:.1f} 小时做完"}
+    return {"bid": True, "hours": hours, "reason": f"{skill} level {level}; current work done by hour {busy_until:.1f}"}
 
 
 def ask_contractor(contractor, task, threshold, busy_until, provider, model):
-    """把任务公告发给一个承包者，拿回它的标书。真实模式下，标书由模型来写。"""
+    """Send the task announcement to one contractor and get its bid back. In real mode, the model writes the bid."""
     tid, desc, skill, size = task
-    prompt = (f"你是团队里的「{contractor['name']}」，你的技能熟练度是 {json.dumps(contractor['skills'], ensure_ascii=False)}，"
-              f"手头的工作要到第 {busy_until:.1f} 小时才做完。\n"
-              f"任务公告 {tid}：{desc}。需要技能：{skill}；资格要求：该技能熟练度 ≥ {threshold}；"
-              f"工作量：熟练度为 1 的人需要 {size} 小时。\n"
-              '请诚实评估。只输出一个 JSON：{"bid": true 或 false, "hours": 你预计需要的小时数, "reason": "一句话理由"}')
-    mock = MockLLM([lambda m, t: json.dumps(rule_bid(contractor, task, threshold, busy_until), ensure_ascii=False)])
+    prompt = (f"You are the \"{contractor['name']}\" on the team. Your skill levels are {json.dumps(contractor['skills'])}, "
+              f"and your current work won't be finished until hour {busy_until:.1f}.\n"
+              f"Task announcement {tid}: {desc}. Skill needed: {skill}; eligibility: a {skill} level of at least {threshold}; "
+              f"workload: {size} hours for someone with a level of 1.\n"
+              'Assess yourself honestly. Output only one JSON object: '
+              '{"bid": true or false, "hours": the number of hours you expect to need, "reason": "a one-sentence reason"}')
+    mock = MockLLM([lambda m, t: json.dumps(rule_bid(contractor, task, threshold, busy_until))])
     reply = chat([user_message(prompt)], provider=provider, model=model, mock=mock, effort="low")
     try:
         bid = json.loads(re.search(r"\{.*\}", reply.text, re.S).group(0))
     except (AttributeError, json.JSONDecodeError):
-        return {"bid": False, "reason": "（标书格式不对，按拒绝处理）"}
+        return {"bid": False, "reason": "(the bid was in the wrong format; treated as a decline)"}
     if bid.get("bid") and not isinstance(bid.get("hours"), (int, float)):
-        return {"bid": False, "reason": "（标书没写清工期，按拒绝处理）"}
+        return {"bid": False, "reason": "(the bid didn't give a clear duration; treated as a decline)"}
     return bid
 
 
-# ---------------------------------------------------------------- 经理：公告、比较标书、授予合同
+# ---------------------------------------------------------------- the manager: announce, compare bids, award the contract
 def reformulate(task, provider, model):
-    """连放宽门槛都没人投标时，经理换个说法，把任务改写成团队里有人会做的形式。"""
+    """When nobody bids even with a relaxed threshold, the manager rephrases the task into a form someone on the team can do."""
     tid, desc, skill, size = task
-    prompt = (f"任务 {tid}「{desc}」需要的技能是「{skill}」，但团队里没有人投标。"
-              f"团队成员会的技能有：{'、'.join(SKILLS)}。\n"
-              "请把这个任务改写成团队能完成的形式。只输出 JSON："
-              '{"description": "改写后的任务", "skill": "上面列表里的一项技能"}')
-    canned = {"description": "用 Mermaid 语法写出系统架构图的文本描述（可以自动渲染成图）", "skill": "写代码"}
-    mock = MockLLM([json.dumps(canned, ensure_ascii=False)])
+    prompt = (f"Task {tid} \"{desc}\" needs the skill \"{skill}\", but nobody on the team bid on it. "
+              f"The skills the team members have are: {', '.join(SKILLS)}.\n"
+              "Rewrite this task into a form the team can complete. Output only JSON: "
+              '{"description": "the rewritten task", "skill": "one skill from the list above"}')
+    canned = {"description": "Write a text description of the system architecture diagram in Mermaid syntax "
+                             "(it can be rendered into a diagram automatically)", "skill": "coding"}
+    mock = MockLLM([json.dumps(canned)])
     reply = chat([user_message(prompt)], provider=provider, model=model, mock=mock, effort="low")
     try:
         new = json.loads(re.search(r"\{.*\}", reply.text, re.S).group(0))
@@ -101,8 +103,8 @@ def reformulate(task, provider, model):
 
 
 def contract_net(provider, model, verbose=True):
-    busy = {c["name"]: 0.0 for c in CONTRACTORS}       # 每个承包者手头的活要到第几小时做完
-    schedule = []                                       # (承包者, 任务编号, 开始, 结束, 熟练度)
+    busy = {c["name"]: 0.0 for c in CONTRACTORS}       # the hour at which each contractor's current work is done
+    schedule = []                                       # (contractor, task ID, start, finish, level)
     say = print if verbose else (lambda *a, **k: None)
 
     for task in TASKS:
@@ -110,47 +112,47 @@ def contract_net(provider, model, verbose=True):
         while attempts:
             current, threshold = attempts.pop(0)
             tid, desc, skill, size = current
-            say(f"\n📢 公告 {tid}：{desc}（需要「{skill}」，门槛 {threshold}）")
+            say(f"\n📢 Announcement {tid}: {desc} (needs \"{skill}\", threshold {threshold})")
             bids, refused = [], []
             for c in CONTRACTORS:
                 b = ask_contractor(c, current, threshold, busy[c["name"]], provider, model)
                 if b.get("bid"):
                     finish = busy[c["name"]] + b["hours"]
                     bids.append((finish, b["hours"] * c["price"], c, b))
-                    say(f"   📝 {c['name']} 投标：{b['hours']} 小时，第 {finish:.1f} 小时交付，"
-                        f"报价 {b['hours'] * c['price']:.1f}（{b['reason']}）")
+                    say(f"   📝 {c['name']} bids: {b['hours']} hours, delivers at hour {finish:.1f}, "
+                        f"price {b['hours'] * c['price']:.1f} ({b['reason']})")
                 else:
                     refused.append(c["name"])
             if refused:
-                say(f"   ✋ 拒绝：{'、'.join(refused)}")
+                say(f"   ✋ Declined: {', '.join(refused)}")
             if bids:
-                # 经理的评标规则：谁最早交付就给谁；同时交付时选便宜的
+                # the manager's rule for comparing bids: earliest delivery wins; on a tie, the cheaper one
                 finish, cost, winner, b = min(bids, key=lambda x: (x[0], x[1]))
                 start = busy[winner["name"]]
                 busy[winner["name"]] = finish
                 schedule.append((winner["name"], tid, start, finish, winner["skills"].get(skill, 0), cost))
-                say(f"   ✅ 中标：{winner['name']}（第 {start:.1f}～{finish:.1f} 小时）")
+                say(f"   ✅ Awarded to: {winner['name']} (hours {start:.1f}–{finish:.1f})")
                 break
-            say("   ⚠️  没有人投标。")
+            say("   ⚠️  Nobody bid.")
             if not attempts and threshold == RELAXED:
                 new = reformulate(current, provider, model)
                 if new:
-                    say(f"   🔁 经理把任务改写成：{new[1]}")
+                    say(f"   🔁 The manager rewrote the task as: {new[1]}")
                     attempts.append((new, THRESHOLD))
                 else:
-                    say("   🙋 还是没人能做，上报给人类。")
+                    say("   🙋 Still nobody can do it; escalating to a human.")
             elif attempts:
-                say(f"   🔁 放宽门槛，重新公告一次。")
+                say(f"   🔁 Relaxing the threshold and announcing again.")
     return schedule
 
 
-# ---------------------------------------------------------------- 对照组：不看技能，轮流派活
+# ---------------------------------------------------------------- control group: take turns, ignoring skills
 def round_robin():
     busy = {c["name"]: 0.0 for c in CONTRACTORS}
     schedule = []
     for i, (tid, desc, skill, size) in enumerate(TASKS):
         c = CONTRACTORS[i % len(CONTRACTORS)]
-        level = c["skills"].get(skill, 0.1)            # 完全不会的活，也只能硬着头皮慢慢做
+        level = c["skills"].get(skill, 0.1)            # a job it can't do at all still has to be slogged through, slowly
         hours = round(size / level, 1)
         start = busy[c["name"]]
         busy[c["name"]] = start + hours
@@ -159,10 +161,11 @@ def round_robin():
 
 
 def gantt(schedule, scale):
-    """用字符画甘特图：每个字符代表 1/scale 小时。"""
+    """A Gantt chart drawn with characters: each character stands for 1/scale of an hour."""
     end = max(s[3] for s in schedule)
-    step = max(1, 4 // scale)                           # 刻度每隔几小时标一次，保证每个刻度占 4 个字符
-    print("   " + " " * 8 + "".join(f"{h:<4}" for h in range(0, int(end) + step, step)))
+    step = max(1, 4 // scale)                           # how many hours between tick labels, so each label takes 4 characters
+    width = max(len(c["name"]) for c in CONTRACTORS) + 2
+    print("   " + " " * width + "".join(f"{h:<4}" for h in range(0, int(end) + step, step)))
     for c in CONTRACTORS:
         row = [" "] * (int(end * scale) + 2)
         for name, tid, start, finish, *_ in schedule:
@@ -172,8 +175,7 @@ def gantt(schedule, scale):
             label = (tid + "·" * (b - a))[: b - a]
             row[a:b] = list(label)
             row[a] = "["
-        pad = c["name"] + " " * (8 - 2 * len(c["name"]))
-        print("   " + pad + "".join(row))
+        print("   " + c["name"].ljust(width) + "".join(row))
 
 
 def report(name, schedule):
@@ -181,47 +183,55 @@ def report(name, schedule):
     quality = sum(s[4] for s in schedule) / len(schedule)
     weak = sum(1 for s in schedule if s[4] < THRESHOLD)
     cost = sum(s[5] for s in schedule)
-    print(f"   {name}| 全部完成要 {makespan:5.1f} 小时 | 平均熟练度 {quality:.2f} | "
-          f"交给外行的任务 {weak} 个 | 总花费 {cost:5.1f}")
+    print(f"   {name}| all done after {makespan:5.1f} hours | average level {quality:.2f} | "
+          f"tasks given to non-experts: {weak} | total cost {cost:5.1f}")
 
 
 def main():
-    parser = add_provider_args(argparse.ArgumentParser(description="合同网协议"))
+    parser = add_provider_args(argparse.ArgumentParser(description="The Contract Net Protocol"))
     args = parser.parse_args()
-    print(f"团队：{'、'.join(c['name'] for c in CONTRACTORS)}；任务 {len(TASKS)} 个。经理按顺序公告每个任务。")
+    print(f"Team: {', '.join(c['name'] for c in CONTRACTORS)}; {len(TASKS)} tasks. "
+          "The manager announces the tasks one at a time.")
     cn = contract_net(args.provider, args.model)
     if not cn:
-        print("\n一个任务都没有成交。用真实模型时，先检查它有没有按要求只输出 JSON 标书。")
+        print("\nNot a single task was awarded. With a real model, first check whether it output only a JSON bid as asked.")
         return
 
-    print("\n合同网的排期（[1 表示 T1 开始，· 表示进行中，每格半小时，刻度单位是小时）：")
+    print("\nThe Contract Net's schedule ([1 means T1 starts, · means in progress; each cell is half an hour, "
+          "and the scale is in hours):")
     gantt(cn, scale=2)
     rr = round_robin()
-    print("\n对照组：不看技能、轮流派活的排期（注意：这张图每格一小时）：")
+    print("\nControl group: the schedule when tasks are handed out in turn, ignoring skills "
+          "(note: in this chart each cell is one hour):")
     gantt(rr, scale=1)
     print()
-    report("合同网    ", cn)
-    report("轮流派活  ", rr)
+    report("Contract Net ", cn)
+    report("Round robin  ", rr)
     print("""
-看懂这个结果（以假模型的剧本为例）：
-  * 经理从头到尾没有问过"谁会什么"，只看标书；承包者最了解自己，由它们来报工期。
-  * 负载均衡是自动出现的：程序员接了两个活以后，T7 写代码的标书交付时间排到了后面，
-    于是会写代码、手头又空的数学家中了标。
-  * T9 没人会画图：放宽门槛还是没人投，经理就把任务改写成团队能做的形式；真找不到人就上报给人类。
-  * 轮流派活看起来"公平"，却把调试（T5）和画图（T9）交给了研究员、把写作（T6）交给了程序员，
-    研究员一个人要干 40 多个小时，其他人早早就闲着了，又慢又贵。
+Reading the results (based on the mock model's script):
+  * From start to finish, the manager never asked "who can do what"; it only looked at the bids.
+    The contractors know themselves best, so they are the ones who estimate the duration.
+  * Load balancing appears on its own: after the Programmer took on two jobs, its bid for the T7 coding task
+    could only deliver later, so the Mathematician, who can code and had free time, won the contract.
+  * T9: nobody on the team can draw. Even with a relaxed threshold nobody bid, so the manager rewrote the task
+    into a form the team can do; if nobody can be found at all, it escalates to a human.
+  * Taking turns looks "fair," but it gave debugging (T5) and drawing (T9) to the Researcher and writing (T6)
+    to the Programmer. The Researcher alone has to work more than 40 hours while everyone else sits idle early on:
+    slow and expensive.
 
-换成大模型以后要多想一步：模型写的标书**不一定诚实**，它可能高估自己的能力。
-协议本身并不检查标书是否属实，所以真实系统里，经理还得参考每个承包者过去的成绩，或者在交付时验收。
+With large language models there's one more thing to think about: a bid written by a model **isn't necessarily honest**;
+it may overestimate its own abilities. The protocol itself doesn't check whether a bid is true, so in a real system
+the manager also has to look at each contractor's track record, or check the work on delivery.
 
-想一想：
-  1. 把评标规则改成"谁最便宜就给谁"，排期和总花费会怎么变？
-  2. 如果某个承包者每次都把工期报少一半，会发生什么？经理怎样才能发现？
-  3. 现在任务是一个一个公告的。如果 9 个任务同时公告，同一个承包者可能同时中好几个标，该怎么办？""")
+Think about it:
+  1. If you change the rule to "the cheapest bid wins," how do the schedule and the total cost change?
+  2. What happens if one contractor always quotes half the time it really needs? How could the manager find out?
+  3. Right now the tasks are announced one at a time. If all 9 were announced at once, the same contractor
+     could win several contracts at the same time. What should happen then?""")
 
 
 if __name__ == "__main__":
     try:
         main()
     except RuntimeError as e:
-        raise SystemExit(f"出错了：{e}")
+        raise SystemExit(f"Error: {e}")

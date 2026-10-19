@@ -1,390 +1,389 @@
-# 第八章　多 Agent 协同：一个人干不完的活
+# Chapter 8 — Multi-Agent Collaboration: When One Agent Isn't Enough
 
-> 第七章给一个 agent 套上了缰绳。可有些活，一个 agent 怎么也干不完：资料太多、一个上下文装不下，
-> 或者需要几种完全不同的本事。于是人们想到了"组队"。
-> 这个念头一点也不新：早在 1970 年代，研究者们就在想，许多个小程序怎样像一个团队那样合作。
-> 这一章从那时讲起，一直讲到 2025 年那场"该不该造多 agent"的公开争论。
+> Chapter 7 put a harness on one agent. But some jobs are too big for a single agent, however hard it works: there's too much material to fit in one context,
+> or the job needs several completely different skills. So people came up with the idea of "forming a team."
+> The idea isn't new at all: as early as the 1970s, researchers were already asking how many small programs could cooperate like a team.
+> This chapter starts there and goes all the way to the public argument in 2025 over "whether to build multi-agent systems at all."
 
-**怎么读这一章：** 先看故事，再跑实验，最后看[概念解释](#概念解释)。实验默认用假模型，不需要 API key。
+**How to read this chapter:** Read the stories first, then run the labs, and save the [Concepts](#concepts) for last. The labs use a mock model by default, so no API key is needed.
 
-| 时间 | 发生了什么 | 对应实验 / 概念 |
+| When | What happened | Lab / concept |
 |---|---|---|
-| 2023 年 4 月 | 斯坦福的虚拟小镇：25 个 agent 自己办了一场派对 | 多 agent 系统 |
-| 1973 年 | 休伊特的 Actor 模型：只靠消息来合作 | 消息传递 |
-| 1971–1976 年 | Hearsay-II：一群"专家"围着一块黑板 | 黑板架构 |
-| 1978–1980 年 | 里德·史密斯的合同网：发公告、投标、中标 | 🧪 `contract_net.py` |
-| 1986 年 | 明斯基《心智社会》：智能来自多样性 | 辩论 |
-| 2023 年 | CAMEL、多 agent 辩论、ChatDev、AutoGen | 🧪 `debate.py` |
-| 2025 年 3 月 | MAST：多 agent 系统的 14 种失败方式 | 🧪 `write_review.py` |
-| 2025 年 6 月 | Anthropic 的多 agent 研究系统 vs Cognition《别造多 agent》 | 🧪 `orchestrator.py` |
+| Apr 2023 | Stanford's virtual town: 25 agents throw a party on their own | Multi-agent systems |
+| 1973 | Hewitt's Actor model: cooperating through messages alone | Message passing |
+| 1971–1976 | Hearsay-II: a group of "experts" around a blackboard | Blackboard architecture |
+| 1978–1980 | Reid Smith's Contract Net: announce, bid, award | 🧪 `contract_net.py` |
+| 1986 | Minsky's *The Society of Mind*: intelligence comes from diversity | Debate |
+| 2023 | CAMEL, multi-agent debate, ChatDev, AutoGen | 🧪 `debate.py` |
+| Mar 2025 | MAST: 14 ways multi-agent systems fail | 🧪 `write_review.py` |
+| Jun 2025 | Anthropic's multi-agent research system vs. Cognition's *Don't Build Multi-Agents* | 🧪 `orchestrator.py` |
 
 ---
 
-## 序幕　2023 年 4 月：小镇上的情人节派对
+## Prologue — Apr 2023: A Valentine's Day Party in a Small Town
 
-2023 年 4 月，斯坦福大学的 Joon Sung Park 和他在斯坦福、Google 的合作者发表了一篇论文，
-题目叫《生成式智能体：人类行为的交互式模拟》（Generative Agents）。
-他们用大语言模型造了一个像素风的小镇，叫 **Smallville**，里面住着 **25 个 agent**：
-每个 agent 都有自己的名字、职业、性格和人际关系，会起床、做早饭、上班、聊天，还会记住发生过的事。
+In April 2023, Joon Sung Park of Stanford University and his collaborators at Stanford and Google published a paper
+called *Generative Agents: Interactive Simulacra of Human Behavior*.
+Using large language models, they built a pixel-art town called **Smallville**, home to **25 agents**.
+Each agent had its own name, job, personality and relationships. They got up, made breakfast, went to work, chatted, and remembered what had happened.
 
-研究者只做了一件事：告诉其中一个 agent，咖啡馆的主人**伊莎贝拉·罗德里格斯**，
-她想在 2 月 14 日下午 5 点到 7 点办一场情人节派对。
+The researchers did just one thing: they told one of the agents, the café owner **Isabella Rodriguez**,
+that she wanted to throw a Valentine's Day party from 5 to 7 pm on February 14.
 
-接下来的事，没有人写剧本。伊莎贝拉在咖啡馆里、在路上碰到朋友和熟客，就邀请他们。
-2 月 13 日下午，她开始布置咖啡馆；她的好朋友、常客**玛丽亚**来了，被拉去一起帮忙。
-玛丽亚的人物设定里写着她暗恋**克劳斯**，那天晚上，她邀请克劳斯和她一起去派对，克劳斯高兴地答应了。
-到了情人节下午 5 点，包括玛丽亚和克劳斯在内的五个 agent 来到了咖啡馆。
-两天的模拟里，派对的消息传到了镇上大约一半的居民那里，靠的全是 agent 之间的交谈。
+Nobody wrote a script for what happened next. Whenever Isabella ran into friends and regulars, in the café or out in town, she invited them.
+On the afternoon of February 13, she started decorating the café. Her good friend **Maria**, a regular, came by and was roped into helping.
+Maria's character description said she had a crush on **Klaus**. That evening she invited Klaus to go to the party with her, and he happily said yes.
+At 5 pm on Valentine's Day, five agents, Maria and Klaus among them, showed up at the café.
+Over the two days of the simulation, news of the party reached about half of the town's residents, all through conversations between agents.
 
-一个 agent 只会按自己的设定行事。可许多个 agent 放在一起，互相传话、互相影响，就出现了谁也没有安排过的事情。
-这正是多 agent 系统既迷人又让人头疼的地方。不过，"许多程序一起合作"这个想法，比大语言模型要早五十年。
+A single agent only acts according to its own description. But put many agents together, passing messages and influencing each other, and things happen that nobody planned.
+That is exactly what makes multi-agent systems both fascinating and a headache. Still, the idea of "many programs cooperating" is fifty years older than large language models.
 
-> 💡 伏笔：→ [多 agent 系统](#1-多-agent-系统)
-
----
-
-## 第一幕　1973 年，MIT：一切都是"演员"
-
-1972 年底，MIT 的**卡尔·休伊特（Carl Hewitt）** 停下了他手头的一门编程语言的设计，
-因为他和几位研究生想出了一种新的计算模型。1973 年 8 月，在斯坦福大学召开的第三届国际人工智能联合会议（IJCAI）上，
-休伊特和 Peter Bishop、Richard Steiger 发表了论文《一种用于人工智能的通用模块化 ACTOR 形式体系》。
-
-这个模型里只有一种东西：**Actor**（演员、参与者）。每个 actor 收到一条消息以后，只能做三件事：
-1. 给别的 actor 发有限条消息；
-2. 创建有限个新的 actor；
-3. 决定自己收到下一条消息时怎么反应。
-
-没有共享的内存，没有谁去读谁的变量，**合作只能靠发消息**。
-据休伊特自己说，这个模型受到了物理学（广义相对论和量子力学）的启发，也借鉴了 Lisp、Simula、早期的 Smalltalk 和分组交换网络。
-
-五十年后再看今天的多 agent 系统：编排者给子 agent 发一段任务描述，子 agent 干完交回一段结论，
-彼此看不到对方的上下文。这和 actor 的规矩几乎一模一样，只是"演员"换成了大语言模型。
-
-> 💡 伏笔：→ [消息传递与 Actor 模型](#2-消息传递与-actor-模型)、[上下文隔离](#6-上下文隔离与共享上下文)
+> 💡 Look ahead: → [Multi-agent systems](#1-multi-agent-systems)
 
 ---
 
-## 第二幕　1971–1976 年，卡内基梅隆：围着黑板的专家
+## Act 1 — 1973, MIT: Everything Is an Actor
 
-1971 年，美国国防部高级研究计划局（ARPA，后来改名 DARPA）启动了一个五年的语音理解研究计划，
-目标是到 1976 年做出一个能听懂多人说出的连续语音、词汇量 1000 词左右的系统。
-卡内基梅隆大学、BBN、SRI 等机构都参加了。
+In late 1972, **Carl Hewitt** at MIT put aside the programming language he was designing,
+because he and a few graduate students had come up with a new model of computation. In August 1973, at the third International Joint Conference on Artificial Intelligence (IJCAI), held at Stanford University,
+Hewitt, Peter Bishop and Richard Steiger presented the paper *A Universal Modular ACTOR Formalism for Artificial Intelligence*.
 
-听懂一句话很难：声音要切成音素，音素拼成音节和词，词再组成短语和句子，每一层都充满不确定。
-卡内基梅隆大学的 **Hearsay-II** 团队（Lee Erman、Frederick Hayes-Roth、Victor Lesser、Raj Reddy 等）想了一个办法：
-把每一层的知识做成一个独立的"知识源"，让它们围着一块共享的 **黑板（blackboard）** 工作。
-负责声学的知识源在黑板上写下"这里可能是某个音素"，负责构词的看到了，就在上面写"这几个音素可能组成某个词"，
-负责语法的再接着往上搭。谁也不直接指挥谁，**大家都只看黑板、只往黑板上写**，由一个调度程序决定下一步让谁出手。
+There is only one kind of thing in this model: the **actor**. When an actor receives a message, it can do only three things:
+1. send a finite number of messages to other actors;
+2. create a finite number of new actors;
+3. decide how it will respond to the next message it receives.
 
-1976 年计划结束时，真正达到目标的是同在卡内基梅隆的另一个系统 Harpy。
-Hearsay-II 没有赢下这场比赛，可它的"黑板架构"活了下来，成了后来许多人工智能系统组织多个模块的经典方式。
+There is no shared memory, and nobody reads anybody else's variables: **the only way to cooperate is by sending messages**.
+According to Hewitt himself, the model was inspired by physics (general relativity and quantum mechanics), and it also drew on Lisp, Simula, early Smalltalk and packet-switched networks.
 
-> 💡 伏笔：→ [黑板架构](#3-黑板架构)
+Look at today's multi-agent systems fifty years later: the orchestrator sends a subagent a task description, the subagent finishes and hands back a conclusion,
+and neither can see the other's context. That is almost exactly the actor's rulebook, except that the "actors" are now large language models.
 
----
-
-## 第三幕　1978–1980 年，斯坦福：发公告、投标、中标
-
-黑板解决了"大家怎么共享信息"，可还有一个问题：**活该交给谁干？**
-
-1978 年，**里德·史密斯（Reid G. Smith）** 在斯坦福大学完成了博士论文，研究"分布式问题求解"：
-一群松散连接的计算机，怎样合作解决一个问题。他的答案借用了人类社会里最常见的分工办法：**招标**。
-
-1980 年 12 月，他在《IEEE 计算机汇刊》上正式发表了 **合同网协议（Contract Net Protocol）**：
-- 有任务要做的节点当**经理**，把任务广播出去，这叫**公告**；
-- 其他节点评估自己能不能做、做得怎么样，愿意的就递交**标书**；
-- 经理比较标书，把**合同**授予最合适的节点；
-- 中标的节点干完活，把结果**汇报**回来。如果任务太大，它自己也可以当经理，把一部分再分包出去。
-
-论文里的演示包括 N 皇后问题，以及一个用很多传感器节点合作监视一片区域的"分布式感知"系统。
-这里最妙的一点是：**经理不需要知道每个节点擅长什么、忙不忙**，这些信息由节点自己写在标书里。
-后来，智能物理 agent 基金会（FIPA）把它写成了标准，它也成了多 agent 领域讲"任务分配"时的经典协议。
-
-> 🧪 **动手**：运行 [`contract_net.py`](./contract_net.py)。四个承包者按自己的技能投标，看看负载均衡怎么自动出现，
-> 没人投标时经理又怎么办。再和"不看技能、轮流派活"比一比。
-
-> 💡 伏笔：→ [合同网](#4-合同网)
+> 💡 Look ahead: → [Message passing and the Actor model](#2-message-passing-and-the-actor-model), [Context isolation](#6-context-isolation-vs-shared-context)
 
 ---
 
-## 第四幕　1986 年：心智社会
+## Act 2 — 1971–1976, Carnegie Mellon: Experts Around a Blackboard
 
-1970 年代初，MIT 的**马文·明斯基（Marvin Minsky）** 和**西摩·派珀特（Seymour Papert）** 开始琢磨一个大胆的想法：
-人的心智，会不会本身就是由许多简单的小"agent"组成的一个社会？
-据明斯基说，这个理论最大的灵感来源，是他们想让一台机器用机械臂、摄像头和计算机去搭儿童积木：
-看起来再简单不过的事，拆开来却需要看、抓、规划、纠错等许多种能力互相配合。
+In 1971, the US Department of Defense's Advanced Research Projects Agency (ARPA, later renamed DARPA) launched a five-year research program on speech understanding.
+The goal: by 1976, a system that could understand connected speech from several speakers, with a vocabulary of about 1,000 words.
+Carnegie Mellon University, BBN, SRI and others took part.
 
-1986 年，明斯基把这个理论写成了一本书：《心智社会》（The Society of Mind）。
-全书由 270 篇各自独立的短文组成，分成 30 章。书里有一段很有名的话：
+Understanding a sentence is hard: the sound has to be cut into phonemes, phonemes put together into syllables and words, and words into phrases and sentences, and every level is full of uncertainty.
+Carnegie Mellon's **Hearsay-II** team (Lee Erman, Frederick Hayes-Roth, Victor Lesser, Raj Reddy and others) came up with a solution:
+turn the knowledge at each level into an independent "knowledge source," and have them all work around a shared **blackboard**.
+The acoustic knowledge source writes on the blackboard "this might be such-and-such a phoneme"; the word-building one sees it and writes "these phonemes might form such-and-such a word";
+the grammar one then builds on top of that. Nobody gives orders to anybody directly: **everyone only reads the blackboard and only writes on the blackboard**, and a scheduler decides who acts next.
 
-> "是什么神奇的诀窍让我们变得聪明？诀窍就是没有诀窍。智能的力量来自我们庞大的多样性，而不是来自某个单一的、完美的原理。"
-> （What magical trick makes us intelligent? The trick is that there is no trick. The power of intelligence stems from our vast diversity, not from any single, perfect principle.）
+When the program ended in 1976, the system that actually met the goal was Harpy, another system from Carnegie Mellon.
+Hearsay-II didn't win this race, but its "blackboard architecture" lived on and became a classic way for many later AI systems to organize multiple modules.
 
-将近四十年后，这本书又被大语言模型的研究者们翻了出来。
-
-> 💡 伏笔：→ [多 agent 辩论](#8-多-agent-辩论与多数投票)
-
----
-
-## 第五幕　2023 年：大模型开始组队
-
-ChatGPT 火了以后，研究者们很快想到：既然一个模型能聊天，那让两个模型互相聊，会怎样？
-
-**2023 年 3 月，CAMEL。** 阿卜杜拉国王科技大学（KAUST）的 Guohao Li 等人发表了 CAMEL，
-让两个模型分别扮演"用户"和"助手"，围绕一个任务自己聊下去，这叫**角色扮演**。
-他们也老老实实记下了各种翻车现场：两个 agent 聊着聊着**互换了角色**；助手只会把指令复述一遍；
-回复敷衍了事；还有**无限循环**：两个 agent 没完没了地聊下去，
-它们甚至已经意识到自己陷入了循环，却因为还"在戏里"而没法结束对话。
-
-**2023 年 5 月，多 agent 辩论。** MIT 和 Google Brain 的 Yilun Du、Shuang Li、Antonio Torralba、
-Joshua Tenenbaum、Igor Mordatch 发表论文，让几个模型实例各自回答同一个问题，
-再互相看对方的答案和理由，辩论几轮后得出共同的结论。论文明确写道，这个方法受到了明斯基《心智社会》的启发。
-实验显示，辩论让模型在事实准确性和推理题上都有提升。
-不过故事还有后续：2025 年，Hyeong Kyu Choi 等人的论文《辩论还是投票？》在七个基准上发现，
-多 agent 辩论带来的提升，大部分其实来自"多数投票"本身。
-
-**2023 年 7 月，ChatDev。** 以清华大学为主的 Chen Qian 等人开了一家"虚拟软件公司"：
-CEO、产品官、CTO、程序员、审查员、测试员、美术设计都由模型扮演，按"设计、编码、测试、写文档"的瀑布流程开发软件。
-据论文统计，做出一个小软件平均不到 7 分钟，花费不到 1 美元。
-
-**2023 年 8 月，AutoGen。** 微软研究院和几所大学的 Qingyun Wu、Chi Wang 等人发布了 AutoGen 框架，
-把多 agent 协作统一成"对话"：比如一个负责写代码的助手，配上一个代表用户、能真正执行代码的代理，你来我往直到任务完成。
-
-一年之内，"多 agent"成了最热的词之一。但热闹背后，有一个问题还没人认真回答：这些系统到底在哪里出错？
-
-> 🧪 **动手**：运行 [`debate.py`](./debate.py)。三个 agent 辩论"球拍和球"这道经典陷阱题，
-> 看看"会验算"的 agent 和"随大流"的 agent，辩论出来的结果有什么不同。
-
-> 💡 伏笔：→ [角色扮演](#7-角色扮演)、[多 agent 辩论](#8-多-agent-辩论与多数投票)、[停止条件](#11-停止条件与原地打转检测)
+> 💡 Look ahead: → [Blackboard architecture](#3-blackboard-architecture)
 
 ---
 
-## 第六幕　2025 年 3 月，伯克利：多 agent 系统为什么会失败
+## Act 3 — 1978–1980, Stanford: Announce, Bid, Award
 
-2025 年 3 月，加州大学伯克利分校的 Mert Cemri、Melissa Z. Pan、Shuyi Yang 等人发表了论文
-《多 agent 大模型系统为什么会失败？》。他们收集了多个流行的多 agent 框架的运行记录，由多位专家逐条标注
-（标注者之间的一致性系数 Cohen's κ 达到 0.88），整理出第一套有实证基础的失败分类法：**MAST**。
+The blackboard solved "how everyone shares information," but there was still another question: **who should do the job?**
 
-MAST 把失败分成三大类、共 14 种：
-- **规格与系统设计**：不遵守任务要求、不遵守角色设定、重复步骤、丢失对话历史、不知道什么时候该停；
-- **agent 之间没对齐**：对话被重置、不问清楚就动手、跑题、该说的信息没说、无视别人的输入、想的和做的不一致；
-- **验收与结束**：过早结束、没有验收或验收不完整、验收错了。
+In 1978, **Reid G. Smith** finished his PhD thesis at Stanford University. He studied "distributed problem solving":
+how a group of loosely connected computers can cooperate to solve a problem. His answer borrowed the most common way human society divides up work: **tendering**.
 
-论文最重要的结论是：多 agent 系统的失败，**主要来自系统设计和 agent 之间的配合问题，而不只是模型不够聪明**。
-换句话说，很多毛病不需要等更强的模型，靠更好的"组织架构"就能治。比如，一个认真的审稿人，加上一个会喊停的规则。
+In December 1980, he formally published the **Contract Net Protocol** in *IEEE Transactions on Computers*:
+- a node with a task to be done acts as the **manager** and broadcasts the task; this is the **announcement**;
+- the other nodes assess whether they can do it and how well, and those that want it submit a **bid**;
+- the manager compares the bids and awards the **contract** to the best-suited node;
+- the winning node does the work and **reports** the result back. If the task is too big, it can act as a manager itself and subcontract part of it.
 
-> 🧪 **动手**：运行 [`write_review.py`](./write_review.py)。一个 agent 写代码，另一个在带超时的子进程里跑测试、给反馈。
-> 看看死循环怎么被超时抓住，"原地打转"的作者又怎么被叫停。
+The demos in the paper included the N-queens problem and a "distributed sensing" system in which many sensor nodes cooperate to monitor an area.
+The cleverest part: **the manager doesn't need to know what each node is good at or how busy it is**; the nodes write that in their bids themselves.
+Later, the Foundation for Intelligent Physical Agents (FIPA) turned it into a standard, and it became the classic protocol for "task allocation" in the multi-agent field.
 
-> 💡 伏笔：→ [写-审循环](#9-写-审循环)、[多 agent 系统的失败方式](#10-多-agent-系统的失败方式)
+> 🧪 **Try it**: run [`contract_net.py`](./contract_net.py). Four contractors bid according to their own skills. Watch how load balancing emerges on its own,
+> and what the manager does when nobody bids. Then compare it with "taking turns, ignoring skills."
 
----
-
-## 第七幕　2025 年 6 月：同一周，两种声音
-
-2025 年 6 月中旬，几乎在同一时间，两家做 agent 的公司发表了两篇观点相反的文章。
-
-**一篇来自 Anthropic**（6 月 13 日）：《我们怎样搭建多 agent 研究系统》。
-Claude 的"研究"功能里，一个主 agent 先分析问题、制定计划，然后派出多个子 agent 并行搜索，
-每个子 agent 有**自己独立的上下文窗口**，最后只把最重要的发现交回给主 agent 汇总。
-在他们内部的研究类评测上，以 Claude Opus 4 为主 agent、Claude Sonnet 4 为子 agent 的多 agent 系统，
-比单个 Claude Opus 4 的表现高出 **90.2%**。
-他们也毫不讳言代价：agent 用的 token 大约是普通聊天的 4 倍，多 agent 系统大约是 **15 倍**；
-早期版本还会"为一个简单的问题派出 50 个子 agent""没完没了地搜索根本不存在的资料""用过多的进度汇报互相干扰"。
-文章里还有一句很重要的话：
-
-> "有些领域需要所有 agent 共享同一个上下文，或者 agent 之间有很多依赖，这些领域目前并不适合用多 agent 系统。
-> 例如，大多数编程任务里真正能并行的部分比研究任务少……"
-
-**另一篇来自 Cognition**（做 AI 程序员 Devin 的公司），作者 Walden Yan，标题毫不客气：《别造多 agent》（Don't Build Multi-Agents）。
-他提出了两条原则：
-1. **共享上下文，而且要共享完整的 agent 轨迹，不能只传几条消息**；
-2. **每个行动都隐含着决定，互相冲突的决定会带来糟糕的结果。**
-
-他举了一个例子：假设任务是"做一个 Flappy Bird 小游戏"，拆给两个子 agent，一个做背景、一个做小鸟。
-结果做背景的那个误会了，做出了《超级马里奥》风格的背景；做小鸟的那个，做出的鸟既不像游戏素材，动起来也完全不像 Flappy Bird。
-两个子 agent 各自都"完成了任务"，可拼在一起什么也不是。
-
-这两篇文章看起来针锋相对，其实并不矛盾。**调研**可以拆成许多互不依赖、只读不写的部分，每个子 agent 的发现可以被压缩成几句话；
-**写代码**的每一步都在做隐含的决定，彼此紧密依赖，拆开了就容易各干各的。
-该不该用多 agent，取决于任务本身能不能被干净地拆开。
-
-> 🧪 **动手**：运行 [`orchestrator.py`](./orchestrator.py)。一个编排者把"调研本仓库第 1～7 章"拆给 7 个并行的工作者，
-> 再和"一个 agent 从头读到尾"比较速度、上下文大小和 token。
-
-> 💡 伏笔：→ [编排者-工作者](#5-编排者-工作者)、[上下文隔离与共享上下文](#6-上下文隔离与共享上下文)、[成本取舍](#12-什么时候该用多-agent)
+> 💡 Look ahead: → [The Contract Net](#4-the-contract-net)
 
 ---
 
-## 尾声：几种常见的组队方式
+## Act 4 — 1986: The Society of Mind
 
-| 模式 | 怎么分工 | 适合 | 小心 | 本章的例子 |
+In the early 1970s, **Marvin Minsky** and **Seymour Papert** at MIT began to mull over a bold idea:
+could the human mind itself be a society made up of many simple little "agents"?
+According to Minsky, the theory's biggest source of inspiration was their attempt to get a machine to build with children's blocks, using a robot arm, a camera and a computer:
+something that looks as simple as can be turned out, once you took it apart, to need many abilities working together: seeing, grasping, planning, correcting mistakes.
+
+In 1986, Minsky wrote the theory up as a book: *The Society of Mind*.
+The book is made up of 270 self-contained short essays, arranged in 30 chapters. It contains a famous passage:
+
+> "What magical trick makes us intelligent? The trick is that there is no trick. The power of intelligence stems from our vast diversity, not from any single, perfect principle."
+
+Nearly forty years later, large-language-model researchers dug the book out again.
+
+> 💡 Look ahead: → [Multi-agent debate](#8-multi-agent-debate-and-majority-voting)
+
+---
+
+## Act 5 — 2023: Large Language Models Start Forming Teams
+
+Once ChatGPT took off, researchers quickly wondered: if one model can chat, what happens if two models chat with each other?
+
+**March 2023, CAMEL.** Guohao Li and others at King Abdullah University of Science and Technology (KAUST) published CAMEL.
+They had two models play the "user" and the "assistant" and keep talking about a task on their own; this is called **role-playing**.
+They also honestly recorded all the ways it went wrong: two agents in the middle of a conversation **swapped roles**; the assistant just repeated the instructions back;
+replies were half-hearted; and there were **infinite loops**: two agents talking on and on without end,
+even after they had realized they were stuck in a loop, because they were still "in character" and couldn't end the conversation.
+
+**May 2023, multi-agent debate.** Yilun Du, Shuang Li, Antonio Torralba,
+Joshua Tenenbaum and Igor Mordatch of MIT and Google Brain published a paper in which several model instances each answer the same question,
+then look at one another's answers and reasoning, and after a few rounds of debate reach a common conclusion. The paper says explicitly that the method was inspired by Minsky's *The Society of Mind*.
+The experiments showed that debate improved the models on both factual accuracy and reasoning problems.
+But the story has a sequel: in 2025, the paper *Debate or Vote* by Hyeong Kyu Choi and others found, on seven benchmarks,
+that most of the gains from multi-agent debate actually come from "majority voting" itself.
+
+**July 2023, ChatDev.** Chen Qian and others, mostly from Tsinghua University, opened a "virtual software company":
+the CEO, the CPO, the CTO, a programmer, a reviewer, a tester and an art designer were all played by models, developing software in a waterfall process of "design, coding, testing, documentation."
+According to the paper's figures, making a small piece of software took less than 7 minutes on average and cost less than $1.
+
+**August 2023, AutoGen.** Qingyun Wu, Chi Wang and others from Microsoft Research and several universities released the AutoGen framework,
+which treats all multi-agent collaboration as "conversation": for example, an assistant that writes code, paired with a proxy that stands in for the user and can actually run the code, going back and forth until the task is done.
+
+Within a year, "multi-agent" had become one of the hottest buzzwords. But behind all the excitement, one question still hadn't been taken seriously: where exactly do these systems go wrong?
+
+> 🧪 **Try it**: run [`debate.py`](./debate.py). Three agents debate the classic "bat and ball" trick question.
+> See how differently the debate turns out for agents that "check their work" and agents that "follow the crowd."
+
+> 💡 Look ahead: → [Role-playing](#7-role-playing), [Multi-agent debate](#8-multi-agent-debate-and-majority-voting), [Stopping conditions](#11-stopping-conditions-and-going-in-circles-detection)
+
+---
+
+## Act 6 — Mar 2025, Berkeley: Why Multi-Agent Systems Fail
+
+In March 2025, Mert Cemri, Melissa Z. Pan, Shuyi Yang and others at the University of California, Berkeley published the paper
+*Why Do Multi-Agent LLM Systems Fail?* They collected run logs from several popular multi-agent frameworks and had several experts annotate them one by one
+(the agreement between annotators, measured by Cohen's κ, reached 0.88), producing the first empirically grounded taxonomy of failures: **MAST**.
+
+MAST sorts failures into three categories, 14 kinds in all:
+- **Specification and system design**: disobeying the task specification, disobeying the role specification, repeating steps, losing the conversation history, not knowing when to stop;
+- **Misalignment between agents**: conversation resets, acting without asking for clarification, getting off track, withholding information that should be shared, ignoring other agents' input, a mismatch between reasoning and action;
+- **Verification and termination**: ending too early, no verification or incomplete verification, incorrect verification.
+
+The paper's most important conclusion: the failures of multi-agent systems **come mainly from system design and from problems in how agents work together, not just from models not being smart enough**.
+In other words, many of the problems don't have to wait for stronger models; better "organizational design" can fix them. For example, a conscientious reviewer, plus a rule that calls a halt.
+
+> 🧪 **Try it**: run [`write_review.py`](./write_review.py). One agent writes code; another runs the tests in a subprocess with a timeout and gives feedback.
+> Watch how an infinite loop gets caught by the timeout, and how a writer that "goes in circles" gets stopped.
+
+> 💡 Look ahead: → [The writer–reviewer loop](#9-the-writerreviewer-loop), [How multi-agent systems fail](#10-how-multi-agent-systems-fail)
+
+---
+
+## Act 7 — Jun 2025: Two Voices in the Same Week
+
+In mid-June 2025, almost at the same time, two companies that build agents published two articles with opposite views.
+
+**One came from Anthropic** (June 13): *How we built our multi-agent research system*.
+In Claude's Research feature, a lead agent first analyzes the question and makes a plan, then sends out several subagents to search in parallel.
+Each subagent has **its own separate context window**, and in the end hands only its most important findings back to the lead agent to pull together.
+On their internal research evaluation, a multi-agent system with Claude Opus 4 as the lead agent and Claude Sonnet 4 as the subagents
+outperformed a single Claude Opus 4 by **90.2%**.
+They were also frank about the costs: agents use about 4 times as many tokens as an ordinary chat, and multi-agent systems about **15 times** as many;
+early versions were also prone to "spawning 50 subagents for simple queries, scouring the web endlessly for nonexistent sources, and distracting each other with excessive updates."
+The article also contains a very important passage:
+
+> "Some domains that require all agents to share the same context or involve many dependencies between agents are not a good fit for multi-agent systems today.
+> For instance, most coding tasks involve fewer truly parallelizable tasks than research..."
+
+**The other came from Cognition** (the company behind the AI programmer Devin). Its author, Walden Yan, didn't mince words in the title: *Don't Build Multi-Agents*.
+He put forward two principles:
+1. **Share context, and share full agent traces, not just individual messages**;
+2. **Actions carry implicit decisions, and conflicting decisions carry bad results.**
+
+He gave an example: suppose the task is "build a little Flappy Bird game," split between two subagents, one making the background and one making the bird.
+The background subagent misunderstood and made a background in the style of *Super Mario Bros.*; the bird subagent made a bird that didn't look like a game asset and didn't move anything like the one in Flappy Bird.
+Each subagent "completed its task," but put together, the pieces add up to nothing.
+
+The two articles look like they are at loggerheads, but they don't actually contradict each other. **Research** can be split into many independent, read-only parts, and each subagent's findings can be compressed into a few sentences;
+**writing code** involves implicit decisions at every step, and the steps depend tightly on each other, so once you split it up, everyone easily goes their own way.
+Whether to use multiple agents depends on whether the task itself can be split cleanly.
+
+> 🧪 **Try it**: run [`orchestrator.py`](./orchestrator.py). An orchestrator splits "research Chapters 1–7 of this repo" among 7 workers running in parallel,
+> then compares speed, context size and tokens with "one agent reads everything from start to finish."
+
+> 💡 Look ahead: → [Orchestrator–worker](#5-orchestratorworker), [Context isolation vs. shared context](#6-context-isolation-vs-shared-context), [Weighing the cost](#12-when-to-use-multiple-agents)
+
+---
+
+## Epilogue — Common Ways to Form a Team
+
+| Pattern | How the work is split | Good for | Watch out for | Example in this chapter |
 |---|---|---|---|---|
-| 编排者-工作者 | 一个主管拆任务，多个工作者并行做，主管汇总 | 能拆成独立部分的大任务，比如调研 | 拆得不干净；工作者交回的信息太少 | `orchestrator.py` |
-| 合同网 | 公告任务，大家投标，择优授予 | 成员能力不同、负载会变 | 标书不诚实；没人投标 | `contract_net.py` |
-| 辩论 | 各自回答，互相质疑，投票或裁判 | 有标准答案、能验算的问题 | 从众；全员犯同一个错 | `debate.py` |
-| 写-审循环 | 一个写，一个审，反复修改 | 有明确的验收标准 | 原地打转；审稿人自己出错 | `write_review.py` |
-| 黑板 | 大家读写同一块共享区域 | 多种知识需要逐步拼起来 | 谁先谁后的调度 | （只讲概念） |
+| Orchestrator–worker | A lead splits the task, several workers do the parts in parallel, and the lead pulls it together | Big tasks that split into independent parts, such as research | Splitting it unclearly; workers handing back too little information | `orchestrator.py` |
+| Contract Net | Announce the task, everyone bids, award it to the best | Members with different abilities and changing workloads | Dishonest bids; nobody bidding | `contract_net.py` |
+| Debate | Each answers, they challenge each other, then vote or let a judge decide | Questions with a standard answer that can be checked | Conformity; everyone making the same mistake | `debate.py` |
+| Writer–reviewer loop | One writes, one reviews, revise again and again | Tasks with clear acceptance criteria | Going in circles; the reviewer itself being wrong | `write_review.py` |
+| Blackboard | Everyone reads and writes the same shared area | Several kinds of knowledge that have to be pieced together step by step | Scheduling who goes first | (concept only) |
 
-多 agent 不是越多越好。在动手拆之前，先问自己三个问题：
-1. 这个任务**能拆成互不依赖的部分**吗？
-2. 拆开以后，每个部分的**信息量大到**一个上下文装不下吗？
-3. 多花几倍 token 换来的速度和质量，**值得吗**？
+More agents isn't always better. Before you split anything up, ask yourself three questions:
+1. Can this task **be split into independent parts**?
+2. Once split, is each part's **information too big** to fit in one context?
+3. Is the speed and quality you gain **worth** spending several times as many tokens?
 
-三个都是"是"，再考虑多 agent。下一章，我们让**不同厂商**的模型组成一个团队，看看协议怎样让它们说上话。
+Only if all three answers are "yes" should you consider multiple agents. In the next chapter, we put models from **different vendors** on one team and see how protocols let them talk to each other.
 
 ---
 
-## 动手：四个小实验
+## Labs
 
 ```bash
-python orchestrator.py       # 编排者-工作者：7 个工作者并行调研（默认用假模型）
-python contract_net.py       # 合同网：投标领任务
-python debate.py             # 多 agent 辩论 + 一个思想实验
-python write_review.py       # 写-审循环：子进程里跑测试
+python orchestrator.py       # orchestrator–worker: 7 workers research in parallel (uses the mock model by default)
+python contract_net.py       # Contract Net: bidding for tasks
+python debate.py             # multi-agent debate + a thought experiment
+python write_review.py       # writer–reviewer loop: running the tests in a subprocess
 
-# 换成真实模型（需要对应的 API key，见第五章）
+# Switch to a real model (needs the matching API key; see Chapter 5)
 python orchestrator.py --provider claude
 python debate.py --provider deepseek
 ```
 
-| 实验 | 你应该看到 | 思考题（脚本末尾也有） |
+| Lab | What you should see | Think about it (also at the end of each script) |
 |---|---|---|
-| `orchestrator.py` | 7 个工作者并行，总用时约等于一个工作者；每个工作者的上下文不到单个 agent 的 1/6；这个例子里多 agent 的总 token 反而更少 | 如果第 5 章的工作者需要第 4 章的结论，还能并行吗？ |
-| `contract_net.py` | 程序员接满两个活后，数学家中标了写代码的任务；没人会画图时，经理把任务改写成"用 Mermaid 写图"；合同网 8.8 小时完成，轮流派活要 44.4 小时 | 承包者把工期报少一半，经理怎样才能发现？ |
-| `debate.py` | 同样一对两错的开局：验算型最后全对，从众型最后全错；思想实验里，全员从众的辩论和直接投票结果完全一样 | 换成三家不同厂商的模型，"都掉进同一个陷阱"还成立吗？ |
-| `write_review.py` | 第 1 版 3 个测试失败；第 2 版死循环被 2 秒超时抓住；第 3 版全部通过；固执的作者第 2 轮就被叫停 | 作者能看到全部测试时，怎么防它"骗过"测试？ |
+| `orchestrator.py` | 7 workers in parallel, and the total time is about the same as one worker's; each worker's context is about 1/6 of the single agent's; in this example the multi-agent setup actually uses fewer tokens in total | If the Chapter 5 worker needed the Chapter 4 conclusion, could they still run in parallel? |
+| `contract_net.py` | After the Programmer has taken two jobs, the Mathematician wins the coding task; when nobody can draw, the manager rewrites the task as "write the diagram in Mermaid"; the Contract Net is done in 8.8 hours, while taking turns takes 44.4 hours | If a contractor quoted half the time it really needs, how could the manager find out? |
+| `debate.py` | The same start, one right and two wrong: the verifiers all end up right, the conformists all end up wrong; in the thought experiment, a debate in which everyone conforms gives exactly the same result as a straight vote | With models from three different vendors, would "all falling into the same trap" still hold? |
+| `write_review.py` | Version 1 fails 3 tests; version 2's infinite loop is caught by the 2-second timeout; version 3 passes everything; the stubborn writer is stopped in round 2 | When the writer can see all the tests, how do you keep it from "fooling" them? |
 
-关于真实模型模式：这四个脚本的真实 API 路径我都用模拟服务器测试过（确认不会崩溃、格式不对时有兜底），
-但没有用真实的 API key 跑过。真实模型的表现会和假模型的剧本不一样，比如辩论题，现在的大模型很可能第一轮就全答对了。
-`write_review.py` 的真实模式会在你的电脑上执行模型写的代码，虽然有超时和资源限制，但这不是真正的沙箱。
-
----
-
-## 概念解释
-
-### 1. 多 agent 系统
-
-由多个 agent 组成、通过某种方式互相配合来完成任务的系统（multi-agent system）。
-每个 agent 有自己的指令、上下文和工具；它们之间怎么通信、怎么分工、谁说了算，就是这个系统的"组织架构"。
-多 agent 系统可能出现单个 agent 身上看不到的"涌现"行为，好的坏的都有。
-
-📖 登场：[序幕](#序幕2023-年-4-月小镇上的情人节派对)
-
-### 2. 消息传递与 Actor 模型
-
-Actor 模型里，每个 actor 只能通过消息和别人交流，收到消息后可以发消息、创建新的 actor、改变自己下一次的反应方式。
-没有共享内存，所以不会出现两个人同时改同一个变量的问题，天然适合并行和分布式。
-今天的多 agent 系统大多也是这样：agent 之间传递的是一段段文字（任务描述、结论），而不是共享整个上下文。
-
-📖 登场：[第一幕](#第一幕1973-年mit一切都是演员)
-
-### 3. 黑板架构
-
-多个专门的模块（知识源）共享一块"黑板"：每个模块盯着黑板，看到自己能处理的信息就处理，把结果写回黑板；
-由一个调度程序决定下一步激活谁。模块之间不直接通信，只通过黑板间接协作。
-在大模型系统里，一个共享的文件、数据库或者任务清单，都可以起到黑板的作用。
-
-📖 登场：[第二幕](#第二幕19711976-年卡内基梅隆围着黑板的专家)
-
-### 4. 合同网
-
-靠"招标"来分配任务的协议：经理发**公告**，承包者递**标书**（或者拒绝），经理授予**合同**，承包者完成后**汇报**结果。
-FIPA 的标准版本里，这几种消息分别叫 cfp（征求建议）、propose / refuse、accept-proposal / reject-proposal、inform。
-优点是经理不需要了解每个承包者的内部情况；难点是标书是否可信、没人投标怎么办、同一个承包者同时中好几个标怎么办。
-
-📖 登场：[第三幕](#第三幕19781980-年斯坦福发公告投标中标)　🧪 `contract_net.py`
-
-### 5. 编排者-工作者
-
-一个**编排者**（orchestrator，也叫主 agent、lead agent）负责理解任务、拆分子任务、派给**工作者**（worker，也叫子 agent），
-最后汇总结果。和固定流程的区别在于：拆成几份、怎么拆，是编排者根据具体任务临时决定的。
-Anthropic 在《构建高效的 agent》（2024 年 12 月）里把它列为常见的工作流模式之一。
-
-📖 登场：[第七幕](#第七幕2025-年-6-月同一周两种声音)　🧪 `orchestrator.py`
-
-### 6. 上下文隔离与共享上下文
-
-**隔离**：每个子 agent 有自己干净的上下文，只装着自己那部分任务。好处是不会被别的信息干扰，
-上下文小、可以并行，还能把大量原始资料"压缩"成几句结论交回去。
-**共享**：所有参与者都看到完整的历史和彼此的决定。好处是不会各干各的。
-这两者之间是取舍：Anthropic 的研究系统选择隔离，因为调研的各部分互不依赖；
-Cognition 主张共享，因为写代码的每一步都依赖前面的决定。
-
-📖 登场：[第一幕](#第一幕1973-年mit一切都是演员)、[第七幕](#第七幕2025-年-6-月同一周两种声音)　🧪 `orchestrator.py`
-
-### 7. 角色扮演
-
-给每个 agent 一个角色（产品经理、程序员、测试员……）和对应的系统提示，让它们按角色互相对话。
-CAMEL 用"用户"和"助手"两个角色，ChatDev 模拟了一整个软件公司。
-角色设定能让分工清晰，但也会出现**角色互换**、**只复述指令**、**停不下来**等问题，需要在提示和程序里约束。
-
-📖 登场：[第五幕](#第五幕2023-年大模型开始组队)
-
-### 8. 多 agent 辩论与多数投票
-
-**辩论**：几个 agent 先独立回答，再看到彼此的答案和理由，决定坚持还是修改，最后投票或由裁判决定。
-**多数投票**：几个 agent（或同一个模型采样几次）各自回答，直接取出现最多的答案，不交流。
-辩论想要的效果是"少数人的正确答案说服多数人"，这要求 agent 能**独立检验**别人的说法；
-如果大家只是随大流，辩论就退化成了多数投票，甚至会让本来对的人改错。
-另外，几个 agent 用的是同一个模型时，它们往往会犯同样的错，投票也救不回来。
-
-📖 登场：[第四幕](#第四幕1986-年心智社会)、[第五幕](#第五幕2023-年大模型开始组队)　🧪 `debate.py`
-
-### 9. 写-审循环
-
-也叫**评估者-优化者**（evaluator-optimizer）：一个 agent 产出，另一个评估并给出具体反馈，循环到合格为止。
-能用程序判断的标准（测试、格式校验、编译）优先用程序判断，测不出来的（可读性、文风）再交给模型点评。
-审稿人执行别人写的代码时，必须有超时、资源限制和隔离的工作目录。
-
-📖 登场：[第六幕](#第六幕2025-年-3-月伯克利多-agent-系统为什么会失败)　🧪 `write_review.py`
-
-### 10. 多 agent 系统的失败方式
-
-MAST 把多 agent 系统的失败分成三类：**规格与系统设计**（比如不遵守角色、重复步骤、不知道何时该停）、
-**agent 之间没对齐**（比如不问清楚就动手、该说的没说、无视别人的输入）、
-**验收与结束**（比如过早结束、没有验收、验收错了）。
-这些问题大多可以靠更好的设计来缓解：写清楚的任务说明、明确的交接格式、独立的验收、可靠的停止条件。
-
-📖 登场：[第六幕](#第六幕2025-年-3-月伯克利多-agent-系统为什么会失败)　🧪 `write_review.py`
-
-### 11. 停止条件与原地打转检测
-
-多个 agent 互相对话时，很容易谁也不喊停：互相道谢、反复修改同一处、重复同样的搜索。
-常用的刹车：最大轮数；明确的完成标志（比如测试全部通过）；检测"这一轮和上一轮一模一样"；
-token 和时间预算（第七章）。停下来以后，把情况交给人类，而不是悄悄结束。
-
-📖 登场：[第五幕](#第五幕2023-年大模型开始组队)　🧪 `write_review.py`
-
-### 12. 什么时候该用多 agent
-
-多 agent 的好处：并行（更快）、上下文隔离（每个 agent 更专注）、分工（不同的提示、工具甚至不同的模型）。
-代价：更多的 token（Anthropic 报告约为普通聊天的 15 倍）、更多的协调失败、更难调试。
-适合：能拆成独立部分、每部分信息量很大、结果值得多花钱的任务，比如大范围调研。
-不太适合：步骤之间紧密依赖、需要所有人共享全部上下文的任务，比如大多数编程任务。
-
-📖 登场：[第七幕](#第七幕2025-年-6-月同一周两种声音)、[尾声](#尾声几种常见的组队方式)　🧪 `orchestrator.py`
+About real-model mode: I tested the real-API paths of all four scripts against a mock server (to confirm they don't crash and have a fallback when the format is wrong),
+but have not run them with a real API key. A real model will behave differently from the mock model's script; for the debate question, for example, today's large models will very likely all get it right in round 1.
+The real mode of `write_review.py` runs the code the model writes on your computer. There are a timeout and resource limits, but this is not a real sandbox.
 
 ---
 
-## 参考资料
+## Concepts
 
-- J. S. Park, J. C. O'Brien, C. J. Cai, M. R. Morris, P. Liang, M. S. Bernstein, *Generative Agents: Interactive Simulacra of Human Behavior*, UIST 2023；[arXiv:2304.03442](https://arxiv.org/abs/2304.03442)
-- C. Hewitt, P. Bishop, R. Steiger, *A Universal Modular ACTOR Formalism for Artificial Intelligence*, IJCAI 1973；[IJCAI 1973 论文集](https://www.ijcai.org/Proceedings/1973/)
+### 1. Multi-Agent Systems
+
+A system made of several agents that work together in some way to complete a task.
+Each agent has its own instructions, context and tools. How they communicate, how they divide the work and who has the final say: that is the system's "organizational design."
+A multi-agent system can show "emergent" behavior you never see in a single agent, both good and bad.
+
+📖 First appears in: [Prologue](#prologue--apr-2023-a-valentines-day-party-in-a-small-town)
+
+### 2. Message Passing and the Actor Model
+
+In the Actor model, each actor can communicate with others only through messages. On receiving a message, it can send messages, create new actors, and change how it will respond next time.
+There is no shared memory, so two parties can never change the same variable at the same time, which makes it a natural fit for parallel and distributed computing.
+Most of today's multi-agent systems work the same way: what passes between agents is pieces of text (task descriptions, conclusions), not the whole shared context.
+
+📖 First appears in: [Act 1](#act-1--1973-mit-everything-is-an-actor)
+
+### 3. Blackboard Architecture
+
+Several specialized modules (knowledge sources) share one "blackboard": each module watches the blackboard, processes any information it knows how to handle, and writes the results back to the blackboard;
+a scheduler decides which one to activate next. The modules don't talk to each other directly; they cooperate only indirectly, through the blackboard.
+In LLM systems, a shared file, a database or a task list can all play the role of a blackboard.
+
+📖 First appears in: [Act 2](#act-2--19711976-carnegie-mellon-experts-around-a-blackboard)
+
+### 4. The Contract Net
+
+A protocol that allocates tasks by "tendering": the manager sends an **announcement**, contractors submit **bids** (or decline), the manager awards the **contract**, and the contractor **reports** the result when it's done.
+In FIPA's standard version, these messages are called cfp (call for proposals), propose / refuse, accept-proposal / reject-proposal, and inform.
+The advantage is that the manager doesn't need to know the inner workings of each contractor. The hard parts: whether bids can be trusted, what to do when nobody bids, and what to do when the same contractor wins several contracts at once.
+
+📖 First appears in: [Act 3](#act-3--19781980-stanford-announce-bid-award)　🧪 `contract_net.py`
+
+### 5. Orchestrator–Worker
+
+An **orchestrator** (also called the lead agent) understands the task, splits it into subtasks, hands them to **workers** (also called subagents),
+and finally pulls the results together. The difference from a fixed workflow: how many pieces to split it into, and how, is decided on the spot by the orchestrator for the task at hand.
+In *Building effective agents* (December 2024), Anthropic lists it as one of the common workflow patterns.
+
+📖 First appears in: [Act 7](#act-7--jun-2025-two-voices-in-the-same-week)　🧪 `orchestrator.py`
+
+### 6. Context Isolation vs. Shared Context
+
+**Isolation**: each subagent has its own clean context, holding only its own part of the task. The benefits: it isn't distracted by other information,
+the context is small, the work can run in parallel, and a large amount of raw material can be "compressed" into a few sentences of conclusions to hand back.
+**Sharing**: every participant sees the full history and one another's decisions. The benefit: nobody goes off in their own direction.
+It's a trade-off: Anthropic's research system chose isolation, because the parts of a research task don't depend on each other;
+Cognition argues for sharing, because every step of writing code depends on the decisions made before it.
+
+📖 First appears in: [Act 1](#act-1--1973-mit-everything-is-an-actor), [Act 7](#act-7--jun-2025-two-voices-in-the-same-week)　🧪 `orchestrator.py`
+
+### 7. Role-Playing
+
+Give each agent a role (product manager, programmer, tester...) and a matching system prompt, and let them talk to each other in character.
+CAMEL uses two roles, "user" and "assistant"; ChatDev simulated a whole software company.
+Roles make the division of labor clear, but problems like **role swapping**, **just repeating the instructions** and **not being able to stop** also show up, and have to be constrained in the prompts and in the program.
+
+📖 First appears in: [Act 5](#act-5--2023-large-language-models-start-forming-teams)
+
+### 8. Multi-Agent Debate and Majority Voting
+
+**Debate**: several agents first answer independently, then see one another's answers and reasoning, decide whether to stick with their answer or change it, and finally vote or let a judge decide.
+**Majority voting**: several agents (or several samples from the same model) answer on their own, and you simply take the most common answer, with no communication.
+What debate is supposed to achieve is "the minority's right answer convincing the majority," which requires the agents to be able to **check** the others' claims **independently**;
+if everyone just follows the crowd, debate degenerates into majority voting, and can even talk someone who was right into being wrong.
+Also, when several agents use the same model, they tend to make the same mistakes, and voting can't save them.
+
+📖 First appears in: [Act 4](#act-4--1986-the-society-of-mind), [Act 5](#act-5--2023-large-language-models-start-forming-teams)　🧪 `debate.py`
+
+### 9. The Writer–Reviewer Loop
+
+Also called the **evaluator-optimizer**: one agent produces, another evaluates and gives specific feedback, and the loop continues until the work passes.
+Criteria a program can judge (tests, format validation, compiling) should be judged by a program first; what can't be tested (readability, style) can then go to a model for comments.
+When a reviewer runs code someone else wrote, it must have a timeout, resource limits and an isolated working directory.
+
+📖 First appears in: [Act 6](#act-6--mar-2025-berkeley-why-multi-agent-systems-fail)　🧪 `write_review.py`
+
+### 10. How Multi-Agent Systems Fail
+
+MAST sorts the failures of multi-agent systems into three categories: **specification and system design** (for example, disobeying roles, repeating steps, not knowing when to stop),
+**misalignment between agents** (for example, acting without asking for clarification, not sharing what should be shared, ignoring other agents' input),
+and **verification and termination** (for example, ending too early, no verification, incorrect verification).
+Most of these problems can be eased with better design: clear task descriptions, an explicit hand-off format, independent verification and reliable stopping conditions.
+
+📖 First appears in: [Act 6](#act-6--mar-2025-berkeley-why-multi-agent-systems-fail)　🧪 `write_review.py`
+
+### 11. Stopping Conditions and Going-in-Circles Detection
+
+When several agents talk to each other, it's easy for nobody to call a halt: they thank each other, revise the same spot again and again, repeat the same search.
+Common brakes: a maximum number of rounds; a clear sign of completion (for example, all tests passing); detecting "this round is exactly the same as the last one";
+token and time budgets (Chapter 7). Once it stops, hand the situation to a human instead of quietly ending.
+
+📖 First appears in: [Act 5](#act-5--2023-large-language-models-start-forming-teams)　🧪 `write_review.py`
+
+### 12. When to Use Multiple Agents
+
+The benefits of multiple agents: parallelism (faster), context isolation (each agent is more focused), and division of labor (different prompts, tools, even different models).
+The costs: more tokens (Anthropic reports about 15 times as many as an ordinary chat), more coordination failures, harder debugging.
+A good fit: tasks that split into independent parts, where each part holds a lot of information and the result is worth spending more on, such as broad research.
+Not a good fit: tasks whose steps depend tightly on each other, or where everyone needs to share the full context, such as most programming tasks.
+
+📖 First appears in: [Act 7](#act-7--jun-2025-two-voices-in-the-same-week), [Epilogue](#epilogue--common-ways-to-form-a-team)　🧪 `orchestrator.py`
+
+---
+
+## References
+
+- J. S. Park, J. C. O'Brien, C. J. Cai, M. R. Morris, P. Liang, M. S. Bernstein, *Generative Agents: Interactive Simulacra of Human Behavior*, UIST 2023; [arXiv:2304.03442](https://arxiv.org/abs/2304.03442)
+- C. Hewitt, P. Bishop, R. Steiger, *A Universal Modular ACTOR Formalism for Artificial Intelligence*, IJCAI 1973; [IJCAI 1973 proceedings](https://www.ijcai.org/Proceedings/1973/)
 - L. D. Erman, F. Hayes-Roth, V. R. Lesser, D. R. Reddy, *The Hearsay-II Speech-Understanding System: Integrating Knowledge to Resolve Uncertainty*, ACM Computing Surveys 12(2), 1980
-- R. G. Smith, *The Contract Net Protocol: High-Level Communication and Control in a Distributed Problem Solver*, IEEE Transactions on Computers C-29(12), 1980；FIPA, *Contract Net Interaction Protocol Specification*（文档编号 00029）
+- R. G. Smith, *The Contract Net Protocol: High-Level Communication and Control in a Distributed Problem Solver*, IEEE Transactions on Computers C-29(12), 1980; FIPA, *Contract Net Interaction Protocol Specification* (document no. 00029)
 - M. Minsky, *The Society of Mind*, Simon & Schuster, 1986
-- G. Li, H. A. A. K. Hammoud, H. Itani, D. Khizbullin, B. Ghanem, *CAMEL: Communicative Agents for "Mind" Exploration of Large Language Model Society*, NeurIPS 2023；[arXiv:2303.17760](https://arxiv.org/abs/2303.17760)
-- Y. Du, S. Li, A. Torralba, J. B. Tenenbaum, I. Mordatch, *Improving Factuality and Reasoning in Language Models through Multiagent Debate*, ICML 2024；[arXiv:2305.14325](https://arxiv.org/abs/2305.14325)
-- H. K. Choi, X. Zhu, Y. Li, *Debate or Vote: Which Yields Better Decisions in Multi-Agent Large Language Models?*, NeurIPS 2025；[arXiv:2508.17536](https://arxiv.org/abs/2508.17536)
-- C. Qian et al., *ChatDev: Communicative Agents for Software Development*, ACL 2024；[arXiv:2307.07924](https://arxiv.org/abs/2307.07924)
-- Q. Wu et al., *AutoGen: Enabling Next-Gen LLM Applications via Multi-Agent Conversation*；[arXiv:2308.08155](https://arxiv.org/abs/2308.08155)
-- M. Cemri, M. Z. Pan, S. Yang et al., *Why Do Multi-Agent LLM Systems Fail?*；[arXiv:2503.13657](https://arxiv.org/abs/2503.13657)
+- G. Li, H. A. A. K. Hammoud, H. Itani, D. Khizbullin, B. Ghanem, *CAMEL: Communicative Agents for "Mind" Exploration of Large Language Model Society*, NeurIPS 2023; [arXiv:2303.17760](https://arxiv.org/abs/2303.17760)
+- Y. Du, S. Li, A. Torralba, J. B. Tenenbaum, I. Mordatch, *Improving Factuality and Reasoning in Language Models through Multiagent Debate*, ICML 2024; [arXiv:2305.14325](https://arxiv.org/abs/2305.14325)
+- H. K. Choi, X. Zhu, Y. Li, *Debate or Vote: Which Yields Better Decisions in Multi-Agent Large Language Models?*, NeurIPS 2025; [arXiv:2508.17536](https://arxiv.org/abs/2508.17536)
+- C. Qian et al., *ChatDev: Communicative Agents for Software Development*, ACL 2024; [arXiv:2307.07924](https://arxiv.org/abs/2307.07924)
+- Q. Wu et al., *AutoGen: Enabling Next-Gen LLM Applications via Multi-Agent Conversation*; [arXiv:2308.08155](https://arxiv.org/abs/2308.08155)
+- M. Cemri, M. Z. Pan, S. Yang et al., *Why Do Multi-Agent LLM Systems Fail?*; [arXiv:2503.13657](https://arxiv.org/abs/2503.13657)
 - Anthropic, [How we built our multi-agent research system](https://www.anthropic.com/engineering/multi-agent-research-system), 2025-06-13
-- Cognition（Walden Yan）, [Don't Build Multi-Agents](https://cognition.ai/blog/dont-build-multi-agents), 2025-06
-- Anthropic, [Building effective agents](https://www.anthropic.com/research/building-effective-agents), 2024-12（编排者-工作者、评估者-优化者）
-- S. Frederick, *Cognitive Reflection and Decision Making*, Journal of Economic Perspectives 19(4), 2005（球拍和球的题目）
+- Cognition (Walden Yan), [Don't Build Multi-Agents](https://cognition.ai/blog/dont-build-multi-agents), 2025-06
+- Anthropic, [Building effective agents](https://www.anthropic.com/research/building-effective-agents), 2024-12 (orchestrator-workers, evaluator-optimizer)
+- S. Frederick, *Cognitive Reflection and Decision Making*, Journal of Economic Perspectives 19(4), 2005 (the bat-and-ball question)
 
 ---
 
-⬅️ [第七章 Harness 工程](../07-harness/)　|　[返回目录](../README.md)　|　➡️ [第九章 跨模型协作](../09-cross-model/)
+⬅️ [Chapter 7 · Harness Engineering](../07-harness/) | [Contents](../README.md) | ➡️ [Chapter 9 · Cross-Model Collaboration](../09-cross-model/)

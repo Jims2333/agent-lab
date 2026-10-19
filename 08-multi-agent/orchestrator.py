@@ -1,19 +1,19 @@
 """
-实验 1：编排者-工作者：一个主管，多个并行的帮手
-=================================================
+Lab 1: Orchestrator–worker: one lead, several helpers working in parallel
+=========================================================================
 
-2025 年 Anthropic 公开的多 agent 研究系统，用的就是这个模式：
-  1. 主 agent（编排者）把任务拆成几个互不依赖的子任务
-  2. 为每个子任务启动一个子 agent（工作者），各自用**干净的上下文**并行去做
-  3. 子 agent 只把简短的结论交回来，由主 agent 汇总
+The multi-agent research system Anthropic described in 2025 uses exactly this pattern:
+  1. The lead agent (the orchestrator) splits the task into a few independent subtasks
+  2. It starts a subagent (a worker) for each subtask; each works in parallel in its own **clean context**
+  3. The subagents hand back only short conclusions, and the lead agent pulls them together
 
-这里的任务是：调研本仓库第 1～7 章，每章用一句话概括它讲了哪个时间段的故事。
-工作者直接复用第六章写的 ReAct agent（react_agent.run_agent）。
-最后和"一个 agent 从头读到尾"做对比：速度、每个 agent 的上下文大小、总 token。
+The task here: research Chapters 1–7 of this repo, and sum up in one sentence which period each chapter's stories cover.
+The workers reuse the ReAct agent written in Chapter 6 (react_agent.run_agent).
+At the end we compare with "one agent reads everything from start to finish": speed, the size of each agent's context, total tokens.
 
-运行：
-  python orchestrator.py                     # 假模型（每次调用模拟 0.3 秒的网络延迟）
-  python orchestrator.py --provider claude   # 真实模型
+Run:
+  python orchestrator.py                     # mock model (each call simulates 0.3 seconds of network latency)
+  python orchestrator.py --provider claude   # real model
 """
 
 import argparse
@@ -28,61 +28,69 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "06-agent-loop"))
 
-from common.llm import MockLLM, add_provider_args, chat, user_message  # noqa: E402
+from common.llm import MockLLM, add_provider_args, chat, estimate_tokens, user_message  # noqa: E402
 from react_agent import run_agent  # noqa: E402
 
 CHAPTERS = sorted(p.name for p in ROOT.iterdir() if re.match(r"0[1-7]-", p.name))
-TASK = "调研 agent-lab 仓库的第 1～7 章：每章用一句话概括它讲了哪个时间段的故事、主题是什么。"
+TASK = ("Research Chapters 1–7 of the agent-lab repo: for each chapter, sum up in one sentence "
+        "which period its stories cover and what its topic is.")
 LATENCY = 0.3
 
 
 class SlowMock(MockLLM):
-    """假模型 + 模拟网络延迟，好让"并行"的效果看得出来。"""
+    """A mock model plus simulated network latency, so the effect of running "in parallel" is visible."""
 
     def __call__(self, messages, tools):
         time.sleep(LATENCY)
         return super().__call__(messages, tools)
 
 
-# ---------------------------------------------------------------- 假模型的剧本
+# ---------------------------------------------------------------- the mock model's script
 def worker_policy(chapter):
-    """工作者：读这一章 README 的开头，从标题和时间线表格里提炼一句话。"""
+    """A worker: read the beginning of this chapter's README and boil the title and timeline table down to one sentence."""
     def read(messages, tools):
-        return {"text": f"先读 {chapter} 的开头部分。",
+        return {"text": f"First, I'll read the beginning of {chapter}.",
                 "tool_calls": [{"name": "read_file", "args": {"path": f"{chapter}/README.md", "start": 1, "end": 45}}]}
 
     def summarize(messages, tools):
         text = next(m for m in reversed(messages) if m["role"] == "tool")["content"]
-        title = re.search(r"# (第.+?章)　(.+)", text)
-        years = re.findall(r"^\d+: \| (\d{4}(?:[–-]\d{4})?)", text, flags=re.M)
-        if not years:                                   # 有的章节表头写的是"时间"
-            years = re.findall(r"^\d+: \| (\d{4}) 年", text, flags=re.M)
-        span = f"{years[0][:4]}–{years[-1][-4:]}" if years else "（没找到时间线）"
-        return f"{title.group(1)}《{title.group(2)}》：时间跨度 {span}，共 {len(years)} 个里程碑。"
+        title = re.search(r"^\d+: # (Chapter \d+) — (.+)$", text, flags=re.M)
+        # timeline rows: the first cell holds a year, e.g. "1958", "Jul 1958", "1971–1976", "2023–"
+        cells = re.findall(r"^\d+: \| ([^|]*?\d{4}[^|]*?) \|", text, flags=re.M)
+        years = [int(y) for c in cells for y in re.findall(r"(?<!\d)\d{4}(?!\d)", c)]
+        span = f"{min(years)}–{max(years)}" if years else "(no timeline found)"
+        name = f"{title.group(1)} · {title.group(2).split(': ')[0]}" if title else chapter
+        return f"{name}: {span}, {len(cells)} milestones."
     return [read, summarize]
 
 
 def lead_plan_mock(messages, tools):
-    return json.dumps([f"读 {c}/README.md，用一句话概括这一章的时间跨度和主题。" for c in CHAPTERS],
-                      ensure_ascii=False)
+    return json.dumps([f"Read {c}/README.md and sum up the chapter's time span and topic in one sentence."
+                       for c in CHAPTERS])
 
 
 def lead_summary_mock(messages, tools):
     reports = messages[-1]["content"]
-    lines = re.findall(r"^子任务 \d+ 的结论：(.+)$", reports, flags=re.M)
-    return "汇总：\n" + "\n".join(f"  · {l}" for l in lines)
+    lines = re.findall(r"^Subtask \d+ result: (.+)$", reports, flags=re.M)
+    return "Summary:\n" + "\n".join(f"  · {l}" for l in lines)
 
 
-# ---------------------------------------------------------------- 编排者
+# ---------------------------------------------------------------- the orchestrator
 def plan(provider, model, mock):
-    prompt = (f"{TASK}\n仓库里的章节目录是：{', '.join(CHAPTERS)}。\n"
-              "请把任务拆成互相独立、可以并行完成的子任务，每章一个。只输出一个 JSON 字符串数组，不要输出别的内容。")
+    prompt = (f"{TASK}\nThe chapter folders in the repo are: {', '.join(CHAPTERS)}.\n"
+              "Split the task into independent subtasks that can be done in parallel, one per chapter. "
+              "Output only a JSON array of strings, and nothing else.")
     reply = chat([user_message(prompt)], provider=provider, model=model, mock=mock, effort="low")
     try:
         subtasks = json.loads(re.search(r"\[.*\]", reply.text, re.S).group(0))
     except (AttributeError, json.JSONDecodeError):
-        subtasks = [f"读 {c}/README.md，用一句话概括这一章。" for c in CHAPTERS]   # 模型没按格式输出时的兜底
+        subtasks = [f"Read {c}/README.md and sum up the chapter in one sentence." for c in CHAPTERS]   # fallback when the model ignores the format
     return subtasks, reply.usage
+
+
+def context_tokens(messages):
+    """Roughly how many tokens the agent's context holds by the end (same estimate as the mock model's)."""
+    return estimate_tokens(json.dumps([m["content"] for m in messages], ensure_ascii=False))
 
 
 def run_worker(i, subtask, provider, model):
@@ -90,76 +98,79 @@ def run_worker(i, subtask, provider, model):
     t0 = time.perf_counter()
     answer, messages, usage = run_agent(subtask, provider, model, mock=mock, max_steps=6, verbose=False)
     return {"id": i + 1, "answer": answer, "steps": sum(m["role"] == "assistant" for m in messages),
-            "tokens": usage["input_tokens"] + usage["output_tokens"], "context": len(json.dumps(
-                [m["content"] for m in messages], ensure_ascii=False)) // 2, "seconds": time.perf_counter() - t0}
+            "tokens": usage["input_tokens"] + usage["output_tokens"], "context": context_tokens(messages),
+            "seconds": time.perf_counter() - t0}
 
 
 def synthesize(reports, provider, model, mock):
-    body = "\n".join(f"子任务 {r['id']} 的结论：{r['answer']}" for r in reports)
-    prompt = f"原始任务：{TASK}\n下面是各个子 agent 交回来的结论：\n{body}\n\n请汇总成一份按章节排列的简短清单。"
+    body = "\n".join(f"Subtask {r['id']} result: {r['answer']}" for r in reports)
+    prompt = (f"Original task: {TASK}\nHere are the conclusions the subagents handed back:\n{body}\n\n"
+              "Pull them together into a short list, ordered by chapter.")
     reply = chat([user_message(prompt)], provider=provider, model=model, mock=mock, effort="low")
     return reply.text, reply.usage
 
 
-# ---------------------------------------------------------------- 对照组：一个 agent 从头读到尾
+# ---------------------------------------------------------------- control group: one agent reads everything
 def single_agent_policy():
-    steps = [{"text": f"读 {c}。", "tool_calls": [{"name": "read_file", "args": {"path": f"{c}/README.md", "start": 1, "end": 45}}]}
+    steps = [{"text": f"Read {c}.", "tool_calls": [{"name": "read_file", "args": {"path": f"{c}/README.md", "start": 1, "end": 45}}]}
              for c in CHAPTERS]
-    steps.append("（一个 agent 读完了全部七章，在同一个上下文里写出汇总。）")
+    steps.append("(One agent has read all seven chapters and writes the summary in a single context.)")
     return steps
 
 
 def main():
-    parser = add_provider_args(argparse.ArgumentParser(description="编排者-工作者"))
+    parser = add_provider_args(argparse.ArgumentParser(description="Orchestrator–worker"))
     args = parser.parse_args()
     lead_mock = SlowMock([lead_plan_mock, lead_summary_mock])
 
-    print(f"任务：{TASK}\n")
+    print(f"Task: {TASK}\n")
     t0 = time.perf_counter()
     subtasks, plan_usage = plan(args.provider, args.model, lead_mock)
-    print(f"【1】编排者拆出了 {len(subtasks)} 个子任务：")
+    print(f"[1] The orchestrator split the task into {len(subtasks)} subtasks:")
     for i, s in enumerate(subtasks, 1):
         print(f"   {i}. {s}")
 
-    print(f"\n【2】{len(subtasks)} 个工作者同时开工（各自独立的上下文）……")
+    print(f"\n[2] {len(subtasks)} workers start at the same time (each with its own context)...")
     with ThreadPoolExecutor(max_workers=len(subtasks)) as pool:
         reports = list(pool.map(lambda a: run_worker(*a, args.provider, args.model), enumerate(subtasks)))
     for r in reports:
-        print(f"   工作者 {r['id']}：{r['steps']} 步，{r['seconds']:.1f} 秒，用了约 {r['tokens']} token → {r['answer']}")
+        print(f"   Worker {r['id']}: {r['steps']} steps, {r['seconds']:.1f} s, about {r['tokens']} tokens → {r['answer']}")
 
     summary, sum_usage = synthesize(reports, args.provider, args.model, lead_mock)
     multi_time = time.perf_counter() - t0
     multi_tokens = sum(r["tokens"] for r in reports) + sum(plan_usage.values()) + sum(sum_usage.values())
-    print(f"\n【3】编排者汇总：\n{summary}")
+    print(f"\n[3] The orchestrator's summary:\n{summary}")
 
-    print("\n【4】对照组：同样的任务，让一个 agent 自己从头读到尾")
+    print("\n[4] Control group: the same task, with one agent reading everything from start to finish")
     t0 = time.perf_counter()
     mock = SlowMock(single_agent_policy()) if args.provider == "mock" else None
     _, messages, usage = run_agent(TASK, args.provider, args.model, mock=mock, max_steps=12, verbose=False)
     single_time = time.perf_counter() - t0
     single_tokens = usage["input_tokens"] + usage["output_tokens"]
-    single_context = len(json.dumps([m["content"] for m in messages], ensure_ascii=False)) // 2
+    single_context = context_tokens(messages)
     biggest_worker = max(r["context"] for r in reports)
 
-    print("                  | 用时    | 总 token | 单个 agent 的上下文最大约")
-    print(f"   多 agent       | {multi_time:5.1f} 秒 | {multi_tokens:7,} | {biggest_worker:,} token")
-    print(f"   单个 agent     | {single_time:5.1f} 秒 | {single_tokens:7,} | {single_context:,} token")
+    print("                  | Time    | Total tokens | Largest context of one agent (about)")
+    print(f"   Multi-agent    | {multi_time:5.1f} s | {multi_tokens:12,} | {biggest_worker:,} tokens")
+    print(f"   Single agent   | {single_time:5.1f} s | {single_tokens:12,} | {single_context:,} tokens")
     print(f"""
-   * 速度：工作者是并行的，总用时接近"最慢的那一个"，而不是所有人加起来；
-   * 上下文：每个工作者只装着自己那一章，单个 agent 却要把七章全装进同一个上下文；
-   * 代价：这个例子里多 agent 的总 token 反而更少，因为单个 agent 每一步都要把越来越长的历史重发一遍。
-     但真实的工作者往往要自己探索很多步、彼此还会做重复的搜索，再加上拆分、汇总和每份系统提示，
-     总账通常更贵：Anthropic 报告他们的多 agent 系统用的 token 约为普通聊天的 15 倍。
-   所以多 agent 适合"可以拆成独立部分、而且每部分信息量都很大"的任务，比如大范围的调研。
+   * Speed: the workers run in parallel, so the total time is close to "the slowest one," not everyone added up.
+   * Context: each worker holds only its own chapter, while the single agent has to fit all seven chapters into one context.
+   * Cost: in this example the multi-agent total is actually lower, because the single agent resends its ever-longer
+     history at every step. But real workers often explore for many steps on their own and repeat each other's
+     searches, and on top of that come the planning, the summary and a system prompt for each one, so the bill is
+     usually higher: Anthropic reports that their multi-agent system uses about 15 times as many tokens as a chat.
+   So multi-agent setups suit tasks that "can be split into independent parts, each with a lot of information,"
+   such as broad research.
 
-想一想：
-  1. 如果第 5 章的工作者需要第 4 章工作者的结论才能开始，还能这样并行吗？
-  2. 工作者只交回一句话，会不会丢掉重要的细节？怎么权衡"交回多少"？
-  3. 把工作者数量从 7 个改成 70 个（比如每节一个），会遇到什么新问题？""")
+Think about it:
+  1. If the Chapter 5 worker needed the Chapter 4 worker's conclusion before it could start, could they still run in parallel?
+  2. If a worker hands back only one sentence, could important details get lost? How do you decide "how much to hand back"?
+  3. If you went from 7 workers to 70 (say, one per section), what new problems would you run into?""")
 
 
 if __name__ == "__main__":
     try:
         main()
     except RuntimeError as e:
-        raise SystemExit(f"出错了：{e}")
+        raise SystemExit(f"Error: {e}")
