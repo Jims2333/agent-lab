@@ -1,23 +1,27 @@
 """
-毕业项目：一支跨厂商的小团队
-==============================
+Capstone: a small cross-vendor team
+===================================
 
-把前面几章的零件拼起来，让三家的模型分工完成一件真事：
-  给本仓库做一张"学习路线卡片"：九章，每章一行，包括中文标题、英文标题、故事的时间跨度。
+Put the parts from the earlier chapters together, and have the three vendors' models share a real job:
+  make a "study card" for this repo: nine chapters, one row each, with the English title, the Chinese title
+  and the time span of the stories.
 
-分工：
-  · 编排者（claude）：把任务拆成九个子任务 ........................ 第八章 编排者-工作者
-  · 九个调研员（deepseek），并行：用第六章的 ReAct agent 读每章的 README ... 第六章 agent 循环 + 工具
-      工具只能读仓库里的文件 ...................................... 第七章 沙箱
-  · 翻译员（gpt）：通过 A2A 协议把标题译成英文 ...................... 第九章 协议
-  · 审稿员（claude）：先用程序检查格式，不合格的打回去重做，再请模型点评 ... 第八章 写-审循环
-  · 全程记账：每家调用了几次、用了多少 token、大概花了多少钱 .......... 第七章 预算
+Who does what:
+  · Orchestrator (claude): splits the task into nine subtasks ......................... Chapter 8, orchestrator–worker
+  · Nine researchers (deepseek), in parallel: read each chapter's README with the
+    ReAct agent from Chapter 6 .......................................................... Chapter 6, agent loop + tools
+      the tool can only read files inside the repo ...................................... Chapter 7, sandbox
+  · Translator (gpt): translates the titles into Chinese over the A2A protocol ........ Chapter 9, protocols
+  · Reviewer (claude): checks the format with a program first, sends failures back
+    to be redone, then asks a model for comments ........................................ Chapter 8, writer–reviewer loop
+  · A ledger the whole way: how many calls each vendor made, how many tokens,
+    roughly how much money .............................................................. Chapter 7, budgets
 
-假模型的剧本里，故意安排了一个"偷懒"的调研员，看看审稿员能不能抓住它。
+The mock model's script deliberately includes one "sloppy" researcher, to see whether the reviewer catches it.
 
-运行：
-  python capstone.py            # 假模型
-  python capstone.py --live     # 配置了 key 的厂商用真实模型（会调用几十次 API）
+Run:
+  python capstone.py            # mock models
+  python capstone.py --live     # vendors whose keys are set use real models (calls the APIs dozens of times)
 """
 
 import argparse
@@ -36,23 +40,24 @@ sys.path.insert(0, str(ROOT / "06-agent-loop"))
 from react_agent import run_agent  # noqa: E402
 
 CHAPTERS = sorted(p.name for p in ROOT.iterdir() if re.match(r"0\d-", p.name))
-TASK = "给 agent-lab 仓库做一张学习路线卡片：每章一行，包括中文标题、英文标题、故事的时间跨度。"
-LINE = re.compile(r"^第.+章｜.+｜\d{4}–\d{4}$")
-SLOPPY = 4                                  # 剧本里第 5 个调研员会偷懒，只读开头 5 行
-TITLE_EN = {                                # 假翻译员认识的标题
-    "机器学习从哪里来": "Where Machine Learning Came From",
-    "线性模型与梯度下降": "Linear Models and Gradient Descent",
-    "神经网络与自动求导": "Neural Networks and Automatic Differentiation",
-    "从 CNN 到 Transformer": "From CNNs to Transformers",
-    "大语言模型与 API": "Large Language Models and APIs",
-    "Agent 循环": "The Agent Loop",
-    "Harness 工程": "Harness Engineering",
-    "多 Agent 协同": "Multi-Agent Collaboration",
-    "跨模型协作": "Cross-Model Collaboration",
+TASK = ("Make a study card for the agent-lab repo: one row per chapter, with the English title, "
+        "the Chinese title and the time span of the stories.")
+LINE = re.compile(r"^Chapter \d+ \| .+ \| \d{4}–\d{4}$")
+SLOPPY = 4                                  # in the script, the 5th researcher is sloppy and reads only the first 5 lines
+TITLE_ZH = {                                # the titles the mock translator knows
+    "Where Machine Learning Came From": "机器学习从哪里来",
+    "Linear Models and Gradient Descent": "线性模型与梯度下降",
+    "Neural Networks and Autodiff": "神经网络与自动求导",
+    "From CNNs to Transformers": "从 CNN 到 Transformer",
+    "Large Language Models and APIs": "大语言模型与 API",
+    "The Agent Loop": "Agent 循环",
+    "Harness Engineering": "Harness 工程",
+    "Multi-Agent Collaboration": "多 Agent 协同",
+    "Cross-Model Collaboration": "跨模型协作",
 }
 
 
-# ---------------------------------------------------------------- 账本（第七章：预算）
+# ---------------------------------------------------------------- the ledger (Chapter 7: budgets)
 class Ledger:
     def __init__(self):
         self.lock = threading.Lock()
@@ -67,176 +72,184 @@ class Ledger:
 
     def report(self, live):
         total = 0.0
-        print(f"   {fit('厂商', 22)}| 调用次数 | 输入 token | 输出 token | 估算费用（美元）")
+        print(f"   {fit('Vendor', 22)}| Calls | Input tokens | Output tokens | Estimated cost (USD)")
         for vendor, r in self.rows.items():
             p_in, p_out = PRICES[vendor]
             cost = r["in"] / 1e6 * p_in + r["out"] / 1e6 * p_out
             total += cost
-            print(f"   {fit(label(vendor, live), 22)}| {r['calls']:>6}   | {r['in']:>9,}  | {r['out']:>9,}  | {cost:.5f}")
-        print(f"   {fit('合计', 22)}|          |            |            | {total:.5f}")
+            print(f"   {fit(label(vendor, live), 22)}| {r['calls']:>5} | {r['in']:>12,} | {r['out']:>13,} | {cost:.5f}")
+        print(f"   {fit('Total', 22)}|       |              |               | {total:.5f}")
 
 
 LEDGER = Ledger()
 
 
-# ---------------------------------------------------------------- 编排者
+# ---------------------------------------------------------------- the orchestrator
 def plan(live):
-    prompt = (f"{TASK}\n仓库里的章节目录：{', '.join(CHAPTERS)}。\n"
-              "请列出需要调研的章节目录，每章一个子任务。只输出 JSON 字符串数组。")
+    prompt = (f"{TASK}\nThe chapter folders in the repo: {', '.join(CHAPTERS)}.\n"
+              "List the chapter folders to research, one subtask per chapter. Output only a JSON array of strings.")
     try:
         reply = ask("claude", prompt, live, MockLLM([json.dumps(CHAPTERS)]))
         LEDGER.add("claude", reply.usage)
         dirs = [d for d in json.loads(re.search(r"\[.*\]", reply.text, re.S).group(0)) if d in CHAPTERS]
-    except Exception:                       # 调用失败或格式不对
+    except Exception:                       # the call failed, or the format was wrong
         dirs = []
-    return dirs or CHAPTERS                 # 模型没按格式输出时的兜底
+    return dirs or CHAPTERS                 # fallback when the model ignores the format
 
 
-# ---------------------------------------------------------------- 调研员（第六章的 ReAct agent）
+# ---------------------------------------------------------------- researchers (the ReAct agent from Chapter 6)
 def researcher_policy(chapter, lines):
     def read(messages, tools):
-        return {"text": f"读 {chapter} 的开头。",
+        return {"text": f"Read the beginning of {chapter}.",
                 "tool_calls": [{"name": "read_file", "args": {"path": f"{chapter}/README.md", "start": 1, "end": lines}}]}
 
     def summarize(messages, tools):
         text = next(m for m in reversed(messages) if m["role"] == "tool")["content"]
-        title = re.search(r"# (第.+?章)　(.+)", text)
+        title = re.search(r"^\d+: # (Chapter \d+) — (.+)$", text, flags=re.M)
         cells = re.findall(r"^\d+: \| ([^|]*?\d{4}[^|]*?) \|", text, flags=re.M)
         years = [int(y) for c in cells for y in re.findall(r"(?<!\d)(1[89]\d\d|20\d\d)(?!\d)", c)]
-        span = f"{min(years)}–{max(years)}" if years else "？"
+        span = f"{min(years)}–{max(years)}" if years else "?"
         if not title:
-            return f"{chapter}｜（没读到标题）｜{span}"
-        return f"{title.group(1)}｜{title.group(2).split('：')[0]}｜{span}"
+            return f"{chapter} | (couldn't find the title) | {span}"
+        return f"{title.group(1)} | {title.group(2).split(': ')[0]} | {span}"
     return [read, summarize]
 
 
 def research(i, chapter, live, feedback=None):
-    task = (f"读 {chapter}/README.md 的开头（标题和时间线表格），只输出一行："
-            "第X章｜章节主标题（冒号前面的部分）｜最早年份–最晚年份")
+    task = (f"Read the beginning of {chapter}/README.md (the title and the timeline table), and output only one line: "
+            "Chapter N | main title of the chapter (the part before the colon) | earliest year–latest year")
     if feedback:
-        task += f"\n上一次的结果被审稿员打回了：{feedback}"
+        task += f"\nThe reviewer sent back your last result: {feedback}"
     lines = 5 if i == SLOPPY and not feedback else 45
     provider = provider_for("deepseek", live)
     try:
         answer, messages, usage = run_agent(task, provider, model_for("deepseek") if provider != "mock" else None,
                                             mock=MockLLM(researcher_policy(chapter, lines)), max_steps=6,
                                             verbose=False)
-    except Exception as e:                  # 一个调研员出故障，不能拖垮整个团队
-        return f"{chapter}｜（调用失败：{type(e).__name__}）｜？"
+    except Exception as e:                  # one researcher failing mustn't bring down the whole team
+        return f"{chapter} | (call failed: {type(e).__name__}) | ?"
     LEDGER.add("deepseek", usage, calls=sum(m["role"] == "assistant" for m in messages))
     return answer.strip().splitlines()[-1] if answer.strip() else ""
 
 
-# ---------------------------------------------------------------- 翻译员（A2A 服务器，背后是 gpt）
+# ---------------------------------------------------------------- the translator (an A2A server, backed by gpt)
 def translator_handler(live):
     def handler(text):
-        source = text.split("：", 1)[-1].strip()
+        source = text.split(":", 1)[-1].strip()
         try:
-            reply = ask("gpt", f"把这个书的章节标题翻译成英文，只输出译文：\n{source}", live,
-                        MockLLM([TITLE_EN.get(source, "(unknown title)")]))
+            reply = ask("gpt", f"Translate this chapter title of a book into Chinese. Output only the translation:\n{source}",
+                        live, MockLLM([TITLE_ZH.get(source, "(unknown title)")]))
         except Exception as e:
-            return "TASK_STATE_FAILED", f"翻译员背后的模型调用失败：{type(e).__name__}"
+            return "TASK_STATE_FAILED", f"the call to the model behind the translator failed: {type(e).__name__}"
         LEDGER.add("gpt", reply.usage)
         return "TASK_STATE_COMPLETED", reply.text.strip()
     return handler
 
 
-# ---------------------------------------------------------------- 审稿员
+# ---------------------------------------------------------------- the reviewer
 def review(lines):
-    """程序能检查的先用程序检查：格式、有没有时间跨度。返回不合格的 {序号: 原因}。"""
+    """Whatever a program can check, check with a program first: the format, and whether there's a time span.
+    Returns the failures as {index: reason}."""
     problems = {}
     for i, line in enumerate(lines):
         if not LINE.match(line):
-            problems[i] = f"「{line}」格式不对或者没有找到时间跨度，请把时间线表格读完整"
+            problems[i] = f"\"{line}\" has the wrong format or no time span; please read the whole timeline table"
     return problems
 
 
 def main():
-    parser = add_live_arg(argparse.ArgumentParser(description="毕业项目：跨厂商小团队"))
+    parser = add_live_arg(argparse.ArgumentParser(description="Capstone: a small cross-vendor team"))
     args = parser.parse_args()
     live = args.live
-    print(f"任务：{TASK}\n团队：{roster(live)}\n")
+    print(f"Task: {TASK}\nTeam: {roster(live)}\n")
 
     dirs = plan(live)
-    print(f"【1】编排者 {label('claude', live)} 拆出了 {len(dirs)} 个子任务。")
+    print(f"[1] The orchestrator, {label('claude', live)}, split the task into {len(dirs)} subtasks.")
 
-    print(f"\n【2】{len(dirs)} 个调研员 {label('deepseek', live)} 并行开工……")
+    print(f"\n[2] {len(dirs)} researchers, {label('deepseek', live)}, start in parallel...")
     with ThreadPoolExecutor(max_workers=len(dirs)) as pool:
         lines = list(pool.map(lambda a: research(*a, live), enumerate(dirs)))
     for line in lines:
         print(f"   · {line}")
 
-    print(f"\n【3】审稿员 {label('claude', live)} 先用程序检查格式……")
+    print(f"\n[3] The reviewer, {label('claude', live)}, checks the format with a program first...")
     for round_ in range(1, 3):
         problems = review(lines)
         if not problems:
-            print("   ✅ 全部合格。")
+            print("   ✅ Everything passes.")
             break
         for i, why in problems.items():
-            print(f"   ❌ 第 {i + 1} 个调研员：{why}。打回重做。")
+            print(f"   ❌ Researcher {i + 1}: {why}. Sent back to be redone.")
             lines[i] = research(i, dirs[i], live, feedback=why)
-            print(f"      重做后：{lines[i]}")
+            print(f"      After redoing it: {lines[i]}")
     else:
-        print("   ⚠️  两轮之后仍有不合格的，交给人类处理。")
+        print("   ⚠️  Some rows still fail after two rounds; handing them to a human.")
 
-    print(f"\n【4】通过 A2A 把标题交给翻译员 {label('gpt', live)}……")
-    server = A2AServer("翻译员", "把中文章节标题译成英文", [
-        {"id": "translate-title", "name": "标题翻译", "description": "中文标题译成英文", "tags": ["翻译"]}],
+    print(f"\n[4] Handing the titles over A2A to the translator, {label('gpt', live)}...")
+    server = A2AServer("Translator", "Translates English chapter titles into Chinese", [
+        {"id": "translate-title", "name": "Title translation", "description": "English titles into Chinese",
+         "tags": ["translation"]}],
         translator_handler(live)).start()
     try:
         card = fetch_card(server.base_url)
-        print(f"   取到名片：{card['name']}，技能 {card['skills'][0]['id']}")
-        english = []
+        print(f"   Got the Agent Card: {card['name']}, skill {card['skills'][0]['id']}")
+        chinese = []
         for line in lines:
-            parts = line.split("｜")
+            parts = line.split(" | ")
             title = parts[1] if len(parts) == 3 else line
-            state, text = task_text(send_text(card, f"翻译：{title}"))
-            english.append(text if state == "TASK_STATE_COMPLETED" else "（翻译失败）")
+            state, text = task_text(send_text(card, f"Translate: {title}"))
+            chinese.append(text if state == "TASK_STATE_COMPLETED" else "(translation failed)")
     finally:
         server.stop()
-    print(f"   完成 {len(english)} 个标题。")
+    print(f"   {len(chinese)} titles done.")
 
     bad = len(review(lines))
-    canned = ("各章齐全，时间跨度都有；前五章是一条从统计学习到大模型的主线，第六章开始转向 agent，顺序合理。"
-              if not bad else f"有 {bad} 章的信息还不完整，建议人工补上后再发布。")
+    canned = ("All the chapters are there, each with a time span. The first five chapters form one main line from "
+              "statistical learning to large language models, and Chapter 6 turns to agents: a sensible order."
+              if not bad else f"The information for {bad} chapter(s) is still incomplete; "
+                              "a human should fill it in before this is published.")
     try:
-        comment = ask("claude", "下面是一张学习路线卡片，请用一两句话点评它是否完整、有没有明显的问题：\n"
-                      + "\n".join(lines), live, MockLLM([canned]))
+        comment = ask("claude", "Here is a study card. In a sentence or two, say whether it is complete and "
+                      "whether it has any obvious problems:\n" + "\n".join(lines), live, MockLLM([canned]))
         LEDGER.add("claude", comment.usage)
         comment = comment.text.strip()
     except Exception as e:
-        comment = f"（点评失败：{type(e).__name__}）"
-    print(f"\n【5】审稿员点评：{comment}")
+        comment = f"(the review failed: {type(e).__name__})"
+    print(f"\n[5] The reviewer's comments: {comment}")
 
-    print("\n🎓 学习路线卡片\n")
-    print("| 章 | 标题 | English | 故事的时间跨度 |\n|---|---|---|---|")
-    for line, en in zip(lines, english):
-        parts = line.split("｜") + ["", "", ""]
-        print(f"| {parts[0]} | {parts[1]} | {en} | {parts[2]} |")
+    print("\n🎓 Study card\n")
+    print("| Chapter | Title | 中文 | Years |\n|---|---|---|---|")
+    for line, zh in zip(lines, chinese):
+        parts = line.split(" | ") + ["", "", ""]
+        print(f"| {parts[0]} | {parts[1]} | {zh} | {parts[2]} |")
 
-    print("\n💰 账单（假模型的 token 数是估算的；价格见 router.py）")
+    print("\n💰 The bill (the mock models' token counts are estimates; prices are in router.py)")
     LEDGER.report(live)
 
     print("""
-🗺️  这个小项目用到了整个仓库的哪些东西：
+🗺️  What this little project uses from the whole repo:
 
-   用户的任务
-    └─ 编排者（claude）：拆任务 ................................ 第八章 编排者-工作者
-        ├─ 九个调研员（deepseek），并行 ........................ 第六章 ReAct 循环与工具
-        │    └─ read_file 只能读仓库里的文件 .................. 第七章 沙箱
-        ├─ 审稿员（claude）：程序检查 → 打回重做 → 模型点评 ..... 第八章 写-审循环
-        └─ 翻译员（gpt）：素不相识，靠名片和 SendMessage 合作 ... 第九章 A2A
-   贯穿全程：统一的 chat() 适配层（第五、九章）；账本（第七章 预算）；
-   而模型本身，是第一章到第五章讲的那台"猜下一个字"的机器。
+   The user's task
+    └─ Orchestrator (claude): splits the task ........................... Chapter 8, orchestrator–worker
+        ├─ Nine researchers (deepseek), in parallel ..................... Chapter 6, the ReAct loop and tools
+        │    └─ read_file can only read files inside the repo ........... Chapter 7, sandbox
+        ├─ Reviewer (claude): program check → send back → model review .. Chapter 8, writer–reviewer loop
+        └─ Translator (gpt): strangers working together through
+           an Agent Card and SendMessage ................................ Chapter 9, A2A
+   Running through everything: the shared chat() adapter layer (Chapters 5 and 9) and the ledger (Chapter 7, budgets);
+   and the model itself is the "guess the next word" machine from Chapters 1 to 5.
 
-想一想：
-  1. 为什么让 deepseek 当调研员、claude 当审稿员，而不是反过来？换过来会怎样？（提示：价格和调用次数）
-  2. 审稿员如果也是 deepseek，和"自己审自己"有什么区别？（回想交叉核对实验里的"错误相关性"）
-  3. 把翻译员换成别人部署在网上的 A2A agent，这个程序要改哪几行？又要多防哪些风险？""")
+Think about it:
+  1. Why make deepseek the researchers and claude the reviewer, and not the other way around? What would happen
+     if you swapped them? (Hint: prices and the number of calls.)
+  2. If the reviewer were also deepseek, how would that differ from "reviewing your own work"?
+     (Think back to the "error correlation" in the cross-checking lab.)
+  3. If you replaced the translator with an A2A agent someone else runs on the internet, which lines of this program
+     would you have to change? And what extra risks would you have to guard against?""")
 
 
 if __name__ == "__main__":
     try:
         main()
     except RuntimeError as e:
-        raise SystemExit(f"出错了：{e}")
+        raise SystemExit(f"Error: {e}")

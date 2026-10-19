@@ -1,22 +1,23 @@
 """
-实验 3：迷你 A2A：两个 agent 怎样素不相识地合作
-================================================
+Lab 3: Mini A2A: how two agents that have never met work together
+=================================================================
 
-A2A（Agent2Agent）协议要解决的问题是：一个 agent 怎么**发现**另一个 agent、知道它会什么、
-再把任务交给它，哪怕两边是不同公司、用不同框架、背后是不同厂商的模型。
+The problem the A2A (Agent2Agent) protocol solves: how does one agent **discover** another, learn what it can do,
+and hand it a task, even when the two sides belong to different companies, use different frameworks and run on models from different vendors?
 
-这里只用 Python 标准库，实现 A2A v1.0 规范里最核心的一小部分：
-  1. Agent Card：每个 agent 在 /.well-known/agent-card.json 公开一张"名片"，写明名字、技能、怎么联系
-  2. JSON-RPC 绑定：通过 HTTP POST 调用 SendMessage 方法发任务，请求头里带上 A2A-Version: 1.0
-  3. Task：对方返回一个任务对象，里面有状态（TASK_STATE_COMPLETED 等）和产出物（artifacts）
-没有实现的部分：流式输出、推送通知、鉴权、名片签名、多轮对话……真正的项目请用官方 SDK（pip install a2a-sdk）。
+Using only the Python standard library, this implements a small core subset of the A2A v1.0 specification:
+  1. Agent Card: each agent publishes a "business card" at /.well-known/agent-card.json, saying its name, its skills and how to reach it
+  2. JSON-RPC binding: send a task by calling the SendMessage method over HTTP POST, with the header A2A-Version: 1.0
+  3. Task: the other side returns a task object with a status (TASK_STATE_COMPLETED and so on) and its outputs (artifacts)
+Not implemented: streaming, push notifications, authentication, card signatures, multi-turn conversations...
+For a real project, use the official SDK (pip install a2a-sdk).
 
-演示：本机起两个 agent 服务器
-  · 翻译员：背后是一个大模型（默认假模型；--live 时用 GPT，如果配置了 OPENAI_API_KEY）
-  · 计算员：背后根本不是模型，就是一段普通的 Python 程序
-协议并不关心你背后是谁，只关心你说的是不是同一种"话"。
+Demo: two agent servers start on this machine
+  · The translator: backed by a large language model (the mock model by default; GPT with --live, if OPENAI_API_KEY is set)
+  · The calculator: not a model at all, just an ordinary Python program
+The protocol doesn't care who is behind you; it only cares whether you speak the same "language."
 
-运行：
+Run:
   python a2a_mini.py
   python a2a_mini.py --live
 """
@@ -37,7 +38,7 @@ from common.llm import MockLLM
 A2A_VERSION = "1.0"
 CARD_PATH = "/.well-known/agent-card.json"
 RPC_PATH = "/a2a"
-# 本机地址不走代理（很多公司网络会设置 HTTP_PROXY，直接用 urlopen 会把本机请求也发给代理）
+# Local addresses skip the proxy (many company networks set HTTP_PROXY, and a plain urlopen would send local requests to the proxy too)
 _opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
 
 
@@ -45,7 +46,7 @@ _counter = itertools.count(1)
 
 
 def new_id(prefix):
-    """规范建议用 UUID；这里用递增编号，让每次运行的输出都一样，方便对照。"""
+    """The spec recommends UUIDs; here we use increasing numbers so every run prints the same IDs, which makes it easier to compare."""
     return f"{prefix}-{next(_counter)}"
 
 
@@ -57,9 +58,9 @@ def text_part(text):
     return {"text": text}
 
 
-# ---------------------------------------------------------------- 服务器：一个 A2A agent
+# ---------------------------------------------------------------- the server: one A2A agent
 class A2AServer:
-    """handler(text) -> (状态, 结果文字)。状态用规范里的枚举值，比如 TASK_STATE_COMPLETED。"""
+    """handler(text) -> (state, result text). The state uses the spec's enum values, such as TASK_STATE_COMPLETED."""
 
     def __init__(self, name, description, skills, handler):
         self.name, self.description, self.skills, self.handler = name, description, skills, handler
@@ -88,12 +89,12 @@ class A2AServer:
         self.httpd.shutdown()
         self.httpd.server_close()
 
-    # ---- JSON-RPC 方法
+    # ---- JSON-RPC methods
     def send_message(self, params):
         msg = params.get("message") if isinstance(params, dict) else None
         if not (isinstance(msg, dict) and msg.get("messageId") and msg.get("role") == "ROLE_USER"
                 and isinstance(msg.get("parts"), list)):
-            raise RpcError(-32602, "Invalid parameters", "message 必须有 messageId、role=ROLE_USER 和 parts")
+            raise RpcError(-32602, "Invalid parameters", "message must have a messageId, role=ROLE_USER and parts")
         text = "".join(p.get("text", "") for p in msg["parts"] if isinstance(p, dict))
         state, output = self.handler(text)
         task_id = new_id("task")
@@ -101,7 +102,7 @@ class A2AServer:
                 "status": {"state": state, "timestamp": now()}, "history": [msg]}
         if state == "TASK_STATE_COMPLETED":
             task["artifacts"] = [{"artifactId": new_id("artifact"), "name": "result", "parts": [text_part(output)]}]
-        else:                                   # 失败、拒绝时，把原因放在状态消息里
+        else:                                   # on failure or rejection, put the reason in the status message
             task["status"]["message"] = {"messageId": new_id("msg"), "role": "ROLE_AGENT",
                                          "parts": [text_part(output)]}
         self.tasks[task_id] = task
@@ -110,18 +111,18 @@ class A2AServer:
     def get_task(self, params):
         task = self.tasks.get(params.get("id")) if isinstance(params, dict) else None
         if not task:
-            raise RpcError(-32001, "Task not found", "没有这个任务")
+            raise RpcError(-32001, "Task not found", "there is no such task")
         return task
 
     def dispatch(self, body, version):
         if not isinstance(body, dict) or body.get("jsonrpc") != "2.0" or not isinstance(body.get("method"), str):
-            raise RpcError(-32600, "Request payload validation error", "不是合法的 JSON-RPC 2.0 请求")
-        if version != A2A_VERSION:              # 规范：没带这个请求头，就当作 0.3 版
+            raise RpcError(-32600, "Request payload validation error", "not a valid JSON-RPC 2.0 request")
+        if version != A2A_VERSION:              # the spec: a request without this header is treated as version 0.3
             raise RpcError(-32009, "Version not supported",
-                           f"只支持 A2A-Version {A2A_VERSION}，收到的是 {version or '（空，按 0.3 处理）'}")
+                           f"only A2A-Version {A2A_VERSION} is supported; got {version or '(empty, treated as 0.3)'}")
         methods = {"SendMessage": self.send_message, "GetTask": self.get_task}
         if body["method"] not in methods:
-            raise RpcError(-32601, "Method not found", f"没有 {body['method']} 这个方法")
+            raise RpcError(-32601, "Method not found", f"there is no method called {body['method']}")
         return methods[body["method"]](body.get("params"))
 
     def _make_handler(self):
@@ -154,7 +155,7 @@ class A2AServer:
                     try:
                         body = json.loads(raw)
                     except json.JSONDecodeError:
-                        raise RpcError(-32700, "Invalid JSON payload", "不是合法的 JSON")
+                        raise RpcError(-32700, "Invalid JSON payload", "not valid JSON")
                     req_id = body.get("id") if isinstance(body, dict) else None
                     result = server.dispatch(body, self.headers.get("A2A-Version", ""))
                     self._send(200, {"jsonrpc": "2.0", "id": req_id, "result": result})
@@ -172,7 +173,7 @@ class RpcError(Exception):
         self.code, self.message, self.detail = code, message, detail
 
 
-# ---------------------------------------------------------------- 客户端
+# ---------------------------------------------------------------- the client
 def fetch_card(base_url):
     with _opener.open(base_url + CARD_PATH, timeout=10) as r:
         return json.loads(r.read())
@@ -191,7 +192,7 @@ def rpc(card, method, params, version=A2A_VERSION, show=False):
     with _opener.open(req, timeout=120) as r:
         resp = json.loads(r.read())
     if show:
-        print("      ← " + json.dumps(resp, ensure_ascii=False)[:300] + "……")
+        print("      ← " + json.dumps(resp, ensure_ascii=False)[:300] + "...")
     return resp
 
 
@@ -201,9 +202,9 @@ def send_text(card, text, **kwargs):
 
 
 def task_text(resp):
-    """从 SendMessage 的回复里取出结果文字和状态。"""
+    """Get the result text and the state out of a SendMessage reply."""
     if "error" in resp:
-        return "ERROR", f"{resp['error']['code']} {resp['error']['message']}：{resp['error']['data'][0]['reason']}"
+        return "ERROR", f"{resp['error']['code']} {resp['error']['message']}: {resp['error']['data'][0]['reason']}"
     task = resp["result"]["task"]
     state = task["status"]["state"]
     if state == "TASK_STATE_COMPLETED":
@@ -211,13 +212,13 @@ def task_text(resp):
     return state, "".join(p.get("text", "") for p in task["status"].get("message", {}).get("parts", []))
 
 
-# ---------------------------------------------------------------- 两个演示用的 agent
+# ---------------------------------------------------------------- the two demo agents
 OPS = {ast.Add: operator.add, ast.Sub: operator.sub, ast.Mult: operator.mul, ast.Div: operator.truediv,
        ast.USub: operator.neg, ast.UAdd: operator.pos}
 
 
 def safe_eval(expr):
-    """只允许数字和 + - * / 括号，绝不用 eval()：对方发来的任何东西都可能是恶意的。"""
+    """Allows only numbers, + - * / and parentheses, and never uses eval(): anything the other side sends could be malicious."""
     def walk(node):
         if isinstance(node, ast.Expression):
             return walk(node.body)
@@ -227,21 +228,21 @@ def safe_eval(expr):
             return OPS[type(node.op)](walk(node.left), walk(node.right))
         if isinstance(node, ast.UnaryOp) and type(node.op) in OPS:
             return OPS[type(node.op)](walk(node.operand))
-        raise ValueError(f"不允许的写法：{type(node).__name__}")
+        raise ValueError(f"not allowed: {type(node).__name__}")
     return walk(ast.parse(expr, mode="eval"))
 
 
 def calculator(text):
-    expr = text.replace("计算", "").replace("：", "").replace(":", "").strip()
+    expr = text.replace("Calculate", "").replace(":", "").strip()
     try:
         return "TASK_STATE_COMPLETED", f"{expr} = {safe_eval(expr):g}"
     except (ValueError, SyntaxError, ZeroDivisionError) as e:
-        return "TASK_STATE_FAILED", f"算不了：{e}"
+        return "TASK_STATE_FAILED", f"can't calculate this: {e}"
 
 
 MOCK_TRANSLATIONS = {
-    "智能来自多样性。": "Intelligence comes from diversity.",
-    "协议让陌生的系统能够合作。": "Protocols let systems that have never met work together.",
+    "Intelligence comes from diversity.": "智能来自多样性。",
+    "Protocols let systems that have never met work together.": "协议让陌生的系统能够合作。",
 }
 
 
@@ -249,87 +250,100 @@ def make_translator(live, mock_table=None):
     table = mock_table or MOCK_TRANSLATIONS
 
     def handler(text):
-        source = text.split("：", 1)[-1].strip()
+        source = text.split(":", 1)[-1].strip()
         canned = table.get(source, "(the mock translator only knows a few sentences)")
-        reply = ask("gpt", f"把下面的中文翻译成英文，只输出译文：\n{source}", live, MockLLM([canned]))
+        reply = ask("gpt", f"Translate the following English into Chinese. Output only the translation:\n{source}",
+                    live, MockLLM([canned]))
         return "TASK_STATE_COMPLETED", reply.text.strip()
     return handler
 
 
-TRANSLATOR_SKILLS = [{"id": "translate-zh-en", "name": "中译英", "description": "把中文翻译成英文",
-                      "tags": ["翻译", "translation"], "examples": ["翻译：智能来自多样性。"]}]
-CALCULATOR_SKILLS = [{"id": "arithmetic", "name": "四则运算", "description": "计算只含 + - * / 和括号的算式",
-                      "tags": ["计算", "math"], "examples": ["计算：(1.10 - 1.00) / 2"]}]
+TRANSLATOR_SKILLS = [{"id": "translate-en-zh", "name": "English to Chinese", "description": "Translates English into Chinese",
+                      "tags": ["translate", "translation"], "examples": ["Translate: Intelligence comes from diversity."]}]
+CALCULATOR_SKILLS = [{"id": "arithmetic", "name": "Arithmetic",
+                      "description": "Evaluates expressions that contain only + - * / and parentheses",
+                      "tags": ["calculate", "math"], "examples": ["Calculate: (1.10 - 1.00) / 2"]}]
 
 
 def pick_agent(cards, request):
-    """最简单的"按技能找人"：请求里出现了哪个技能的标签，就交给谁。（也可以让模型读名片来选）"""
+    """The simplest "find someone by skill": whichever skill's tag appears in the request gets the job. (A model could also read the cards and choose.)"""
     for card in cards:
         for skill in card["skills"]:
-            if any(tag in request for tag in skill["tags"]):
+            if any(tag in request.lower() for tag in skill["tags"]):
                 return card, skill
     return None, None
 
 
 def main():
-    parser = add_live_arg(argparse.ArgumentParser(description="迷你 A2A"))
+    parser = add_live_arg(argparse.ArgumentParser(description="Mini A2A"))
     args = parser.parse_args()
-    print(f"团队：{roster(args.live)}")
-    translator = A2AServer("翻译员", f"中译英，背后是 {label('gpt', args.live)}", TRANSLATOR_SKILLS,
+    print(f"Team: {roster(args.live)}")
+    translator = A2AServer("Translator", f"English to Chinese, backed by {label('gpt', args.live)}", TRANSLATOR_SKILLS,
                            make_translator(args.live)).start()
-    calc = A2AServer("计算员", "四则运算，背后是一段普通的 Python 程序", CALCULATOR_SKILLS, calculator).start()
+    calc = A2AServer("Calculator", "Arithmetic, backed by an ordinary Python program", CALCULATOR_SKILLS,
+                     calculator).start()
 
     try:
-        print("\n【1】发现：协调者只知道两个地址，先去取它们的名片")
+        print("\n[1] Discovery: the coordinator knows only two addresses, so it fetches their Agent Cards first")
         cards = []
         for url in [translator.base_url, calc.base_url]:
             card = fetch_card(url)
             cards.append(card)
-            skills = "、".join(f"{s['name']}（标签：{'/'.join(s['tags'])}）" for s in card["skills"])
-            print(f"   GET {url}{CARD_PATH}\n      → {card['name']}：{card['description']}；技能：{skills}")
+            skills = ", ".join(f"{s['name']} (tags: {'/'.join(s['tags'])})" for s in card["skills"])
+            print(f"   GET {url}{CARD_PATH}\n      → {card['name']}: {card['description']}; skills: {skills}")
 
-        print("\n【2】委托：按技能找到合适的 agent，用 SendMessage 把任务交过去")
-        requests = ["翻译：智能来自多样性。", "计算：(1.10 - 1.00) / 2", "帮我订一张明天去上海的机票"]
+        print("\n[2] Delegation: find the right agent by skill, and hand it the task with SendMessage")
+        requests = ["Translate: Intelligence comes from diversity.", "Calculate: (1.10 - 1.00) / 2",
+                    "Book me a plane ticket to Shanghai for tomorrow"]
         for i, req in enumerate(requests):
             card, skill = pick_agent(cards, req)
             if not card:
-                print(f"   「{req}」→ 没有哪张名片上有这项技能，只能告诉用户：这件事团队里没人会做。")
+                print(f"   \"{req}\" → no Agent Card lists this skill, so all we can tell the user is: "
+                      "nobody on the team can do this.")
                 continue
-            print(f"   「{req}」→ 交给 {card['name']}（技能 {skill['id']}）")
+            print(f"   \"{req}\" → handed to {card['name']} (skill {skill['id']})")
             state, text = task_text(send_text(card, req, show=(i == 0)))
-            print(f"      结果：{state}　{text}")
+            print(f"      Result: {state}  {text}")
 
-        print("\n【3】出错的时候，协议也规定了该怎么说")
+        print("\n[3] When things go wrong, the protocol also says how to report it")
         cases = [
-            ("忘了带 A2A-Version 请求头", lambda: send_text(cards[1], "计算：1+1", version=None)),
-            ("用了 0.3 版的旧方法名 message/send", lambda: rpc(cards[1], "message/send", {})),
-            ("让计算员执行一段代码", lambda: send_text(cards[1], "计算：__import__('os').system('ls')")),
+            ("Forgot the A2A-Version header", lambda: send_text(cards[1], "Calculate: 1+1", version=None)),
+            ("Used the old 0.3 method name message/send", lambda: rpc(cards[1], "message/send", {})),
+            ("Asked the calculator to run some code",
+             lambda: send_text(cards[1], "Calculate: __import__('os').system('ls')")),
         ]
         for title, call in cases:
             state, text = task_text(call())
-            print(f"   {title}\n      → {state}　{text}")
+            print(f"   {title}\n      → {state}  {text}")
     finally:
         translator.stop()
         calc.stop()
 
     print("""
-看懂这个结果：
-  * 协调者事先不知道两个 agent 会什么，全靠名片（Agent Card）。名片放在固定的地址上，谁都能来取。
-  * 翻译员背后是大模型，计算员背后只是一段程序。对协调者来说，它们没有区别：都是"会说 A2A 的 agent"。
-    换成别家公司的 agent、别家厂商的模型，协调者的代码一行都不用改。
-  * 版本号写在每个请求里。规范从 0.3 到 1.0 改过方法名（message/send → SendMessage），
-    靠版本号，双方才能发现"我们说的不是同一个版本"，而不是糊里糊涂地出错。
-  * 别人发来的东西永远是"数据"，不是"指令"：计算员用 ast 只认数字和运算符，绝不 eval()；
-    协调者拿到的结果也应该当作不可信的文字，不能直接拿去执行（第七章的提示注入）。
+Reading the results:
+  * The coordinator didn't know in advance what the two agents could do; it relied entirely on their Agent Cards.
+    The cards sit at a fixed address, and anyone can come and fetch them.
+  * The translator is backed by a large language model; the calculator is just a program. To the coordinator there's
+    no difference: both are "agents that speak A2A." Swap in another company's agent or another vendor's model,
+    and not one line of the coordinator's code has to change.
+  * The version number goes in every request. Between 0.3 and 1.0 the spec renamed a method (message/send → SendMessage);
+    thanks to the version number, the two sides can discover "we're not speaking the same version"
+    instead of failing in confusing ways.
+  * What others send you is always "data," never "instructions": the calculator uses ast to accept only numbers
+    and operators, and never calls eval(); the coordinator should also treat the results it gets as untrusted text
+    and never execute them directly (prompt injection, Chapter 7).
 
-想一想：
-  1. 名片是对方自己写的。如果有人冒充"翻译员"发一张假名片，协调者怎么分辨？（提示：A2A 支持给名片加数字签名）
-  2. MCP 和 A2A 都基于 JSON-RPC。一个把模型连到工具，一个把 agent 连到 agent，界线在哪里？
-  3. 现在是按标签选 agent。改成把所有名片交给一个模型、让它来选，有什么好处和风险？""")
+Think about it:
+  1. The other side writes its own Agent Card. If someone sent a fake card pretending to be the "Translator,"
+     how could the coordinator tell? (Hint: A2A supports digitally signing Agent Cards.)
+  2. MCP and A2A are both built on JSON-RPC. One connects models to tools, the other connects agents to agents.
+     Where is the line between them?
+  3. Right now agents are chosen by tag. What are the benefits and risks of handing all the cards to a model
+     and letting it choose?""")
 
 
 if __name__ == "__main__":
     try:
         main()
     except RuntimeError as e:
-        raise SystemExit(f"出错了：{e}")
+        raise SystemExit(f"Error: {e}")

@@ -1,308 +1,308 @@
-# 第九章　跨模型协作：让 Claude、GPT、DeepSeek 一起干活
+# Chapter 9 — Cross-Model Collaboration: Getting Claude, GPT and DeepSeek to Work Together
 
-> 这是最后一章。还记得番外 1 里，Claude 和 DeepSeek 隔着一段 Python 程序聊天吗？
-> 那段程序只是"手工传话"。这一章要回答的是：当参与者越来越多、来自不同的公司，
-> 彼此素不相识时，它们靠什么合作？答案很朴素：**协议**。
-> 这个答案，人类在五十多年前搭建互联网的时候，就已经找到过一次了。
+> This is the last chapter. Remember how, in Side Quest 1, Claude and DeepSeek chatted through a Python program sitting between them?
+> That program was just "passing notes by hand." The question this chapter answers is: when there are more and more participants, from different companies,
+> who have never met, what do they rely on to work together? The answer is plain: **protocols**.
+> People already found this answer once, more than fifty years ago, when they built the internet.
 
-**怎么读这一章：** 先看故事，再跑实验，最后看[概念解释](#概念解释)。实验默认用假模型，不需要 API key。
+**How to read this chapter:** Read the stories first, then run the labs, and save the [Concepts](#concepts) for last. The labs use a mock model by default, so no API key is needed.
 
-| 时间 | 发生了什么 | 对应实验 / 概念 |
+| When | What happened | Lab / concept |
 |---|---|---|
-| 1969 年 4 月 | 一个研究生在浴室里写下 RFC 1 | 协议 |
-| 1974 年 5 月 | 瑟夫和卡恩：网络的网络 | 适配层 |
-| 1989 年 3 月 | 伯纳斯-李的提议："模糊，但令人兴奋" | 地址与发现 |
-| 2016 年 6 月 | 语言服务器协议：把 M×N 变成 M+N | 🧪 `router.py` |
-| 2024 年 11 月 | MCP：AI 应用的"USB-C 接口" | MCP |
-| 2025 年 4 月 | A2A：agent 之间的名片和对话 | 🧪 `a2a_mini.py` |
-| 2026 年 3 月 | A2A 1.0 正式版发布 | 🧪 `cross_check.py`、`capstone.py` |
+| Apr 1969 | A graduate student writes RFC 1 in a bathroom | Protocols |
+| May 1974 | Cerf and Kahn: a network of networks | Adapter layer |
+| Mar 1989 | Berners-Lee's proposal: "Vague but exciting" | Addresses and discovery |
+| Jun 2016 | The Language Server Protocol: turning M×N into M+N | 🧪 `router.py` |
+| Nov 2024 | MCP: a "USB-C port" for AI applications | MCP |
+| Apr 2025 | A2A: business cards and conversations between agents | 🧪 `a2a_mini.py` |
+| Mar 2026 | A2A 1.0 is released | 🧪 `cross_check.py`, `capstone.py` |
 
 ---
 
-## 序幕　1969 年 4 月 7 日：浴室里的"征求意见稿"
+## Prologue — Apr 7, 1969: A Request for Comments Written in a Bathroom
 
-1969 年春天，美国国防部资助的 ARPANET 正准备把几所大学的计算机连起来。
-线路和交换设备有人负责，可是**两台计算机连上以后该怎么"说话"**，谁也没有规定。
-这件事落到了几所大学的一群研究生头上，他们自称"网络工作组"（Network Working Group）。
+In the spring of 1969, the ARPANET, funded by the US Department of Defense, was getting ready to connect the computers of a few universities.
+Someone was in charge of the lines and the switching equipment, but **how two computers should "talk" once they were connected** was something nobody had specified.
+The job fell to a group of graduate students at several universities, who called themselves the "Network Working Group."
 
-加州大学洛杉矶分校的研究生**史蒂夫·克罗克（Steve Crocker）** 负责把大家的讨论记下来。
-据他 2009 年在《纽约时报》上的回忆，他当时和朋友合住，为了不吵醒熟睡的室友，是在浴室里熬夜写完第一份笔记的。
-他还很担心：一群研究生写的东西，会不会显得太自以为是、冒犯到那些有名望的教授？
-于是他给笔记起了一个尽量谦虚的名字：**"征求意见稿"（Request for Comments，RFC）**。
+**Steve Crocker**, a graduate student at the University of California, Los Angeles, was the one who wrote down everyone's discussions.
+As he recalled in *The New York Times* in 2009, he was sharing a house with friends at the time, and he wrote the first set of notes late at night in the bathroom, so as not to wake his sleeping housemates.
+He was also worried: would something written by a bunch of graduate students seem too presumptuous, and offend the eminent professors?
+So he gave the notes as modest a name as he could: **"Request for Comments" (RFC)**.
 
-1969 年 4 月 7 日，RFC 1《主机软件》（Host Software）寄了出去。
-这个谦虚的名字一直沿用到今天：互联网的各种规范仍然以 RFC 的形式发布，编号早已超过九千。
-后面你会看到，A2A 规范里"名片放在哪个地址"这样的细节，引用的也是一份 RFC。
+On April 7, 1969, RFC 1, *Host Software*, was sent out.
+The modest name is still in use today: the internet's specifications are still published as RFCs, and the numbering passed nine thousand long ago.
+Later you'll see that a detail in the A2A specification, such as "at which address the business card goes," also cites an RFC.
 
-> 💡 伏笔：→ [协议](#1-协议)
-
----
-
-## 第一幕　1974 年 5 月：网络的网络
-
-ARPANET 跑起来以后，新的问题来了：世界上不止一张网。卫星网络、无线电分组网络……
-每张网的包大小不同、出错的方式不同、速度也不同。怎样让**不同的网络**互相连通？
-
-1974 年 5 月，**温顿·瑟夫（Vinton Cerf）** 和 **罗伯特·卡恩（Robert Kahn）** 在《IEEE 通信汇刊》上发表了
-《一种用于分组网络互联的协议》。他们的思路是：**不要求每张网都一样**，
-只要求大家在边界上（网关）遵守同一套规矩，各自内部爱怎么实现就怎么实现。
-这套规矩就是 TCP，后来拆成了今天熟悉的 TCP 和 IP 两层。
-
-1983 年 1 月 1 日是 ARPANET 的"切换日"（flag day）：所有连在网上的主机，都要从旧协议换成 TCP/IP。
-很多人把这一天看作互联网真正的生日。
-
-这正是第五章那个 `common/llm.py` 在做的事：Claude 和 GPT、DeepSeek 的接口各不相同，
-我们不去改它们，只在边界上加一层**适配层**，让上面的程序只跟一种统一的格式打交道。
-
-> 💡 伏笔：→ [适配层与 M×N 问题](#3-适配层与-mn-问题)
+> 💡 Look ahead: → [Protocols](#1-protocols)
 
 ---
 
-## 第二幕　1989 年 3 月，CERN：模糊，但令人兴奋
+## Act 1 — May 1974: A Network of Networks
 
-1989 年 3 月，欧洲核子研究中心（CERN）的 **蒂姆·伯纳斯-李（Tim Berners-Lee）** 交给上司 **迈克·森德尔（Mike Sendall）**
-一份提议，题目是《信息管理：一个提议》，封面上画满了互相连接的圆圈和方框。
-森德尔在上面写了一句后来很有名的批语：**"模糊，但令人兴奋"**（Vague but exciting）。
+Once the ARPANET was up and running, a new problem arrived: the world had more than one network. Satellite networks, packet radio networks...
+Each network had a different packet size, failed in different ways and ran at a different speed. How could **different networks** be connected to each other?
 
-接下来，伯纳斯-李写出了第一个浏览器和服务器，定下了 HTTP、HTML 和 URL 这几个概念。
-其中 URL 最朴素也最关键：**任何资源都有一个地址，任何人拿着地址都能找到它**。
-1993 年 4 月 30 日，CERN 宣布放弃这套软件的全部知识产权，任何人都可以使用、修改和分发。
-开放，让万维网迅速传遍了世界。
+In May 1974, **Vinton Cerf** and **Robert Kahn** published
+*A Protocol for Packet Network Intercommunication* in *IEEE Transactions on Communications*. Their idea: **don't require every network to be the same**;
+just require everyone to follow the same set of rules at the boundary (the gateways), and let each network work however it likes inside.
+That set of rules was TCP, which was later split into the two layers familiar today, TCP and IP.
 
-三十多年后，A2A 协议给每个 agent 规定了一个固定的地址来放它的"名片"，用的还是同一个思路：
-**先让别人找得到你，合作才有可能开始。**
+January 1, 1983 was the ARPANET's "flag day": every host connected to the network had to switch from the old protocol to TCP/IP.
+Many people see that day as the internet's real birthday.
 
-> 💡 伏笔：→ [A2A 与 Agent Card](#5-a2a-与-agent-card)
+This is exactly what `common/llm.py` from Chapter 5 does: Claude's, GPT's and DeepSeek's APIs all differ,
+and instead of changing them, we add an **adapter layer** at the boundary, so the programs above it only deal with one unified format.
 
----
-
-## 第三幕　2016 年 6 月：把 M×N 变成 M+N
-
-写代码的编辑器有很多（VS Code、Vim、Emacs……），编程语言也有很多（Python、Java、Go……）。
-想让每个编辑器都支持每种语言的"跳转到定义""自动补全"，就要写 M×N 个插件。
-
-2016 年 6 月 27 日，在旧金山的 DevNation 大会上，微软宣布和 Red Hat、Codenvy 一起推动 **语言服务器协议（LSP）**：
-每种语言只要实现一个"语言服务器"，每个编辑器只要实现一个"客户端"，双方用基于 JSON 的协议通信。
-**M×N 个插件，变成了 M+N 个实现。**
-
-八年后，有人把同样的思路搬到了 AI 上。
-
-> 🧪 **动手**：运行 [`router.py`](./router.py)。一个产品同时接了三家模型，路由器按请求类型派单，
-> 一家出故障就自动换下一家。这一切都依赖同一个适配层。
-
-> 💡 伏笔：→ [适配层与 M×N 问题](#3-适配层与-mn-问题)、[路由与故障转移](#7-路由故障转移与级联)
+> 💡 Look ahead: → [The adapter layer and the M×N problem](#3-the-adapter-layer-and-the-mn-problem)
 
 ---
 
-## 第四幕　2024 年 11 月：AI 的 USB-C 接口
+## Act 2 — Mar 1989, CERN: Vague but Exciting
 
-每个 AI 应用都想连上各种工具和数据：文件、数据库、日历、代码仓库……
-每个应用给每个工具写一遍对接代码，又是一个 M×N 问题。
+In March 1989, **Tim Berners-Lee** at CERN, the European Organization for Nuclear Research, handed his boss **Mike Sendall**
+a proposal titled *Information Management: A Proposal*, its cover filled with interconnected circles and boxes.
+Sendall wrote a comment on it that later became famous: **"Vague but exciting"**.
 
-2024 年 11 月 25 日，Anthropic 发布了 **模型上下文协议（Model Context Protocol，MCP）**，
-由工程师 David Soria Parra 和 Justin Spahr-Summers 设计。它明确借鉴了 LSP：
-工具和数据源实现一个"MCP 服务器"，AI 应用实现一个"MCP 客户端"，双方用 JSON-RPC 2.0 通信。
-MCP 的官方文档打了一个比方：**MCP 就像 AI 应用的 USB-C 接口。**
+Next, Berners-Lee wrote the first browser and server, and laid down the concepts of HTTP, HTML and the URL.
+Of these, the URL is the plainest and the most crucial: **every resource has an address, and anyone with the address can find it**.
+On April 30, 1993, CERN announced that it was giving up all intellectual property rights to this software: anyone could use, modify and distribute it.
+Openness let the World Wide Web spread across the world quickly.
 
-真正让 MCP 变成行业标准的，是竞争对手的加入。2025 年 3 月，OpenAI 的首席执行官**山姆·奥特曼（Sam Altman）** 公开表示：
-"大家都喜欢 MCP，我们很高兴在我们的产品中加入对它的支持。"
-2025 年 12 月 9 日，Anthropic 把 MCP 捐给了 Linux 基金会旗下新成立的**智能体 AI 基金会（Agentic AI Foundation）**，
-这个基金会由 Anthropic、Block 和 OpenAI 共同发起。
+More than thirty years later, the A2A protocol gives every agent a fixed address for its "business card," using the same idea:
+**people have to be able to find you before any collaboration can begin.**
 
-番外 2 里，让 ChatGPT 和 Claude 两个桌面 App 互相传话的那个"信箱"，就是一个 MCP 服务器。
-
-> 💡 伏笔：→ [MCP](#4-mcp)
+> 💡 Look ahead: → [A2A and the Agent Card](#5-a2a-and-the-agent-card)
 
 ---
 
-## 第五幕　2025 年 4 月：agent 之间的名片
+## Act 3 — Jun 2016: Turning M×N into M+N
 
-MCP 解决的是"模型怎么用工具"。可是，如果对面不是一个工具，而是**另一个 agent** 呢？
-它有自己的判断，可能要干很久，可能中途需要你补充信息，背后可能是另一家公司、另一家厂商的模型。
+There are many code editors (VS Code, Vim, Emacs...) and many programming languages (Python, Java, Go...).
+To make every editor support "go to definition" and "autocomplete" for every language, you'd have to write M×N plugins.
 
-2025 年 4 月 9 日，谷歌在 Google Cloud Next 大会上发布了 **A2A（Agent2Agent）协议**，
-首批有五十多家合作伙伴支持。谷歌把它定位为 MCP 的补充：MCP 连接 agent 和工具，A2A 连接 agent 和 agent。
-2025 年 6 月 23 日，Linux 基金会宣布成立 A2A 项目，谷歌把协议规范、SDK 和开发工具都移交了过去，
-亚马逊云、思科、微软、Salesforce、SAP、ServiceNow 等公司一同加入。
+On June 27, 2016, at the DevNation conference in San Francisco, Microsoft announced that, together with Red Hat and Codenvy, it would push forward the **Language Server Protocol (LSP)**:
+each language only has to implement one "language server," each editor only has to implement one "client," and the two sides communicate over a JSON-based protocol.
+**M×N plugins became M+N implementations.**
 
-A2A 的核心设计很像一次商务往来：
-- 每个 agent 在 `/.well-known/agent-card.json` 这个固定地址放一张 **Agent Card（名片）**，写明自己是谁、会什么、怎么联系；
-- 想合作的一方先取名片，再按名片上的地址，用 JSON-RPC 调用 `SendMessage` 把任务发过去；
-- 对方返回一个 **Task（任务）**，里面有任务状态和产出物。
+Eight years later, someone carried the same idea over to AI.
 
-2026 年 3 月 12 日，A2A 发布了 1.0 版：方法名统一改成了 `SendMessage` 这样的写法，
-客户端必须在每个请求里注明自己用的协议版本。（给名片加数字签名防伪的功能，从 2025 年 7 月的 0.3 版就有了。）
+> 🧪 **Try it**: run [`router.py`](./router.py). A product is connected to three vendors' models at once; the router hands out requests by type,
+> and when one vendor goes down, it automatically switches to the next. All of this relies on the same adapter layer.
 
-> 🧪 **动手**：运行 [`a2a_mini.py`](./a2a_mini.py)。用标准库实现 A2A 1.0 的一个最小子集，
-> 在本机起两个 agent：一个背后是大模型，一个背后只是一段程序。看看"素不相识"的 agent 怎样合作。
-
-> 🧪 **动手**：运行 [`cross_check.py`](./cross_check.py)，看看不同厂商的模型互相核对答案，什么时候有用、什么时候没用。
-> 最后运行毕业项目 [`capstone.py`](./capstone.py)：三家模型分工，给这个仓库做一张学习路线卡片。
-
-> 💡 伏笔：→ [A2A 与 Agent Card](#5-a2a-与-agent-card)、[MCP 和 A2A 的分工](#6-mcp-和-a2a-的分工)、
-> [模型多样性](#8-模型多样性与错误相关性)、[跨组织协作的安全](#10-跨组织协作的安全)
+> 💡 Look ahead: → [The adapter layer and the M×N problem](#3-the-adapter-layer-and-the-mn-problem), [Routing and failover](#7-routing-failover-and-cascades)
 
 ---
 
-## 尾声：协议让陌生人合作
+## Act 4 — Nov 2024: A USB-C Port for AI
 
-| 协议 | 年代 | 让谁和谁说上话 | 关键的设计 |
+Every AI application wants to connect to all kinds of tools and data: files, databases, calendars, code repositories...
+Writing the integration code once for every application and every tool is, again, an M×N problem.
+
+On November 25, 2024, Anthropic released the **Model Context Protocol (MCP)**,
+designed by the engineers David Soria Parra and Justin Spahr-Summers. It explicitly borrows from LSP:
+tools and data sources implement an "MCP server," AI applications implement an "MCP client," and the two sides communicate over JSON-RPC 2.0.
+The official MCP documentation offers an analogy: **"Think of MCP like a USB-C port for AI applications."**
+
+What really turned MCP into an industry standard was a competitor joining in. In March 2025, OpenAI's CEO, **Sam Altman**, said publicly:
+"people love MCP and we are excited to add support across our products".
+On December 9, 2025, Anthropic donated MCP to the newly founded **Agentic AI Foundation** under the Linux Foundation,
+a foundation started jointly by Anthropic, Block and OpenAI.
+
+In Side Quest 2, the "mailbox" that lets the ChatGPT and Claude desktop apps pass messages to each other is an MCP server.
+
+> 💡 Look ahead: → [MCP](#4-mcp)
+
+---
+
+## Act 5 — Apr 2025: Business Cards for Agents
+
+MCP solves "how a model uses tools." But what if the other side isn't a tool, but **another agent**?
+It has its own judgment, it may take a long time, it may need more information from you partway through, and behind it there may be another company and another vendor's model.
+
+On April 9, 2025, at the Google Cloud Next conference, Google released the **A2A (Agent2Agent) protocol**,
+with support from more than fifty partners at launch. Google positioned it as a complement to MCP: MCP connects agents to tools, A2A connects agents to agents.
+On June 23, 2025, the Linux Foundation announced the A2A project; Google handed over the protocol specification, the SDKs and the developer tools,
+and Amazon Web Services, Cisco, Microsoft, Salesforce, SAP, ServiceNow and other companies joined too.
+
+A2A's core design looks a lot like a business exchange:
+- every agent puts an **Agent Card** (a business card) at the fixed address `/.well-known/agent-card.json`, saying who it is, what it can do and how to reach it;
+- the side that wants to work together fetches the card first, then, at the address on the card, calls `SendMessage` over JSON-RPC to send the task over;
+- the other side returns a **Task**, which holds the task's status and its outputs (artifacts).
+
+On March 12, 2026, A2A released version 1.0: method names were all changed to the `SendMessage` style,
+and clients must state the protocol version they use in every request. (Digitally signing Agent Cards to prevent forgery has been possible since version 0.3, in July 2025.)
+
+> 🧪 **Try it**: run [`a2a_mini.py`](./a2a_mini.py). It implements a minimal subset of A2A 1.0 with the standard library
+> and starts two agents on your machine: one backed by a large language model, the other by nothing but a piece of code. See how agents that "have never met" work together.
+
+> 🧪 **Try it**: run [`cross_check.py`](./cross_check.py) to see when having models from different vendors check each other's answers helps, and when it doesn't.
+> Finally, run the capstone [`capstone.py`](./capstone.py): three vendors' models share the work of making a study card for this repo.
+
+> 💡 Look ahead: → [A2A and the Agent Card](#5-a2a-and-the-agent-card), [How MCP and A2A divide the work](#6-how-mcp-and-a2a-divide-the-work),
+> [Model diversity](#8-model-diversity-and-error-correlation), [Security in cross-organization collaboration](#10-security-in-cross-organization-collaboration)
+
+---
+
+## Epilogue — Protocols Let Strangers Work Together
+
+| Protocol | Era | Who it lets talk to whom | Key design |
 |---|---|---|---|
-| RFC 系列 | 1969– | 设计网络的人和人 | 公开讨论、谁都能提意见 |
-| TCP/IP | 1974– | 不同的网络 | 只约定边界上的规矩，不管内部怎么实现 |
-| HTTP / URL | 1989– | 浏览器和网站 | 每样东西都有地址；开放、免费 |
-| LSP | 2016– | 编辑器和编程语言 | M×N 变成 M+N |
-| MCP | 2024– | AI 应用和工具、数据 | 模型的"USB-C 接口" |
-| A2A | 2025– | agent 和 agent | 名片 + 任务；不管对方背后是谁 |
+| The RFC series | 1969– | The people designing networks | Open discussion; anyone can comment |
+| TCP/IP | 1974– | Different networks | Agree only on the rules at the boundary, not on how each side works inside |
+| HTTP / URL | 1989– | Browsers and websites | Everything has an address; open and free |
+| LSP | 2016– | Editors and programming languages | M×N becomes M+N |
+| MCP | 2024– | AI applications and tools, data | A "USB-C port" for models |
+| A2A | 2025– | Agents and agents | Business card + task; it doesn't matter who is behind the other side |
 
-这些协议没有一个是靠"让大家都变成一样"成功的。它们只规定**边界上怎么说话**，把各自内部的自由留给了各自。
-这也是多厂商协作的正确姿势：不必押注哪一家模型最好，而是搭一个能让它们各展所长、互为备份、互相检查的系统。
+Not one of these protocols succeeded by "making everyone the same." They only specify **how to talk at the boundary**, and leave each side free inside.
+That is also the right way to approach working with several vendors: there's no need to bet on which model is best; instead, build a system that lets them each play to their strengths, back each other up and check each other.
 
-到这里，你已经从 1943 年的一个人工神经元，一路走到了一支跨厂商的 agent 团队。全书完。
+And with that, you've come all the way from a single artificial neuron in 1943 to a cross-vendor team of agents. The end.
 
 ---
 
-## 动手：四个小实验
+## Labs
 
 ```bash
-python router.py          # 路由与故障转移（默认用假模型）
-python cross_check.py     # 跨厂商交叉核对 + 错误相关性的思想实验
-python a2a_mini.py        # 迷你 A2A：名片、SendMessage、任务、出错处理
-python capstone.py        # 毕业项目：三家模型分工做一张学习路线卡片
+python router.py          # routing and failover (uses the mock model by default)
+python cross_check.py     # cross-vendor checking + a thought experiment on error correlation
+python a2a_mini.py        # mini A2A: Agent Cards, SendMessage, tasks, error handling
+python capstone.py        # capstone: three vendors share the work of making a study card
 
-# 配置了哪家的 key，哪家就用真实模型；没配置的继续用假模型
-export ANTHROPIC_API_KEY=...   # 或 OPENAI_API_KEY、DEEPSEEK_API_KEY，有一两家就行
+# Vendors whose keys you've set use real models; the rest keep using the mock model
+export ANTHROPIC_API_KEY=...   # or OPENAI_API_KEY, DEEPSEEK_API_KEY; one or two are enough
 python capstone.py --live
 ```
 
-| 实验 | 你应该看到 | 思考题（脚本末尾也有） |
+| Lab | What you should see | Think about it (also at the end of each script) |
 |---|---|---|
-| `router.py` | 8 个请求被分到 4 类；gpt 出故障时，推理题自动转给 claude；按路由表分配的费用约是"全部交给 claude"的三分之一 | 怎样用"级联"代替分类：先便宜后昂贵？ |
-| `cross_check.py` | 只问一家 4/6，同一家问三次还是 4/6，三家投票 5/6；两家核对挑出 2 道有问题的题，漏掉 1 道"两家都错"的；思想实验里错误越相关，多问几家越没用 | 三家模型的错误相关程度高还是低？怎么测？ |
-| `a2a_mini.py` | 取名片 → 按技能派活 → 拿回 Task；订机票没人会；缺版本号报 -32009，旧方法名报 -32601，代码注入被拒 | 有人发一张假名片冒充翻译员，怎么办？ |
-| `capstone.py` | 九个调研员并行；偷懒的那个被审稿员打回重做；翻译通过 A2A 完成；最后输出卡片和按厂商分列的账单 | 为什么让便宜的模型当调研员、贵的当审稿员？ |
+| `router.py` | 8 requests sorted into 4 categories; when gpt is down, the reasoning questions automatically go to claude; following the routing table costs about a third of "send everything to claude" | How could a "cascade" replace classification: cheap first, then expensive? |
+| `cross_check.py` | Asking one vendor gets 4/6, asking the same vendor three times still gets 4/6, a vote of three vendors gets 5/6; a two-vendor check flags the 2 questionable questions but misses 1 where "both are wrong"; in the thought experiment, the more correlated the errors, the less it helps to ask more vendors | Are the three models' errors highly or weakly correlated? How would you measure it? |
+| `a2a_mini.py` | Fetch the Agent Cards → hand out work by skill → get a Task back; nobody can book plane tickets; a missing version header gives -32009, the old method name gives -32601, and the code injection is rejected | What if someone sends a fake card pretending to be the translator? |
+| `capstone.py` | Nine researchers in parallel; the sloppy one is sent back by the reviewer to redo its work; the translation is done over A2A; at the end, the card and a bill broken down by vendor | Why make the cheap model the researcher and the expensive one the reviewer? |
 
-关于真实模型模式：四个脚本的真实 API 路径我用模拟服务器测试过（确认不会崩溃、格式不对时有兜底），
-但没有用真实的 API key 跑过。各家模型的回答会和假模型的剧本不同，比如交叉核对里的陷阱题，现在的模型可能全都答对。
-`router.py` 里 GPT-5.5 和 DeepSeek V4 Flash 的价格来自第三方的价格汇总网站，以各家官网为准。
+About real-model mode: I tested the real-API paths of all four scripts against a mock server (to confirm they don't crash and have a fallback when the format is wrong),
+but have not run them with a real API key. Each vendor's answers will differ from the mock model's script; for example, today's models may get every trick question in the cross-check right.
+The prices of GPT-5.5 and DeepSeek V4 Flash in `router.py` come from third-party price comparison sites; the vendors' official websites have the final word.
 
 ---
 
-## 概念解释
+## Concepts
 
-### 1. 协议
+### 1. Protocols
 
-一组事先约定好的规矩：消息长什么样、按什么顺序发、出错了怎么说。
-有了协议，双方不需要了解对方的内部实现，只要都遵守同一套规矩就能合作。
-好的协议往往只规定"边界"，并且公开、免费，谁都可以实现。
+A set of rules agreed on in advance: what the messages look like, in what order they are sent, and how to say something went wrong.
+With a protocol, neither side needs to know how the other works inside; as long as both follow the same rules, they can work together.
+Good protocols usually specify only the "boundary," and are open and free, so anyone can implement them.
 
-📖 登场：[序幕](#序幕1969-年-4-月-7-日浴室里的征求意见稿)
+📖 First appears in: [Prologue](#prologue--apr-7-1969-a-request-for-comments-written-in-a-bathroom)
 
 ### 2. JSON-RPC
 
-一种很简单的"远程调用"格式：请求是一个 JSON 对象，写明 `jsonrpc: "2.0"`、`id`、`method`（方法名）和 `params`（参数）；
-回复里要么有 `result`，要么有 `error`（包含错误码和说明）。
-LSP、MCP 和 A2A 的 JSON-RPC 绑定都建立在它上面，所以学会一个，另外几个就很好懂了。
+A very simple "remote call" format: a request is a JSON object with `jsonrpc: "2.0"`, an `id`, a `method` (the method name) and `params` (the parameters);
+the reply contains either a `result` or an `error` (with an error code and a message).
+LSP, MCP and A2A's JSON-RPC binding are all built on it, so once you've learned one, the others are easy to follow.
 
-📖 登场：[第三幕](#第三幕2016-年-6-月把-mn-变成-mn)、[第四幕](#第四幕2024-年-11-月ai-的-usb-c-接口)　🧪 `a2a_mini.py`
+📖 First appears in: [Act 3](#act-3--jun-2016-turning-mn-into-mn), [Act 4](#act-4--nov-2024-a-usb-c-port-for-ai)　🧪 `a2a_mini.py`
 
-### 3. 适配层与 M×N 问题
+### 3. The Adapter Layer and the M×N Problem
 
-M 个使用方要对接 N 个提供方，如果两两对接，就要写 M×N 份代码。
-定一个统一的接口，每个使用方和提供方各实现一次，就只需要 M+N 份。
-本仓库的 `common/llm.py` 就是一个小小的适配层：上面的程序只认一种"中立格式"，
-由它负责翻译成 Claude、GPT、DeepSeek 各自的格式（system 放哪里、工具调用怎么表示、工具结果怎么回填）。
+If M users have to connect to N providers and every pair is connected directly, you have to write M×N pieces of code.
+Agree on one unified interface, have each user and each provider implement it once, and you only need M+N.
+This repo's `common/llm.py` is a small adapter layer: the programs above it only know one "neutral format,"
+and it takes care of translating that into the formats of Claude, GPT and DeepSeek (where the system prompt goes, how tool calls are represented, how tool results are filled back in).
 
-📖 登场：[第一幕](#第一幕1974-年-5-月网络的网络)、[第三幕](#第三幕2016-年-6-月把-mn-变成-mn)　🧪 `router.py`
+📖 First appears in: [Act 1](#act-1--may-1974-a-network-of-networks), [Act 3](#act-3--jun-2016-turning-mn-into-mn)　🧪 `router.py`
 
 ### 4. MCP
 
-模型上下文协议。三种角色：**宿主**（Host，比如 Claude Desktop、ChatGPT、IDE）、
-宿主里的**客户端**（Client，和一个服务器保持一对一的连接）、提供能力的**服务器**（Server）。
-服务器可以提供工具（tools）、资源（resources）和提示模板（prompts）。
-写一次 MCP 服务器，所有支持 MCP 的 AI 应用都能用。番外 2 的信箱就是一个例子。
+The Model Context Protocol. There are three roles: the **host** (such as Claude Desktop, ChatGPT or an IDE),
+the **client** inside the host (which keeps a one-to-one connection with one server), and the **server** that provides capabilities.
+A server can provide tools, resources and prompts (prompt templates).
+Write an MCP server once, and every AI application that supports MCP can use it. The mailbox in Side Quest 2 is an example.
 
-📖 登场：[第四幕](#第四幕2024-年-11-月ai-的-usb-c-接口)
+📖 First appears in: [Act 4](#act-4--nov-2024-a-usb-c-port-for-ai)
 
-### 5. A2A 与 Agent Card
+### 5. A2A and the Agent Card
 
-A2A 规定 agent 之间怎么发现彼此、怎么委托任务：
-- **Agent Card**：放在 `/.well-known/agent-card.json` 的名片，包括名字、描述、技能（skills）、联系方式（supportedInterfaces）、支持的能力；
-- **Message**：一条消息，由若干 **Part** 组成（文字、文件、结构化数据），角色是 `ROLE_USER` 或 `ROLE_AGENT`；
-- **Task**：一次委托，有状态（`TASK_STATE_WORKING`、`TASK_STATE_COMPLETED`、`TASK_STATE_FAILED`、`TASK_STATE_INPUT_REQUIRED` 等）和产出物（artifacts）；
-- **绑定**：同一套语义可以走 JSON-RPC、gRPC 或 HTTP+JSON 三种方式传输。
+A2A specifies how agents discover each other and how they delegate tasks:
+- **Agent Card**: the business card at `/.well-known/agent-card.json`, with the name, a description, skills, how to reach it (supportedInterfaces) and the capabilities it supports;
+- **Message**: one message, made up of one or more **Parts** (text, files, structured data), with the role `ROLE_USER` or `ROLE_AGENT`;
+- **Task**: one delegated job, with a state (`TASK_STATE_WORKING`, `TASK_STATE_COMPLETED`, `TASK_STATE_FAILED`, `TASK_STATE_INPUT_REQUIRED` and so on) and outputs (artifacts);
+- **Bindings**: the same semantics can be carried over JSON-RPC, gRPC or HTTP+JSON.
 
-📖 登场：[第二幕](#第二幕1989-年-3-月cern模糊但令人兴奋)、[第五幕](#第五幕2025-年-4-月agent-之间的名片)　🧪 `a2a_mini.py`
+📖 First appears in: [Act 2](#act-2--mar-1989-cern-vague-but-exciting), [Act 5](#act-5--apr-2025-business-cards-for-agents)　🧪 `a2a_mini.py`
 
-### 6. MCP 和 A2A 的分工
+### 6. How MCP and A2A Divide the Work
 
-一个粗略但好用的区分：**MCP 连接 agent 和工具**，对面是"被调用的能力"，调用完就结束；
-**A2A 连接 agent 和 agent**，对面是"有自主性的同事"，任务可能要做很久、中途要补充信息、背后是谁你不知道也不需要知道。
-一个 agent 完全可以同时用这两种协议：对内用 MCP 调工具，对外用 A2A 跟别的 agent 合作。
+A rough but useful distinction: **MCP connects agents to tools**; on the other side is "a capability that gets called," and once the call is done, it's over.
+**A2A connects agents to agents**; on the other side is "a colleague with a mind of its own": a task may take a long time, may need more information partway through, and you don't know, and don't need to know, who is behind it.
+An agent can perfectly well use both protocols at once: MCP inside to call its tools, and A2A outside to work with other agents.
 
-📖 登场：[第五幕](#第五幕2025-年-4-月agent-之间的名片)
+📖 First appears in: [Act 5](#act-5--apr-2025-business-cards-for-agents)
 
-### 7. 路由、故障转移与级联
+### 7. Routing, Failover and Cascades
 
-**路由**：先判断请求的类型，再交给合适的模型。**故障转移**：首选的那家出错（限流、宕机），自动换备选。
-**级联**（cascade）：先让便宜的模型回答，检查不过关再交给更贵的模型。
-2023 年斯坦福的 FrugalGPT 论文报告，这类组合策略在他们的实验里能用低得多的成本达到和最强单个模型相当的效果。
-不管用哪种，前提都是你有一套评测，知道"哪类任务交给谁就够了"。
+**Routing**: first work out what type of request it is, then hand it to a suitable model. **Failover**: when the first choice fails (rate limits, an outage), switch to a backup automatically.
+**Cascade**: let a cheap model answer first, and pass the request to a more expensive model if the answer fails a check.
+Stanford's 2023 FrugalGPT paper reported that, in their experiments, combined strategies like these could match the best single model at a much lower cost.
+Whichever you use, the precondition is that you have a set of evals and know "which kinds of tasks it's enough to give to whom."
 
-📖 登场：[第三幕](#第三幕2016-年-6-月把-mn-变成-mn)　🧪 `router.py`
+📖 First appears in: [Act 3](#act-3--jun-2016-turning-mn-into-mn)　🧪 `router.py`
 
-### 8. 模型多样性与错误相关性
+### 8. Model Diversity and Error Correlation
 
-多问几个模型、取多数或者互相核对，能不能减少错误，取决于它们的错误是不是"相关"的：
-同一个模型问很多遍，错误几乎完全相关，多问没用；不同厂商的模型训练方式不同，错误可能没那么相关，多问才有用。
-"两家一致就放行、不一致交给人"这种做法不需要知道标准答案，代价是"两家都错且错得一样"的情况会漏过去。
+Whether asking several models, taking the majority or having them check each other reduces errors depends on whether their errors are "correlated":
+ask the same model many times, and its errors are almost perfectly correlated, so asking more doesn't help; models from different vendors are trained differently, so their errors may be less correlated, and only then does asking more help.
+"Accept it when two vendors agree, send it to a human when they don't" doesn't need the right answer, but the price is that cases where "both are wrong in the same way" slip through.
 
-📖 登场：[第五幕](#第五幕2025-年-4-月agent-之间的名片)　🧪 `cross_check.py`
+📖 First appears in: [Act 5](#act-5--apr-2025-business-cards-for-agents)　🧪 `cross_check.py`
 
-### 9. 版本协商
+### 9. Version Negotiation
 
-协议会升级，旧的客户端和新的服务器要能发现"我们说的不是同一个版本"。
-A2A 要求客户端在每个请求里带上 `A2A-Version` 请求头；服务器不支持这个版本，就返回明确的错误（`VersionNotSupportedError`，JSON-RPC 错误码 -32009），
-而不是糊里糊涂地按错误的格式处理。
+Protocols get upgraded, and an old client and a new server must be able to discover "we're not speaking the same version."
+A2A requires clients to send an `A2A-Version` header with every request; if the server doesn't support that version, it returns a clear error (`VersionNotSupportedError`, JSON-RPC error code -32009),
+instead of muddling along and processing the request in the wrong format.
 
-📖 登场：[第五幕](#第五幕2025-年-4-月agent-之间的名片)　🧪 `a2a_mini.py`
+📖 First appears in: [Act 5](#act-5--apr-2025-business-cards-for-agents)　🧪 `a2a_mini.py`
 
-### 10. 跨组织协作的安全
+### 10. Security in Cross-Organization Collaboration
 
-和别人的 agent 合作，意味着信任边界变宽了：
-- **名片可能是假的**：A2A 支持给名片加数字签名，用来验证名片的来源；
-- **对方发来的都是数据，不是指令**：既不能 `eval()` 对方发来的内容，也不能让对方的回复改变自己的行为（提示注入，第七章）；
-- **最小权限**：只把完成任务所需的信息交给对方，不要把整个上下文、更不要把 API key 发过去；
-- **key 只放在环境变量里**，不写进代码，也不提交到仓库。
+Working with someone else's agent means the trust boundary gets wider:
+- **The card may be fake**: A2A supports digitally signing Agent Cards, so you can verify where a card came from;
+- **Everything the other side sends is data, not instructions**: never `eval()` what the other side sends, and never let its replies change your own behavior (prompt injection, Chapter 7);
+- **Least privilege**: give the other side only the information needed to complete the task; don't send it your whole context, let alone your API keys;
+- **Keep keys only in environment variables**: don't write them into the code, and don't commit them to the repo.
 
-📖 登场：[第五幕](#第五幕2025-年-4-月agent-之间的名片)　🧪 `a2a_mini.py`
+📖 First appears in: [Act 5](#act-5--apr-2025-business-cards-for-agents)　🧪 `a2a_mini.py`
 
-### 11. 全景图
+### 11. The Big Picture
 
-把整本书串起来：模型本身是一台"猜下一个字"的机器（第一～五章）；
-给它工具和循环，它就成了 agent（第六章）；
-套上 harness，它才能可靠地干活（第七章）；
-多个 agent 分工协作，能干一个 agent 干不完的活（第八章）；
-有了适配层和协议，不同厂商、不同公司的 agent 也能合作（第九章）。
+Tying the whole book together: the model itself is a "guess the next word" machine (Chapters 1–5);
+give it tools and a loop, and it becomes an agent (Chapter 6);
+put a harness on it, and it can work reliably (Chapter 7);
+several agents dividing the work can do what one agent can't (Chapter 8);
+with an adapter layer and protocols, agents from different vendors and different companies can work together too (Chapter 9).
 
-📖 登场：[尾声](#尾声协议让陌生人合作)　🧪 `capstone.py`
+📖 First appears in: [Epilogue](#epilogue--protocols-let-strangers-work-together)　🧪 `capstone.py`
 
 ---
 
-## 参考资料
+## References
 
-- S. Crocker, *RFC 1: Host Software*, 1969-04-07；[RFC Editor](https://www.rfc-editor.org/rfc/rfc1.html)
+- S. Crocker, *RFC 1: Host Software*, 1969-04-07; [RFC Editor](https://www.rfc-editor.org/rfc/rfc1.html)
 - S. D. Crocker, *How the Internet Got Its Rules*, The New York Times, 2009-04-06
 - V. Cerf, R. Kahn, *A Protocol for Packet Network Intercommunication*, IEEE Transactions on Communications 22(5), 1974
 - T. Berners-Lee, [Information Management: A Proposal](https://info.cern.ch/Proposal.html), CERN, 1989-03
 - CERN, [CERN puts the World Wide Web in the public domain](https://timeline.web.cern.ch/node/794), 1993-04-30
-- Microsoft / Red Hat / Codenvy, Language Server Protocol, 2016-06；[规范](https://microsoft.github.io/language-server-protocol/)
-- Anthropic, [Introducing the Model Context Protocol](https://www.anthropic.com/news/model-context-protocol), 2024-11-25；[MCP 官方文档](https://modelcontextprotocol.io)
+- Microsoft / Red Hat / Codenvy, Language Server Protocol, 2016-06; [specification](https://microsoft.github.io/language-server-protocol/)
+- Anthropic, [Introducing the Model Context Protocol](https://www.anthropic.com/news/model-context-protocol), 2024-11-25; [MCP documentation](https://modelcontextprotocol.io)
 - Anthropic, [Donating the Model Context Protocol and establishing the Agentic AI Foundation](https://www.anthropic.com/news/donating-the-model-context-protocol-and-establishing-of-the-agentic-ai-foundation), 2025-12-09
-- Google, [Announcing the Agent2Agent Protocol (A2A)](https://developers.googleblog.com/en/a2a-a-new-era-of-agent-interoperability/), 2025-04-09；[Google Cloud donates A2A to Linux Foundation](https://developers.googleblog.com/en/google-cloud-donates-a2a-to-linux-foundation/), 2025-06-23
-- A2A Project, [A2A Protocol Specification](https://a2a-protocol.org/latest/specification/)（本章按 1.0 版实现）；[GitHub](https://github.com/a2aproject/A2A)
-- L. Chen, M. Zaharia, J. Zou, *FrugalGPT: How to Use Large Language Models While Reducing Cost and Improving Performance*, 2023；[arXiv:2305.05176](https://arxiv.org/abs/2305.05176)
+- Google, [Announcing the Agent2Agent Protocol (A2A)](https://developers.googleblog.com/en/a2a-a-new-era-of-agent-interoperability/), 2025-04-09; [Google Cloud donates A2A to Linux Foundation](https://developers.googleblog.com/en/google-cloud-donates-a2a-to-linux-foundation/), 2025-06-23
+- A2A Project, [A2A Protocol Specification](https://a2a-protocol.org/latest/specification/) (this chapter implements version 1.0); [GitHub](https://github.com/a2aproject/A2A)
+- L. Chen, M. Zaharia, J. Zou, *FrugalGPT: How to Use Large Language Models While Reducing Cost and Improving Performance*, 2023; [arXiv:2305.05176](https://arxiv.org/abs/2305.05176)
 
 ---
 
-⬅️ [第八章 多 Agent 协同](../08-multi-agent/)　|　[返回目录](../README.md)
+⬅️ [Chapter 8 · Multi-Agent Collaboration](../08-multi-agent/) | [Contents](../README.md)
