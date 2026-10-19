@@ -1,28 +1,28 @@
 """
-番外：让两个 AI 聊天的最小"传话"程序（一个最简单的 harness）
-==============================================================
+Side quest: the smallest "relay" program that lets two AIs chat (the simplest possible harness)
+==============================================================================================
 
-两个 AI 其实都不知道对方存在。它们各自只是在回答"用户"的消息，
-而这个"用户"其实是本程序：它把 A 说的话转给 B，再把 B 说的话转给 A。
+Neither AI actually knows the other one exists. Each of them is just answering messages from a "user",
+and that "user" is really this program: it passes what A says on to B, and what B says back to A.
 
-用法：
-  python relay.py                                    # 默认 mock ↔ mock，不需要任何 API key
-  python relay.py --show-history                     # 结束后打印两边各自的 messages 列表
-  python relay.py --a claude --b deepseek --turns 6 --topic "AI 会不会做梦"
+Usage:
+  python relay.py                                    # default mock ↔ mock, no API key needed
+  python relay.py --show-history                     # at the end, print each side's own messages list
+  python relay.py --a claude --b deepseek --turns 6 --topic "whether AI can dream"
   python relay.py --a gpt --b deepseek
 
-需要的环境变量（只在用到对应模型时才需要）：
-  ANTHROPIC_API_KEY   → claude   （pip install anthropic）
-  DEEPSEEK_API_KEY    → deepseek （pip install openai，DeepSeek 兼容 OpenAI 的接口）
-  OPENAI_API_KEY      → gpt      （pip install openai）
+Environment variables you need (only for the models you actually use):
+  ANTHROPIC_API_KEY   → claude   (pip install anthropic)
+  DEEPSEEK_API_KEY    → deepseek (pip install openai; DeepSeek's API is OpenAI-compatible)
+  OPENAI_API_KEY      → gpt      (pip install openai)
 """
 
 import argparse
 import os
 import textwrap
 
-# 每个模型的默认型号，可以用 --model-a / --model-b 覆盖。
-# 各家会更新型号名，跑不通时先去官方文档确认最新的名字。
+# Default model for each provider; override with --model-a / --model-b.
+# Providers rename their models from time to time. If a run fails, check the official docs for the latest names first.
 DEFAULT_MODELS = {
     "claude": "claude-opus-5-5",
     "deepseek": "deepseek-v4-flash",
@@ -33,16 +33,16 @@ END_MARK = "[END]"
 
 
 # ---------------------------------------------------------------------------
-# 第一部分：把不同厂商的 API 包装成同一个样子
+# Part 1: wrap the different providers' APIs so they all look the same
 #   reply(system, messages) -> str
-# system   : 这个 AI 的"人设"和规则
-# messages : 从这个 AI 自己的视角看到的对话历史（user / assistant 交替）
+# system   : this AI's "persona" and rules
+# messages : the conversation history from this AI's own point of view (user / assistant, alternating)
 # ---------------------------------------------------------------------------
 
 def make_claude(model):
     import anthropic
 
-    client = anthropic.Anthropic()  # 从 ANTHROPIC_API_KEY 读取密钥
+    client = anthropic.Anthropic()  # reads the key from ANTHROPIC_API_KEY
 
     def reply(system, messages):
         resp = client.beta.messages.create(
@@ -50,20 +50,20 @@ def make_claude(model):
             max_tokens=16000,
             system=system,
             messages=messages,
-            output_config={"effort": "low"},       # 闲聊不需要深度思考，省钱也更快
-            # 万一某一句被安全分类器拦下，自动换一个模型重试
+            output_config={"effort": "low"},       # small talk doesn't need deep thinking; cheaper and faster
+            # if a line ever gets blocked by the safety classifier, automatically retry with another model
             betas=["server-side-fallback-2026-07-01"],
             fallbacks="default",
         )
         if resp.stop_reason == "refusal":
-            return "（这一句 Claude 拒绝回答。）"
+            return "(Claude declined to answer this one.)"
         return "".join(b.text for b in resp.content if b.type == "text")
 
     return reply
 
 
 def make_openai_compatible(model, api_key_env, base_url=None):
-    """DeepSeek 和 GPT 都用 OpenAI 的接口格式，区别只是 base_url 和密钥。"""
+    """DeepSeek and GPT both use OpenAI's API format; the only differences are base_url and the key."""
     from openai import OpenAI
 
     client = OpenAI(api_key=os.environ[api_key_env], base_url=base_url)
@@ -71,7 +71,7 @@ def make_openai_compatible(model, api_key_env, base_url=None):
     def reply(system, messages):
         resp = client.chat.completions.create(
             model=model,
-            # OpenAI 格式里，system 是 messages 里的第一条
+            # in the OpenAI format, system is the first entry in messages
             messages=[{"role": "system", "content": system}] + messages,
         )
         return resp.choices[0].message.content
@@ -81,27 +81,27 @@ def make_openai_compatible(model, api_key_env, base_url=None):
 
 MOCK_LINES = {
     "first": [
-        "我先抛个观点：会预测下一个词，不等于理解。",
-        "可人类理解一句话时，脑子里也有'预测'在发生啊。",
-        f"那我们的分歧其实在'理解'的定义上。今天先聊到这里吧 {END_MARK}",
+        "Let me open with a claim: predicting the next word is not the same as understanding.",
+        "But when people understand a sentence, there's 'prediction' going on in their heads too.",
+        f"So our real disagreement is about how to define 'understanding'. Let's stop here for today {END_MARK}",
     ],
     "second": [
-        "我不太同意。如果它能用这句话正确地做事，算不算理解？",
-        "对，所以关键可能不是'有没有预测'，而是'预测的是什么'。",
-        "同意，下次可以从定义开始聊。",
+        "I don't quite agree. If it can use the sentence to do the right thing, doesn't that count as understanding?",
+        "Right, so maybe the key isn't 'is there prediction' but 'what is being predicted'.",
+        "Agreed. Next time we can start from the definitions.",
     ],
 }
 
 
 def make_mock(order):
-    """假装是一个 AI：不联网、不花钱，只是为了看清"传话"的过程。"""
+    """Pretends to be an AI: no network, no cost, just a way to see the "relay" process clearly."""
     lines = MOCK_LINES[order]
     count = 0
 
     def reply(system, messages):
         nonlocal count
-        heard = messages[-1]["content"].split("」")[-1].lstrip("。")   # 去掉对方的引用部分
-        text = f"收到「{heard[:10]}…」。{lines[min(count, len(lines) - 1)]}"
+        heard = messages[-1]["content"].split('…"')[-1].lstrip(". ")   # drop the other side's quote of us
+        text = f'Got "{heard[:24].rstrip()}…". {lines[min(count, len(lines) - 1)]}'
         count += 1
         return text
 
@@ -119,15 +119,15 @@ def make_speaker(kind, model, order):
 
 
 # ---------------------------------------------------------------------------
-# 第二部分：传话循环（这就是 harness 的核心）
+# Part 2: the relay loop (this is the heart of the harness)
 # ---------------------------------------------------------------------------
 
 def system_prompt(me, other, topic):
     return (
-        f"你是 {me}。你正在和另一个 AI（{other}）聊天，中间有一个程序负责传话，"
-        f"你看到的'用户'消息其实都是 {other} 说的话。话题是：{topic}。"
-        "每次回复不超过 3 句话，要有自己的观点，也可以反问对方。"
-        f"如果你觉得话题已经聊完了，就在回复结尾加上 {END_MARK}。"
+        f"You are {me}. You are chatting with another AI ({other}). A program in the middle relays the messages, "
+        f"so every 'user' message you see is actually something {other} said. The topic is: {topic}. "
+        "Keep each reply to 3 sentences or fewer, have opinions of your own, and feel free to ask the other side questions. "
+        f"If you feel the topic has been talked through, add {END_MARK} at the end of your reply."
     )
 
 
@@ -137,47 +137,47 @@ def relay(a, b, turns, topic, show_history):
         me["system"] = system_prompt(me["name"], other["name"], topic)
         me["history"] = []
 
-    # 主持人（也就是本程序）先对 A 说一句开场白，A 的第一条 user 消息就是它
-    a["history"].append({"role": "user", "content": f"今天的话题：{topic}。你先开个头吧。"})
+    # The host (that is, this program) says an opening line to A first; it is A's first user message
+    a["history"].append({"role": "user", "content": f"Today's topic: {topic}. Why don't you kick things off?"})
 
     for turn in range(turns):
         me, other = speakers[turn % 2], speakers[(turn + 1) % 2]
         text = me["reply"](me["system"], me["history"])
 
-        # 关键的一步：同一句话，在两边的历史里角色不一样
-        me["history"].append({"role": "assistant", "content": text})    # 对自己：我说的
-        other["history"].append({"role": "user", "content": text})      # 对对方：用户说的
+        # The key step: the same line plays a different role in each side's history
+        me["history"].append({"role": "assistant", "content": text})    # to myself: something I said
+        other["history"].append({"role": "user", "content": text})      # to the other side: something the user said
 
-        print(f"\n[{turn + 1}] {me['name']}：")
+        print(f"\n[{turn + 1}] {me['name']}:")
         print(textwrap.indent(textwrap.fill(text, 60), "    "))
 
         if END_MARK in text:
-            print(f"\n（{me['name']} 说了 {END_MARK}，对话结束）")
+            print(f"\n({me['name']} said {END_MARK}, so the conversation is over)")
             break
     else:
-        print(f"\n（达到 {turns} 轮上限，对话结束）")
+        print(f"\n(Reached the {turns}-turn limit, so the conversation is over)")
 
     if show_history:
         for s in speakers:
-            print(f"\n======== {s['name']} 眼里的对话历史（每次调用都要整份发给 API）========")
-            print(f"system: {s['system'][:50]}…")
+            print(f"\n======== The conversation history as {s['name']} sees it (sent to the API in full on every call) ========")
+            print(f"system: {s['system'][:90]}…")
             for m in s["history"]:
-                print(f"  {m['role']:>9}: {m['content'][:46]}…")
+                print(f"  {m['role']:>9}: {m['content'][:80]}…")
 
 
 def main():
-    parser = argparse.ArgumentParser(description="让两个 AI 互相聊天")
+    parser = argparse.ArgumentParser(description="Let two AIs chat with each other")
     choices = list(DEFAULT_MODELS)
-    parser.add_argument("--a", choices=choices, default="mock", help="先发言的 AI")
-    parser.add_argument("--b", choices=choices, default="mock", help="后发言的 AI")
-    parser.add_argument("--model-a", help="覆盖 A 的默认型号")
-    parser.add_argument("--model-b", help="覆盖 B 的默认型号")
-    parser.add_argument("--turns", type=int, default=6, help="最多说几句（两边加起来）")
-    parser.add_argument("--topic", default="机器能不能真正'理解'一句话")
-    parser.add_argument("--show-history", action="store_true", help="结束后打印两边的 messages")
+    parser.add_argument("--a", choices=choices, default="mock", help="the AI that speaks first")
+    parser.add_argument("--b", choices=choices, default="mock", help="the AI that speaks second")
+    parser.add_argument("--model-a", help="override A's default model")
+    parser.add_argument("--model-b", help="override B's default model")
+    parser.add_argument("--turns", type=int, default=6, help="maximum number of lines (both sides combined)")
+    parser.add_argument("--topic", default="whether a machine can truly 'understand' a sentence")
+    parser.add_argument("--show-history", action="store_true", help="print both sides' messages at the end")
     args = parser.parse_args()
 
-    # 两边用同一种 AI 时，加上编号区分
+    # When both sides use the same kind of AI, add a label to tell them apart
     name_a = args.a.capitalize() + ("-A" if args.a == args.b else "")
     name_b = args.b.capitalize() + ("-B" if args.a == args.b else "")
     try:
@@ -186,12 +186,12 @@ def main():
         b = {"name": name_b,
              "reply": make_speaker(args.b, args.model_b or DEFAULT_MODELS[args.b], "second")}
     except ImportError as e:
-        raise SystemExit(f"缺少 SDK：{e.name}。先运行 pip install {e.name}")
+        raise SystemExit(f"Missing SDK: {e.name}. Run pip install {e.name} first")
     except KeyError as e:
-        raise SystemExit(f"没有找到环境变量 {e}，先 export {e.args[0]}=你的密钥")
+        raise SystemExit(f"Environment variable {e} not found. Run export {e.args[0]}=your-key first")
 
-    print(f"话题：{args.topic}")
-    print(f"{a['name']} ⇄ 传话程序 ⇄ {b['name']}")
+    print(f"Topic: {args.topic}")
+    print(f"{a['name']} ⇄ relay program ⇄ {b['name']}")
     relay(a, b, args.turns, args.topic, args.show_history)
 
 

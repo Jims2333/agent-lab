@@ -1,26 +1,27 @@
 """
-第 5～9 章共用的大模型客户端：一个接口，接 Claude / GPT / DeepSeek / 假模型
-==========================================================================
+The LLM client shared by Chapters 5–9: one interface for Claude / GPT / DeepSeek / the mock model
+================================================================================================
 
-为什么要有它？三家的 API 大同小异，但细节各不相同：
-  * Claude（Anthropic SDK）：system 是单独的参数；工具调用是 tool_use 内容块；工具结果放在 user 消息里
-  * GPT / DeepSeek（OpenAI SDK）：system 是第一条消息；工具调用在 tool_calls 字段里；工具结果是 role="tool" 的消息
-这个文件用一种"中立格式"保存对话，在调用时再翻译成各家的格式。第 9 章会专门讲这个"适配层"。
+Why does this exist? The three providers' APIs are broadly similar, but the details all differ:
+  * Claude (Anthropic SDK): system is a separate parameter; tool calls are tool_use content blocks; tool results go in a user message
+  * GPT / DeepSeek (OpenAI SDK): system is the first message; tool calls are in the tool_calls field; tool results are messages with role="tool"
+This file stores the conversation in a "neutral format" and translates it into each provider's format at call time.
+Chapter 9 covers this "adapter layer" in detail.
 
-中立格式的消息：
-  {"role": "user", "content": "文字"}
-  {"role": "assistant", "content": "文字", "tool_calls": [{"id", "name", "args"}], "raw": {...}}
-  {"role": "tool", "tool_call_id": "...", "name": "工具名", "content": "结果文字", "is_error": False}
-中立格式的工具：
+Messages in the neutral format:
+  {"role": "user", "content": "text"}
+  {"role": "assistant", "content": "text", "tool_calls": [{"id", "name", "args"}], "raw": {...}}
+  {"role": "tool", "tool_call_id": "...", "name": "tool name", "content": "result text", "is_error": False}
+Tools in the neutral format:
   {"name": "...", "description": "...", "parameters": {JSON Schema}}
 
-用法：
+Usage:
   from common.llm import chat, assistant_message, tool_message
-  reply = chat(messages, system="你是……", tools=TOOLS, provider="mock", mock=MockLLM([...]))
+  reply = chat(messages, system="You are ...", tools=TOOLS, provider="mock", mock=MockLLM([...]))
   messages.append(assistant_message(reply))
 
-环境变量：ANTHROPIC_API_KEY / OPENAI_API_KEY / DEEPSEEK_API_KEY
-注意：真实模型模式需要你自己的 key，作者没有用真实 key 测试过；mock 模式不需要任何依赖。
+Environment variables: ANTHROPIC_API_KEY / OPENAI_API_KEY / DEEPSEEK_API_KEY
+Note: real-model mode needs your own key, and the author has not tested it with real keys; mock mode needs no dependencies at all.
 """
 
 import json
@@ -34,7 +35,7 @@ DEFAULT_MODELS = {
     "mock": "mock-1",
 }
 
-# 每百万 token 的价格（美元），只列出核实过的。价格会变，以官网为准。
+# Price per million tokens (USD); only verified prices are listed. Prices change, so the official website has the final word.
 PRICES = {
     "claude-opus-5-5": (4.00, 20.00),
     "claude-sonnet-5-5": (2.00, 10.00),
@@ -52,11 +53,11 @@ class Reply:
     usage: dict = field(default_factory=lambda: {"input_tokens": 0, "output_tokens": 0})
     provider: str = "mock"
     model: str = "mock-1"
-    raw: object = None                                # 厂商原始的返回内容（原样回放时要用）
+    raw: object = None                                # the provider's raw response content (needed to send it back verbatim)
 
 
 def estimate_tokens(text):
-    """粗略估算 token 数：汉字约 1 个字 1 个 token，英文约 4 个字母 1 个 token。只用于假模型和演示。"""
+    """Rough token estimate: about 1 token per Chinese character, about 1 token per 4 English letters. Only used for the mock model and demos."""
     cjk = sum(1 for ch in text if ord(ch) > 0x2E80)
     return cjk + (len(text) - cjk) // 4 + 1
 
@@ -69,7 +70,7 @@ def cost_usd(model, usage):
 
 
 # ---------------------------------------------------------------------------
-# 构造中立格式的消息
+# Building messages in the neutral format
 # ---------------------------------------------------------------------------
 
 def user_message(text):
@@ -77,7 +78,7 @@ def user_message(text):
 
 
 def assistant_message(reply):
-    """把模型的回复变成一条可以存进历史的消息。raw 里保留厂商的原始内容，下次原样发回去。"""
+    """Turn the model's reply into a message that can be stored in the history. raw keeps the provider's original content so it can be sent back verbatim next time."""
     return {"role": "assistant", "content": reply.text, "tool_calls": reply.tool_calls,
             "raw": {reply.provider: reply.raw} if reply.raw is not None else {}}
 
@@ -88,18 +89,18 @@ def tool_message(call, result, is_error=False):
 
 
 # ---------------------------------------------------------------------------
-# 假模型：按剧本回答，用来在没有 API key 时演示 harness 的完整流程
+# Mock model: answers from a script, to demo the harness's full flow when there's no API key
 # ---------------------------------------------------------------------------
 
 class MockLLM:
-    """剧本里的每一项是一轮回复，可以是：
-         "一段文字"                                         → 直接回答
-         {"text": "...", "tool_calls": [{"name", "args"}]}   → 调用工具
-         一个函数 f(messages, tools) -> 上面两种之一         → 根据对话内容决定（比如读取工具结果）
-       剧本也可以直接是一个函数：每一轮都用它来回答。
-       剧本用完之后，统一回答 fallback。"""
+    """Each item in the script is one turn's reply, and can be:
+         "some text"                                         → answer directly
+         {"text": "...", "tool_calls": [{"name", "args"}]}   → call tools
+         a function f(messages, tools) -> one of the above   → decide based on the conversation (e.g. read a tool result)
+       The script can also be a single function: it is used to answer every turn.
+       Once the script runs out, every answer is the fallback."""
 
-    def __init__(self, script, fallback="（假模型的剧本已经演完了。）"):
+    def __init__(self, script, fallback="(The mock model's script has run out.)"):
         self.respond = script if callable(script) else None
         self.script = [] if callable(script) else list(script)
         self.fallback = fallback
@@ -126,7 +127,7 @@ class MockLLM:
 
 
 # ---------------------------------------------------------------------------
-# Claude（Anthropic SDK）
+# Claude (Anthropic SDK)
 # ---------------------------------------------------------------------------
 
 def _to_anthropic(messages):
@@ -137,7 +138,8 @@ def _to_anthropic(messages):
         elif m["role"] == "assistant":
             raw = m.get("raw", {}).get("claude")
             if raw is not None:
-                # 同一个模型产生的回复（包括思考块）必须原样发回去，改动会让 API 拒绝或丢弃思考内容
+                # A reply produced by the same model (thinking blocks included) must be sent back exactly as it was;
+                # any change makes the API reject it or drop the thinking content
                 out.append({"role": "assistant", "content": raw})
             else:
                 blocks = [{"type": "text", "text": m["content"]}] if m["content"] else []
@@ -148,7 +150,7 @@ def _to_anthropic(messages):
             block = {"type": "tool_result", "tool_use_id": m["tool_call_id"], "content": m["content"]}
             if m.get("is_error"):
                 block["is_error"] = True
-            # 连续的多个工具结果，要合并进同一条 user 消息
+            # several tool results in a row must be merged into one user message
             if out and out[-1]["role"] == "user" and isinstance(out[-1]["content"], list):
                 out[-1]["content"].append(block)
             else:
@@ -165,8 +167,9 @@ def _call_claude(messages, system, tools, model, effort, on_text):
         max_tokens=16000,
         messages=_to_anthropic(messages),
         output_config={"effort": effort or "medium"},
-        # 1) 被安全分类器拒绝时，由服务器自动换模型重试
-        # 2) 如果 harness 改动了历史（比如第 7 章的上下文压缩），丢弃失效的思考块而不是直接报错
+        # 1) if the safety classifier refuses, the server automatically retries with another model
+        # 2) if the harness has changed the history (e.g. Chapter 7's context compression),
+        #    drop the invalidated thinking blocks instead of failing with an error
         thinking={"type": "adaptive", "block_binding": {"prefix_mismatch_behavior": "drop_block"}},
         betas=["server-side-fallback-2026-07-01", "thinking-binding-controls-2026-08-01"],
         fallbacks="default",
@@ -185,7 +188,7 @@ def _call_claude(messages, system, tools, model, effort, on_text):
         resp = client.beta.messages.create(**kwargs)
 
     if resp.stop_reason == "refusal":
-        return Reply(text="（模型拒绝了这个请求。）", stop="refusal", provider="claude", model=model,
+        return Reply(text="(The model refused this request.)", stop="refusal", provider="claude", model=model,
                      raw=resp.content, usage=_claude_usage(resp))
     text = "".join(b.text for b in resp.content if b.type == "text")
     calls = [{"id": b.id, "name": b.name, "args": dict(b.input)}
@@ -200,7 +203,7 @@ def _claude_usage(resp):
 
 
 # ---------------------------------------------------------------------------
-# GPT 和 DeepSeek（OpenAI 兼容接口）
+# GPT and DeepSeek (OpenAI-compatible API)
 # ---------------------------------------------------------------------------
 
 def _to_openai(messages, system):
@@ -227,7 +230,7 @@ def _call_openai_compatible(provider, messages, system, tools, model, on_text):
     key_env, base_url = {"gpt": ("OPENAI_API_KEY", None),
                          "deepseek": ("DEEPSEEK_API_KEY", "https://api.deepseek.com")}[provider]
     if not os.environ.get(key_env):
-        raise RuntimeError(f"没有设置环境变量 {key_env}")
+        raise RuntimeError(f"Environment variable {key_env} is not set")
     client = OpenAI(api_key=os.environ[key_env], base_url=base_url)
     kwargs = dict(model=model, messages=_to_openai(messages, system))
     if tools:
@@ -235,7 +238,7 @@ def _call_openai_compatible(provider, messages, system, tools, model, on_text):
                             "function": {"name": t["name"], "description": t["description"],
                                          "parameters": t["parameters"]}} for t in tools]
 
-    if on_text and not tools:                      # 流式输出（这里只在不用工具时支持，保持简单）
+    if on_text and not tools:                      # streaming output (only supported here when no tools are used, to keep it simple)
         text, usage = "", {"input_tokens": 0, "output_tokens": 0}
         for chunk in client.chat.completions.create(**kwargs, stream=True,
                                                     stream_options={"include_usage": True}):
@@ -265,18 +268,18 @@ def _call_openai_compatible(provider, messages, system, tools, model, on_text):
 
 
 # ---------------------------------------------------------------------------
-# 统一入口
+# Single entry point
 # ---------------------------------------------------------------------------
 
 def chat(messages, system=None, tools=None, provider="mock", model=None, effort=None,
          mock=None, on_text=None):
-    """发一次请求，返回 Reply。messages 用中立格式；provider 是 claude / gpt / deepseek / mock。"""
+    """Send one request and return a Reply. messages use the neutral format; provider is claude / gpt / deepseek / mock."""
     if provider not in PROVIDERS:
-        raise ValueError(f"不认识的 provider：{provider}，可选：{', '.join(PROVIDERS)}")
+        raise ValueError(f"Unknown provider: {provider}. Options: {', '.join(PROVIDERS)}")
     model = model or DEFAULT_MODELS[provider]
     if provider == "mock":
         reply = (mock or MockLLM([]))(messages, tools or [])
-        if on_text:                                  # 假装在流式输出：一小段一小段地吐字
+        if on_text:                                  # pretend to stream: emit the text a small chunk at a time
             for i in range(0, len(reply.text), 6):
                 on_text(reply.text[i:i + 6])
         return reply
@@ -285,17 +288,17 @@ def chat(messages, system=None, tools=None, provider="mock", model=None, effort=
             return _call_claude(messages, system, tools, model, effort, on_text)
         return _call_openai_compatible(provider, messages, system, tools, model, on_text)
     except ImportError as e:
-        raise RuntimeError(f"缺少 SDK：{e.name}。先运行 pip install {e.name}") from e
+        raise RuntimeError(f"Missing SDK: {e.name}. Run pip install {e.name} first") from e
     except TypeError as e:
         if "authentication" in str(e):
-            raise RuntimeError("没有找到 Claude 的凭据：请设置环境变量 ANTHROPIC_API_KEY") from e
+            raise RuntimeError("No Claude credentials found: please set the environment variable ANTHROPIC_API_KEY") from e
         raise
 
 
 def add_provider_args(parser, default="mock"):
-    """给命令行脚本加上 --provider 和 --model 两个参数。"""
+    """Add the two arguments --provider and --model to a command-line script."""
     parser.add_argument("--provider", choices=PROVIDERS,
                         default=os.environ.get("AGENT_LAB_PROVIDER", default),
-                        help="用哪家的模型（默认 mock：不需要 API key 的假模型）")
-    parser.add_argument("--model", help="覆盖默认型号")
+                        help="which provider's model to use (default mock: a mock model that needs no API key)")
+    parser.add_argument("--model", help="override the default model")
     return parser

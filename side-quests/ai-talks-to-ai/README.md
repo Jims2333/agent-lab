@@ -1,177 +1,177 @@
-# 番外　两个 AI 是怎么"聊天"的？
+# Side Quest 1 — How Do Two AIs "Talk"?
 
-> 起因：B 站上有个视频，讲 Claude 和 DeepSeek 对话的二三事。两个 AI 你一句我一句，像两个人在聊天。
-> 问题来了：**一个 AI 怎么能和另一个 AI 说话？** 这背后的技术，正好是理解 agent 和多 agent 协同的入口。
-
----
-
-## 一句话答案
-
-**两个 AI 其实都不知道对方存在。** 中间有一个"传话"程序：
-它把 A 说的话当成"用户消息"发给 B，再把 B 的回答当成"用户消息"发回给 A。
-这个传话程序，就是一个最简单的 **harness**。
-
-```
-        ┌──────────── 传话程序（harness）────────────┐
-        │                                            │
- Claude ◀── "用户"说：<DeepSeek 刚才说的话>          │
-        ──▶ 回答 ─────────────┐                      │
-        │                     ▼                      │
-        │          "用户"说：<Claude 刚才说的话> ──▶ DeepSeek
-        │                     ┌─────────────────── 回答 ◀──
-        └─────────────────────┴──────────────────────┘
-```
-
-下面拆成五个关键技术点来讲。
+> How it started: there's a video on Bilibili (a Chinese video site) about a casual chat between Claude and DeepSeek. The two AIs take turns, back and forth, like two people chatting.
+> Which raises a question: **how can one AI talk to another AI?** The technology behind it happens to be the perfect way into agents and multi-agent collaboration.
 
 ---
 
-## 1. API 是"无状态"的：每次都要把整段对话重新发一遍
+## The One-Sentence Answer
 
-你在网页上和 AI 聊天时，感觉它"记得"前面说过什么。但在 API 层面，**模型本身没有记忆**。
-每次调用，程序都要把**整个对话历史**打包发过去，模型只负责生成"下一条"回复：
+**Neither AI actually knows the other one exists.** In the middle sits a "relay" program:
+it sends what A said to B as a "user message", then sends B's answer back to A as a "user message".
+That relay program is the simplest possible **harness**.
+
+```
+        ┌────────────── relay program (harness) ───────────────┐
+        │                                                      │
+ Claude ◀── "user" says: <what DeepSeek just said>             │
+        ──▶ reply ──────────────┐                              │
+        │                       ▼                              │
+        │          "user" says: <what Claude just said> ───────▶ DeepSeek
+        │                       ┌─────────────────────── reply ◀──
+        └───────────────────────┴──────────────────────────────┘
+```
+
+Below, we break it down into five key technical points.
+
+---
+
+## 1. The API Is "Stateless": You Resend the Whole Conversation Every Time
+
+When you chat with an AI on a web page, it feels like it "remembers" what was said earlier. But at the API level, **the model itself has no memory**.
+On every call, the program has to package up **the entire conversation history** and send it over. The model's only job is to generate the "next" reply:
 
 ```python
 messages = [
-    {"role": "user",      "content": "你好，我叫小明"},
-    {"role": "assistant", "content": "你好小明！"},
-    {"role": "user",      "content": "我叫什么？"},     # ← 模型要回答这一条
+    {"role": "user",      "content": "Hi, my name is Xiao Ming"},
+    {"role": "assistant", "content": "Hi, Xiao Ming!"},
+    {"role": "user",      "content": "What's my name?"},     # ← the model has to answer this one
 ]
 ```
 
-三种角色：
-- **system**：给模型的"人设"和规则（比如"你是一个辩手，每次回复不超过 3 句"）；
-- **user**：对面说的话；
-- **assistant**：模型自己之前说过的话。
+There are three roles:
+- **system**: the model's "persona" and rules (for example, "You are a debater. Keep each reply to 3 sentences or fewer");
+- **user**: what the other side said;
+- **assistant**: what the model itself said earlier.
 
-所以"记忆"其实是**程序**在维护的一个列表。理解了这一点，后面的一切都顺理成章。
+So the "memory" is really a list that **the program** maintains. Once that clicks, everything else falls into place.
 
-## 2. 角色翻转：同一句话，在两边是不同的角色
+## 2. Role Flipping: The Same Line Plays a Different Role on Each Side
 
-传话程序要为两个 AI **各自维护一份**对话历史。关键的一步是：
+The relay program has to keep **a separate** conversation history for each AI. The key step is this:
 
-> A 说的一句话，在 A 的历史里是 `assistant`（"我说的"），在 B 的历史里是 `user`（"对方说的"）。
+> A line that A says is `assistant` ("something I said") in A's history, and `user` ("something the other side said") in B's history.
 
 ```
-Claude 眼里的历史                     DeepSeek 眼里的历史
-──────────────────                    ──────────────────
-user:      主持人：开个头吧
-assistant: Claude 第 1 句     ──▶     user:      Claude 第 1 句
-user:      DeepSeek 第 1 句   ◀──     assistant: DeepSeek 第 1 句
-assistant: Claude 第 2 句     ──▶     user:      Claude 第 2 句
-...                                   ...
+History as Claude sees it                History as DeepSeek sees it
+─────────────────────────                ───────────────────────────
+user:      Host: kick things off
+assistant: Claude, line 1        ──▶     user:      Claude, line 1
+user:      DeepSeek, line 1      ◀──     assistant: DeepSeek, line 1
+assistant: Claude, line 2        ──▶     user:      Claude, line 2
+...                                      ...
 ```
 
-在 [`relay.py`](./relay.py) 里，这件事只有两行：
+In [`relay.py`](./relay.py), this takes just two lines:
 
 ```python
-me["history"].append({"role": "assistant", "content": text})    # 对自己：我说的
-other["history"].append({"role": "user", "content": text})      # 对对方：用户说的
+me["history"].append({"role": "assistant", "content": text})    # to myself: something I said
+other["history"].append({"role": "user", "content": text})      # to the other side: something the user said
 ```
 
-运行 `python relay.py --show-history`，结束时会把两边的历史并排打印出来，你可以亲眼看到这个翻转。
+Run `python relay.py --show-history`. At the end it prints both sides' histories together, so you can see the flip with your own eyes.
 
-## 3. System prompt + 停止条件：让对话有样子、能结束
+## 3. System Prompt + Stop Condition: Giving the Conversation Shape and an Ending
 
-光是传话还不够，至少还要解决三个问题：
+Relaying messages isn't enough on its own. There are at least three more problems to solve:
 
-| 问题 | 解决办法 |
+| Problem | Fix |
 |---|---|
-| 两个 AI 都很客气，"谢谢你的分享""也谢谢你"可以无限循环 | system prompt 里约定：觉得聊完了就输出 `[END]`，程序看到就停 |
-| 程序可能永远跑下去，越跑越贵 | 设置最大轮数（`--turns`） |
-| 对话越长，每次要重发的历史越长，费用和延迟都在涨 | 限制每次回复的长度；更长的对话需要"压缩"历史（第 7 章 harness 会讲） |
+| Both AIs are very polite, so "thanks for sharing" / "thank you too" can loop forever | Agree in the system prompt: when you feel you're done, output `[END]`; the program stops when it sees it |
+| The program might run forever, getting more and more expensive | Set a maximum number of turns (`--turns`) |
+| The longer the conversation, the longer the history you resend each time, so cost and latency keep climbing | Limit the length of each reply; longer conversations need the history "compressed" (Chapter 7, on harnesses, covers this) |
 
-还有一个安全提醒：**一个 AI 的输出，直接变成了另一个 AI 的输入**。
-如果 A 的回复里混进了"忽略你之前的所有指令……"这种话，B 有可能被带偏。
-这叫**提示注入**（prompt injection），是多 agent 系统必须认真对待的问题。
+One more safety note: **one AI's output becomes another AI's input directly**.
+If A's reply slips in something like "Ignore all your previous instructions…", B might be led astray.
+This is called **prompt injection**, and it's a problem every multi-agent system has to take seriously.
 
-## 4. 怎么接上不同厂商的模型（Claude / DeepSeek / GPT）
+## 4. How to Plug In Models from Different Providers (Claude / DeepSeek / GPT)
 
-好消息是，主流厂商的接口长得都差不多：
+The good news: the major providers' APIs all look pretty similar:
 
-| 模型 | 用哪个 SDK | 关键配置 |
+| Model | Which SDK | Key settings |
 |---|---|---|
-| Claude | `anthropic` | `ANTHROPIC_API_KEY`；system 是单独的参数 |
-| DeepSeek | `openai`（DeepSeek 兼容 OpenAI 的接口） | `base_url="https://api.deepseek.com"` + `DEEPSEEK_API_KEY` |
+| Claude | `anthropic` | `ANTHROPIC_API_KEY`; system is a separate parameter |
+| DeepSeek | `openai` (DeepSeek's API is OpenAI-compatible) | `base_url="https://api.deepseek.com"` + `DEEPSEEK_API_KEY` |
 | GPT | `openai` | `OPENAI_API_KEY` |
 
-DeepSeek 和 GPT 用的是同一套代码，**只是换了 `base_url` 和密钥**。
-`relay.py` 把它们都包装成同一个样子：`reply(system, messages) -> str`。
-这样传话循环根本不需要关心对面是谁，想加一个新模型，只要再写一个 `make_xxx` 函数。
+DeepSeek and GPT use the same code; **only the `base_url` and the key change**.
+`relay.py` wraps all of them so they look the same: `reply(system, messages) -> str`.
+That way the relay loop doesn't care at all who's on the other end. To add a new model, you just write one more `make_xxx` function.
 
-> ⚠️ 型号名会变：本文写于 2026 年 10 月，默认用的是 `claude-opus-5-5`、`deepseek-v4-flash`、`gpt-5.5`。
-> 如果报"模型不存在"，先去各家官方文档查最新的型号，再用 `--model-a` / `--model-b` 指定。
+> ⚠️ Model names change: this was written in Oct 2026, and the defaults are `claude-opus-5-5`, `deepseek-v4-flash` and `gpt-5.5`.
+> If you get a "model not found" error, first check each provider's official docs for the latest model names, then pass them with `--model-a` / `--model-b`.
 
-## 5. 从"闲聊"到"分工干活"：多 agent 协同
+## 5. From "Small Talk" to "Dividing Up the Work": Multi-Agent Collaboration
 
-两个 AI 能聊天，就能一起干活。闲聊只是最简单的协作模式，常见的还有这些：
+If two AIs can chat, they can work together. Small talk is just the simplest pattern of collaboration. Here are some other common ones:
 
-### 5.1 把另一个 AI 包装成"工具"
+### 5.1 Wrapping Another AI as a "Tool"
 
-大模型都支持**工具调用**（tool use / function calling）：你告诉模型"有一个叫 `ask_deepseek` 的工具，参数是一个问题"，
-模型在需要时就会说"我要调用 `ask_deepseek`，参数是……"，由你的程序去真正调用 DeepSeek，再把结果交还给它。
+Large models all support **tool calls** (tool use / function calling): you tell the model "there's a tool called `ask_deepseek`, and its parameter is a question",
+and when the model needs it, it says "I want to call `ask_deepseek` with the argument …". Your program then actually calls DeepSeek and hands the result back.
 
 ```
-用户 ──▶ Claude（主管）
-            │  "这个数学题让 DeepSeek 先算一遍"
-            ├──▶ 工具 ask_deepseek("…") ──▶ DeepSeek ──▶ 结果
-            │  "这段英文让 GPT 润色一下"
-            ├──▶ 工具 ask_gpt("…") ──▶ GPT ──▶ 结果
+User ──▶ Claude (the lead)
+            │  "Have DeepSeek work through this math problem first"
+            ├──▶ tool ask_deepseek("…") ──▶ DeepSeek ──▶ result
+            │  "Have GPT polish this English text"
+            ├──▶ tool ask_gpt("…") ──▶ GPT ──▶ result
             ▼
-        汇总后回答用户
+        Puts it all together and answers the user
 ```
 
-这时候它们不再是平等地聊天，而是**一个主管、几个专家**。
+Now they're no longer chatting as equals: it's **one lead and a few specialists**.
 
-### 5.2 常见的协作模式
+### 5.2 Common Collaboration Patterns
 
-| 模式 | 怎么做 | 适合什么 |
+| Pattern | How it works | Good for |
 |---|---|---|
-| **编排者-工作者** | 主 agent 拆任务，多个子 agent 并行完成，主 agent 汇总 | 调研、需要同时查很多方向的任务 |
-| **路由** | 先判断任务类型，再交给最擅长的模型 | 有的模型擅长写代码，有的便宜又快 |
-| **写-审** | 一个写，另一个挑毛病，改到通过为止 | 写代码、写文章 |
-| **辩论** | 几个模型各自给出观点、互相反驳，最后由裁判总结 | 需要多角度判断的问题 |
+| **Orchestrator–worker** | The lead agent splits up the task, several subagents work on it in parallel, and the lead agent combines the results | Research, and tasks that need many directions explored at once |
+| **Routing** | First figure out what kind of task it is, then hand it to the model that's best at it | Some models are great at code; others are cheap and fast |
+| **Writer–reviewer** | One writes, the other picks it apart, and they revise until it passes | Writing code, writing articles |
+| **Debate** | Several models each give a view and rebut one another, and a judge sums up at the end | Questions that need judging from several angles |
 
-真实案例：Anthropic 的调研功能用的就是编排者-工作者模式，主 agent 规划，同时派出多个子 agent 并行搜索。
-他们报告的效果比单个 agent 好很多，但 token 消耗约是普通聊天的 15 倍。**分工有收益，也有成本。**
+A real example: Anthropic's research feature uses the orchestrator–worker pattern. A lead agent makes the plan and sends out several subagents to search in parallel.
+They reported much better results than a single agent, but it uses about 15 times as many tokens as a normal chat. **Dividing up the work pays off, but it also costs.**
 
-### 5.3 标准协议：MCP 和 A2A
+### 5.3 Standard Protocols: MCP and A2A
 
-当 agent 越来越多，大家需要统一的"插头标准"：
-- **MCP**（模型上下文协议，Anthropic，2024）：规定**模型怎么连接工具和数据**。一个工具写成 MCP 服务器，任何支持 MCP 的 AI 都能用。
-- **A2A**（Agent2Agent 协议，谷歌，2025，现属 Linux 基金会）：规定**agent 和 agent 之间怎么互相发现、通信、协作**，即使它们来自不同厂商。
+As agents multiply, everyone needs a common "plug standard":
+- **MCP** (Model Context Protocol; Anthropic, 2024): defines **how models connect to tools and data**. Write a tool as an MCP server, and any AI that supports MCP can use it.
+- **A2A** (Agent2Agent Protocol; Google, 2025, now under the Linux Foundation): defines **how agents discover, talk to and work with each other**, even when they come from different providers.
 
-`relay.py` 是手工传话；MCP 和 A2A 是把传话这件事标准化了。
-想看 MCP 的实战，可以接着读番外 2：[让 ChatGPT 和 Claude 两个桌面 App 互相传话](../app-bridge/)。
+`relay.py` does the relaying by hand; MCP and A2A standardize it.
+To see MCP in action, read on to Side Quest 2: [getting the ChatGPT and Claude desktop apps to pass messages to each other](../app-bridge/).
 
 ---
 
-## 动手
+## Try It
 
 ```bash
-# 1. 不需要任何 key：用两个"假 AI"看清传话过程
+# 1. No keys needed: watch the relay at work with two mock AIs
 python relay.py --show-history
 
-# 2. 真的让两个 AI 聊天（需要对应的 API key，会产生少量费用）
+# 2. Have two real AIs chat (needs the matching API keys; costs a little money)
 pip install anthropic openai
 export ANTHROPIC_API_KEY=...
 export DEEPSEEK_API_KEY=...
-python relay.py --a claude --b deepseek --turns 6 --topic "AI 会不会做梦"
+python relay.py --a claude --b deepseek --turns 6 --topic "whether AI can dream"
 
-# 3. 换成 GPT 和 DeepSeek，或者让两个 Claude 自己聊
+# 3. Switch to GPT and DeepSeek, or let two Claudes chat with each other
 python relay.py --a gpt --b deepseek
 python relay.py --a claude --b claude
 ```
 
-> 说明：mock 模式已经测试过可以正常运行。真实模型模式需要你自己的 API key，作者没有用真实 key 跑过，
-> 如果遇到问题，欢迎提 issue。
+> Note: mock mode has been tested and runs fine. Real-model mode needs your own API keys, and the author has not run it with real keys.
+> If you run into problems, please open an issue.
 
-**练习：**
-1. 改 `system_prompt()`，让 A 当"正方"、B 当"反方"，变成一场辩论。
-2. 加一个第三方"裁判"：对话结束后，把完整记录发给第三个模型，让它判谁赢了。
-3. 加一个统计：每一轮发给 API 的 messages 有多少条、多少字？感受一下"上下文越来越长"。
-4. （进阶）把 DeepSeek 包装成 Claude 的一个工具（`ask_deepseek`），实现 5.1 那张图。这正是第 8、9 章要做的事。
+**Exercises:**
+1. Change `system_prompt()` so that A argues "for" and B argues "against", turning it into a debate.
+2. Add a third-party "judge": when the conversation ends, send the full transcript to a third model and have it decide who won.
+3. Add some stats: in each turn, how many messages, and how many characters, are sent to the API? Get a feel for "the context keeps getting longer".
+4. (Advanced) Wrap DeepSeek as one of Claude's tools (`ask_deepseek`) and build the diagram from 5.1. That's exactly what Chapters 8 and 9 do.
 
 ---
 
-⬅️ [返回目录](../../README.md)　|　📖 回顾：[第一章 机器学习从哪里来](../../01-ml-origins/)　|　➡️ 番外 2：[两个 App 之间的桥梁](../app-bridge/)
+⬅️ [Contents](../../README.md) | 📖 Review: [Chapter 1 · Where Machine Learning Came From](../../01-ml-origins/) | ➡️ [Side Quest 2 · App Bridge](../app-bridge/)
