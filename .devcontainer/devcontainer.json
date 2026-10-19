@@ -1,0 +1,24 @@
+{
+  "name": "agent-lab",
+  "image": "mcr.microsoft.com/devcontainers/python:1-3.12-bookworm",
+  "postCreateCommand": "pip install --user -r requirements.txt \"mcp[cli]>=1.20,<2\"",
+  "customizations": {
+    "vscode": {
+      "extensions": ["ms-python.python"]
+    },
+    "codespaces": {
+      "openFiles": ["README.md"]
+    }
+  },
+  "secrets": {
+    "ANTHROPIC_API_KEY": {
+      "description": "Optional. Lets chapters 5–9 call Claude instead of the mock model."
+    },
+    "OPENAI_API_KEY": {
+      "description": "Optional. Lets chapters 5–9 call GPT instead of the mock model."
+    },
+    "DEEPSEEK_API_KEY": {
+      "description": "Optional. Lets chapters 5–9 call DeepSeek instead of the mock model."
+    }
+  }
+}

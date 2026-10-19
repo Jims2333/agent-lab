@@ -1,0 +1,31 @@
+name: Chapter or lab idea
+description: Suggest a story, a lab or a whole chapter that fits the course.
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Every chapter tells true stories, then lets you rebuild the key moment in code (numpy or the
+        standard library, runnable without an API key), and only then explains the concepts.
+  - type: input
+    id: topic
+    attributes:
+      label: Topic
+      placeholder: e.g. Reinforcement learning from TD-Gammon to RLHF
+    validations:
+      required: true
+  - type: textarea
+    id: stories
+    attributes:
+      label: Stories (with sources)
+      description: Real people, places and dates, plus where they are documented.
+  - type: textarea
+    id: lab
+    attributes:
+      label: Lab idea
+      description: What would the reader build and see? Can it run without an API key?
+  - type: input
+    id: fit
+    attributes:
+      label: Where does it fit?
+      placeholder: e.g. between chapters 5 and 6, or a new side quest

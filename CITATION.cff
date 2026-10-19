@@ -1,0 +1,30 @@
+cff-version: 1.2.0
+message: "If you use this course material, please cite it as below."
+type: software
+title: "agent-lab: learning by doing, from the 1958 perceptron to multi-agent harnesses"
+abstract: >-
+  A hands-on course in nine chapters. Each chapter tells true stories from the history of
+  machine learning and AI, lets you rebuild the key moment in code written from scratch
+  (numpy or the Python standard library, runnable without an API key), and then explains
+  the concepts. It goes from the perceptron and gradient descent to Transformers, LLM APIs,
+  agent loops, harness engineering, multi-agent systems, and getting Claude, GPT and
+  DeepSeek to work together through adapters and protocols such as MCP and A2A.
+authors:
+  - alias: Jims2333
+repository-code: "https://github.com/Jims2333/agent-lab"
+url: "https://github.com/Jims2333/agent-lab"
+keywords:
+  - machine learning
+  - large language models
+  - AI agents
+  - harness engineering
+  - multi-agent systems
+  - MCP
+  - A2A
+  - history of AI
+  - tutorial
+license:
+  - MIT
+  - CC-BY-4.0
+version: "1.0.0"
+date-released: "2026-10-19"

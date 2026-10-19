@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="540" viewBox="0 0 1200 540" role="img" aria-labelledby="title desc" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif">
+<title id="title">agent-lab: learning by doing, from the 1958 perceptron to multi-agent harnesses</title>
+<desc id="desc">Nine chapters and the years their stories span: chapter 1, Where Machine Learning Came From, 1943 to 2023; chapter 2, Linear Models and Gradient Descent, 1801 to 2014; chapter 3, Neural Networks and Autodiff, 1970 to 2022; chapter 4, From CNNs to Transformers, 1959 to 2020; chapter 5, Large Language Models and APIs, 1913 to 2025; chapter 6, The Agent Loop, 1966 to 2025; chapter 7, Harness Engineering, 2024 to 2026; chapter 8, Multi-Agent Collaboration, 1971 to 2025; chapter 9, Cross-Model Collaboration, 1969 to 2026.</desc>
+<rect x="0.5" y="0.5" width="1199" height="539" rx="14" fill="#fcfcfb" stroke="#e4e3df"/>
+<text x="40" y="78" font-size="54" font-weight="700" fill="#0b0b0b">agent-lab</text>
+<text x="40" y="118" font-size="20" fill="#52514e">Learning by doing: from the 1958 perceptron to harness engineering, multi-agent systems and cross-model protocols.</text>
+<text x="40" y="172" font-size="17" font-weight="600" fill="#52514e">Nine chapters, and the years their stories span</text>
+<line x1="520.0" y1="190" x2="520.0" y2="492" stroke="#e9e8e4" stroke-width="1"/>
+<text x="520.0" y="518" font-size="15" fill="#6f6e69" text-anchor="middle">1800</text>
+<line x1="659.1" y1="190" x2="659.1" y2="492" stroke="#e9e8e4" stroke-width="1"/>
+<text x="659.1" y="518" font-size="15" fill="#6f6e69" text-anchor="middle">1850</text>
+<line x1="798.3" y1="190" x2="798.3" y2="492" stroke="#e9e8e4" stroke-width="1"/>
+<text x="798.3" y="518" font-size="15" fill="#6f6e69" text-anchor="middle">1900</text>
+<line x1="937.4" y1="190" x2="937.4" y2="492" stroke="#e9e8e4" stroke-width="1"/>
+<text x="937.4" y="518" font-size="15" fill="#6f6e69" text-anchor="middle">1950</text>
+<line x1="1076.5" y1="190" x2="1076.5" y2="492" stroke="#e9e8e4" stroke-width="1"/>
+<text x="1076.5" y="518" font-size="15" fill="#6f6e69" text-anchor="middle">2000</text>
+<text x="1148.9" y="518" font-size="15" fill="#6f6e69" text-anchor="middle">2026</text>
+<text x="40" y="226.0" font-size="18" fill="#0b0b0b"><tspan font-weight="700">1</tspan>  Where Machine Learning Came From</text>
+<text x="504" y="226.0" font-size="15" fill="#52514e" text-anchor="end">1943–2023</text>
+<rect x="917.9" y="214.0" width="222.6" height="12" rx="4" fill="#2a78d6"><title>Chapter 1: 1943–2023</title></rect>
+<text x="40" y="258.0" font-size="18" fill="#0b0b0b"><tspan font-weight="700">2</tspan>  Linear Models and Gradient Descent</text>
+<text x="504" y="258.0" font-size="15" fill="#52514e" text-anchor="end">1801–2014</text>
+<rect x="522.8" y="246.0" width="592.7" height="12" rx="4" fill="#2a78d6"><title>Chapter 2: 1801–2014</title></rect>
+<text x="40" y="290.0" font-size="18" fill="#0b0b0b"><tspan font-weight="700">3</tspan>  Neural Networks and Autodiff</text>
+<text x="504" y="290.0" font-size="15" fill="#52514e" text-anchor="end">1970–2022</text>
+<rect x="993.0" y="278.0" width="144.7" height="12" rx="4" fill="#2a78d6"><title>Chapter 3: 1970–2022</title></rect>
+<text x="40" y="322.0" font-size="18" fill="#0b0b0b"><tspan font-weight="700">4</tspan>  From CNNs to Transformers</text>
+<text x="504" y="322.0" font-size="15" fill="#52514e" text-anchor="end">1959–2020</text>
+<rect x="962.4" y="310.0" width="169.7" height="12" rx="4" fill="#2a78d6"><title>Chapter 4: 1959–2020</title></rect>
+<text x="40" y="354.0" font-size="18" fill="#0b0b0b"><tspan font-weight="700">5</tspan>  Large Language Models and APIs</text>
+<text x="504" y="354.0" font-size="15" fill="#52514e" text-anchor="end">1913–2025</text>
+<rect x="834.4" y="342.0" width="311.7" height="12" rx="4" fill="#2a78d6"><title>Chapter 5: 1913–2025</title></rect>
+<text x="40" y="386.0" font-size="18" fill="#0b0b0b"><tspan font-weight="700">6</tspan>  The Agent Loop</text>
+<text x="504" y="386.0" font-size="15" fill="#52514e" text-anchor="end">1966–2025</text>
+<rect x="981.9" y="374.0" width="164.2" height="12" rx="4" fill="#2a78d6"><title>Chapter 6: 1966–2025</title></rect>
+<text x="40" y="418.0" font-size="18" fill="#0b0b0b"><tspan font-weight="700">7</tspan>  Harness Engineering</text>
+<text x="504" y="418.0" font-size="15" fill="#52514e" text-anchor="end">2024–2026</text>
+<rect x="1143.3" y="406.0" width="8.0" height="12" rx="4" fill="#2a78d6"><title>Chapter 7: 2024–2026</title></rect>
+<text x="40" y="450.0" font-size="18" fill="#0b0b0b"><tspan font-weight="700">8</tspan>  Multi-Agent Collaboration</text>
+<text x="504" y="450.0" font-size="15" fill="#52514e" text-anchor="end">1971–2025</text>
+<rect x="995.8" y="438.0" width="150.3" height="12" rx="4" fill="#2a78d6"><title>Chapter 8: 1971–2025</title></rect>
+<text x="40" y="482.0" font-size="18" fill="#0b0b0b"><tspan font-weight="700">9</tspan>  Cross-Model Collaboration</text>
+<text x="504" y="482.0" font-size="15" fill="#52514e" text-anchor="end">1969–2026</text>
+<rect x="990.3" y="470.0" width="158.6" height="12" rx="4" fill="#2a78d6"><title>Chapter 9: 1969–2026</title></rect>
+</svg>

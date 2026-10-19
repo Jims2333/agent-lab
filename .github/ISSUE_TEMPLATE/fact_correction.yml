@@ -1,0 +1,43 @@
+name: Fact correction
+description: A date, name, number or quote in a story is wrong, unsupported, or missing a source.
+labels: ["documentation"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        The course has one hard rule: **stories are true, and every fact has a source.**
+        Corrections are the most valuable contribution you can make. Please point to a source we can check.
+  - type: input
+    id: location
+    attributes:
+      label: Where is it?
+      placeholder: e.g. Chapter 4, Act 2 (or paste a link to the line)
+    validations:
+      required: true
+  - type: textarea
+    id: current
+    attributes:
+      label: What the text says now
+      description: Quote the sentence.
+    validations:
+      required: true
+  - type: textarea
+    id: correction
+    attributes:
+      label: What it should say
+    validations:
+      required: true
+  - type: textarea
+    id: sources
+    attributes:
+      label: Sources
+      description: Links to primary sources (papers, the person's own words, contemporary reporting) are best.
+    validations:
+      required: true
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I checked that the chapter's own references don't already settle this.
+          required: true

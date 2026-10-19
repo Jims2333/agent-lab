@@ -1,0 +1,54 @@
+name: Bug report
+description: A lab crashes, prints something confusing, or disagrees with its README.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting! Please try the lab in mock mode first (the default, no API key needed);
+        that tells us whether the problem is in the lab or in a model provider.
+  - type: input
+    id: lab
+    attributes:
+      label: Which lab?
+      placeholder: e.g. 05-llm-and-api/bpe_tokenizer.py
+    validations:
+      required: true
+  - type: input
+    id: command
+    attributes:
+      label: Command you ran
+      placeholder: e.g. python bpe_tokenizer.py   or   python capstone.py --live
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened, and what did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: output
+    attributes:
+      label: Output or traceback
+      description: Paste the relevant part. Remove any API keys first!
+      render: shell
+  - type: dropdown
+    id: mode
+    attributes:
+      label: Model mode
+      options:
+        - Mock model (default)
+        - Real model (Claude)
+        - Real model (GPT)
+        - Real model (DeepSeek)
+        - Not applicable (chapters 1–4)
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Python version and OS
+      placeholder: e.g. Python 3.12, macOS 15
+    validations:
+      required: true
