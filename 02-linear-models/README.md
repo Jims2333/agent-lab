@@ -1,374 +1,374 @@
-# 第二章　线性模型与梯度下降：从找回一颗行星说起
+# Chapter 2 — Linear Models and Gradient Descent: Starting with a Lost Planet
 
-> 第一章讲的是神经网络怎么来的。但神经网络学习时用的那台"发动机"，
-> 也就是**定义误差，再把误差降到最小**，比神经网络古老得多。
-> 它的故事要从 1801 年的元旦，一颗丢失的行星说起。
+> Chapter 1 was about where neural networks came from. But the "engine" neural networks use to learn,
+> namely **define an error, then drive that error as low as it will go**, is far older than neural networks.
+> Its story begins on New Year's Day 1801, with a lost planet.
 
-**怎么读这一章：** 和第一章一样，先看故事，再跑实验，最后看[概念解释](#概念解释)。
+**How to read this chapter:** As in Chapter 1, read the stories first, then run the labs, and save the [Concepts](#concepts) for last.
 
-| 年份 | 发生了什么 | 对应实验 / 概念 |
+| When | What happened | Lab / concept |
 |---|---|---|
-| 1801 | 谷神星被发现又丢失，24 岁的高斯算出它的位置 | 🧪 `ceres_1801.py` |
-| 1805 | 勒让德发表最小二乘法 | 最小二乘 |
-| 1809 | 高斯说自己 1795 年就在用，优先权之争开始 | — |
-| 1847 | 柯西提出梯度下降 | 🧪 `gradient_descent_1847.py` |
-| 1875–1886 | 高尔顿的甜豌豆和身高数据，"回归"得名 | 🧪 `galton_1886.py` |
-| 1951 | 罗宾斯和门罗提出随机逼近 | 🧪 `lms_1960.py` |
-| 1958 | 考克斯提出逻辑回归 | 从回归到分类 |
-| 1959–1960 | 维德罗和霍夫的 ADALINE 与 LMS 规则 | 🧪 `lms_1960.py` |
-| 2014 | Adam 优化器 | 优化器 |
+| 1801 | Ceres is discovered and then lost; 24-year-old Gauss calculates where it is | 🧪 `ceres_1801.py` |
+| 1805 | Legendre publishes the method of least squares | Least squares |
+| 1809 | Gauss says he has been using it since 1795, and the priority dispute begins | — |
+| 1847 | Cauchy proposes gradient descent | 🧪 `gradient_descent_1847.py` |
+| 1875–1886 | Galton's sweet peas and height data; "regression" gets its name | 🧪 `galton_1886.py` |
+| 1951 | Robbins and Monro propose stochastic approximation | 🧪 `lms_1960.py` |
+| 1958 | Cox proposes logistic regression | From regression to classification |
+| 1959–1960 | Widrow and Hoff's ADALINE and the LMS rule | 🧪 `lms_1960.py` |
+| 2014 | The Adam optimizer | Optimizers |
 
 ---
 
-## 序幕　1801 年元旦，巴勒莫：一颗会动的"星星"
+## Prologue — New Year's Day 1801, Palermo: A "Star" That Moved
 
-1801 年 1 月 1 日，19 世纪的第一个夜晚，意大利天文学家**朱塞佩·皮亚齐（Giuseppe Piazzi）**
-在西西里岛巴勒莫的天文台里，注意到一个暗淡的光点。第二天晚上再看，它的位置变了一点。
-它不是恒星，而是一个在火星和木星之间绕太阳运行的天体，后来被命名为**谷神星（Ceres）**。
+On January 1, 1801, the first night of the 19th century, the Italian astronomer **Giuseppe Piazzi**,
+at the observatory in Palermo, Sicily, noticed a faint point of light. When he looked again the next night, it had moved a little.
+It wasn't a star. It was a body orbiting the Sun between Mars and Jupiter, later named **Ceres**.
 
-皮亚齐追踪了它 41 天，记下了大约两打观测数据。然后它靠近了太阳，消失在太阳的光芒里。
-等它重新从太阳背后出来时，天空那么大，该去哪里找？几十个观测只覆盖了它轨道上很短的一段弧，
-当时没有可靠的方法能从这么少的数据里算出完整的轨道。欧洲的天文学家们找了好几个月，一无所获。
+Piazzi tracked it for 41 days and recorded about two dozen observations. Then it drew close to the Sun and vanished into the Sun's glare.
+When it came back out from behind the Sun, where in that vast sky should anyone look? A few dozen observations covered only a short arc of its orbit,
+and at the time there was no reliable way to compute a full orbit from so little data. Europe's astronomers searched for months and found nothing.
 
-这时，一位 24 岁的德国年轻人 **卡尔·弗里德里希·高斯（Carl Friedrich Gauss）** 接下了这个问题。
-他花了大约三个月计算，给出了谷神星在 12 月应该出现的位置。
+That's when a 24-year-old German, **Carl Friedrich Gauss**, took on the problem.
+He spent about three months on the calculations and worked out where Ceres should appear in December.
 
-1801 年 12 月 31 日，天文学家**冯·扎克（Franz Xaver von Zach）** 在哥达按照高斯的预测去找，
-在离预测位置不到半度的地方，重新找到了谷神星。第二天，奥伯斯（Heinrich Olbers）在不来梅也看到了它。
-元旦发现，跨年夜重逢。高斯一夜之间名满欧洲。
+On December 31, 1801, the astronomer **Franz Xaver von Zach**, searching from Gotha where Gauss had predicted,
+found Ceres again less than half a degree from the predicted position. The next day, Heinrich Olbers saw it too, in Bremen.
+Discovered on New Year's Day, found again on New Year's Eve. Overnight, Gauss was famous all over Europe.
 
-他的秘密武器之一，是一个处理"有误差的观测"的方法：后来所说的**最小二乘法**。
+One of his secret weapons was a method for handling "observations with errors": what came to be called **the method of least squares**.
 
-> 🧪 **动手**：运行 [`ceres_1801.py`](./ceres_1801.py)。用 24 个带误差的观测，预测一年后的位置，
-> 比一比"只用两个点"和"最小二乘"谁更准。
-
----
-
-## 第一幕　1805–1820 年：最小二乘法到底是谁发明的？
-
-1805 年，法国数学家**阿德里安-马里·勒让德（Adrien-Marie Legendre）** 出版了一本计算彗星轨道的书。
-书的附录（落款日期是 1805 年 3 月 6 日）清楚地介绍了一个方法：
-当方程比未知数多、而且每个观测都有误差时，就选那组让**所有误差的平方和最小**的解。
-他给这个方法起了名字：**最小二乘法**（méthode des moindres quarrés）。
-
-四年后的 1809 年，高斯出版了天体力学巨著《天体运动论》。书里也讲了最小二乘法，
-提到了勒让德，但同时说：**我从 1795 年起就一直在用这个方法了**。
-
-勒让德非常生气。1809 年 5 月 31 日，他写信给高斯，说优先权应该由**发表**来确定。
-1820 年，他又在自己著作的增补版里公开反驳高斯。高斯后来想证明自己确实更早，
-但据他说，当年的计算笔记已经丢了，同事们也想不起或者不愿卷入这场争论。
-
-今天，教科书通常同时提到两人：勒让德最先发表并命名，高斯则把它和误差的概率理论（后来的"正态分布"）联系起来，
-解释了**为什么**应该用平方。
-
-> 💡 伏笔：为什么偏偏是"平方"？→ [残差、最小二乘与均方误差](#3-残差最小二乘与均方误差)
+> 🧪 **Try it**: run [`ceres_1801.py`](./ceres_1801.py). Use 24 noisy observations to predict the position a year later,
+> and compare which is more accurate: "just two points" or "least squares."
 
 ---
 
-## 第二幕　1847 年：柯西的"下山法"
+## Act 1 — 1805–1820: Who Really Invented Least Squares?
 
-最小二乘对直线这样的简单模型有现成的公式。但真实的轨道问题是**非线性**的：
-一个天体的轨道有 6 个未知数，方程里全是三角函数，根本解不出公式。
+In 1805, the French mathematician **Adrien-Marie Legendre** published a book on computing the orbits of comets.
+Its appendix (dated March 6, 1805) clearly laid out a method:
+when there are more equations than unknowns, and every observation has some error, choose the solution that makes **the sum of the squares of all the errors as small as possible**.
+He gave the method a name: **the method of least squares** (*méthode des moindres quarrés*).
 
-1847 年，法国数学家**奥古斯丁-路易·柯西（Augustin-Louis Cauchy）** 在《法国科学院通报》上发表了一篇只有三页的短文，
-题目是《求解联立方程组的一般方法》。他的出发点正是天文学里的轨道计算。
-他的想法朴素得惊人：
-1. 把"所有方程的误差"合成一个总误差，它是未知数的函数；
-2. 看看在当前位置，往哪个方向走，总误差下降得最快；
-3. 朝那个方向走一小步，然后重复。
+Four years later, in 1809, Gauss published his great work on celestial mechanics, *Theoria Motus*. It also covered least squares
+and mentioned Legendre, but it also said that **he had been using this method since 1795**.
 
-这就是**梯度下降**。一百七十多年后，训练 ChatGPT、Claude 这样的模型，用的仍然是它的后代。
+Legendre was furious. On May 31, 1809, he wrote to Gauss, saying that priority should be settled by **publication**.
+In 1820, he publicly rebutted Gauss again in a supplement to one of his works. Gauss later tried to prove that he really had been first,
+but by his own account, his old calculation notes had been lost, and his colleagues either couldn't remember or didn't want to be drawn into the dispute.
 
-> 🧪 **动手**：运行 [`gradient_descent_1847.py`](./gradient_descent_1847.py)。用高尔顿的真实数据下山，
-> 看看学习率太小、刚好、太大会怎样，以及为什么"先把数据中心化"能让速度快几百倍。
+Today, textbooks usually credit both: Legendre was the first to publish and name it, while Gauss connected it to a probability theory of errors (what became the "normal distribution")
+and explained **why** you should use squares.
 
-> 💡 伏笔：→ [梯度](#5-梯度)、[梯度下降与学习率](#6-梯度下降与学习率)、[特征缩放](#7-特征缩放)
-
----
-
-## 第三幕　1875–1886 年：甜豌豆、身高，和"回归"这个怪名字
-
-**弗朗西斯·高尔顿（Francis Galton）** 是达尔文的表弟，一个对什么都想测量一下的维多利亚时代学者。
-他想知道：父母的特征，会怎样传给孩子？
-
-1875 年，他做了一个很有创意的实验：把甜豌豆种子按重量分成 7 档，从特别大到特别小，
-每档装 10 粒，分成一包包寄给 7 位朋友，请他们种下，再把收获的下一代种子寄回来。
-结果他发现：大种子的后代也偏大，但**没有父辈那么大**；小种子的后代也偏小，但**没有父辈那么小**。
-后代都朝着平均值"退回"了一些。
-
-1886 年，他用人的身高验证了同样的现象。他收集了 205 个家庭、928 个成年子女的身高，
-发表了论文《遗传身高中向平庸的回归》（Regression towards Mediocrity in Hereditary Stature）。
-父母比平均值高一些，孩子平均只高出大约这个差距的三分之二。
-
-他把这个现象叫作 **regression（回归、退回）**。后来，"用一条直线描述两个量之间的关系"这整套方法，
-都沿用了这个名字，一直叫到今天，哪怕大多数问题和"退回"毫无关系。
-
-（高尔顿的历史也有沉重的一面：他创造了"优生学"一词，这种思想后来造成了严重的伤害。）
-
-> 🧪 **动手**：运行 [`galton_1886.py`](./galton_1886.py)。这里用的是**高尔顿当年的真实数据**，
-> 你会亲手算出那个"约三分之二"，还会发现回归平均值其实是一个纯粹的统计现象。
-
-> 💡 伏笔：→ [回归平均值](#10-回归平均值)
+> 💡 Look ahead: Why "squares," of all things? → [Residuals, least squares and mean squared error](#3-residuals-least-squares-and-mean-squared-error)
 
 ---
 
-## 第四幕　1951 年：带着噪声也能走到终点
+## Act 2 — 1847: Cauchy's "Downhill Method"
 
-梯度下降每走一步，都要算出"准确的"下坡方向。可如果每次测量都有噪声，只能得到一个**大概的方向**呢？
+For simple models like a straight line, least squares has a ready-made formula. But real orbit problems are **nonlinear**:
+a celestial body's orbit has 6 unknowns, the equations are full of trigonometric functions, and there's simply no formula that solves them.
 
-1951 年，统计学家**赫伯特·罗宾斯（Herbert Robbins）** 和**萨顿·门罗（Sutton Monro）**
-发表了《一种随机逼近方法》。他们证明：即使每一步的方向都有噪声，只要步长按合适的方式**逐渐变小**，
-最后仍然能走到正确答案。
+In 1847, the French mathematician **Augustin-Louis Cauchy** published a short note, just three pages long, in the *Comptes Rendus* of the French Academy of Sciences,
+titled *Méthode générale pour la résolution des systèmes d'équations simultanées* ("General method for solving systems of simultaneous equations"). His starting point was exactly the orbit calculations of astronomy.
+His idea was astonishingly simple:
+1. Combine "the errors of all the equations" into one total error, which is a function of the unknowns;
+2. From where you are now, see which direction makes the total error drop fastest;
+3. Take a small step in that direction, then repeat.
 
-这篇看起来很"理论"的论文，后来成了**随机梯度下降（SGD）** 的理论根基。
+This is **gradient descent**. More than 170 years later, models like ChatGPT and Claude are still trained with its descendants.
 
-> 💡 伏笔：→ [批量、随机与小批量](#8-批量随机与小批量梯度下降)、[学习率衰减](#9-学习率衰减)
+> 🧪 **Try it**: run [`gradient_descent_1847.py`](./gradient_descent_1847.py). Walk downhill on Galton's real data,
+> and see what happens when the learning rate is too small, just right, or too big, and why "centering the data first" can make it hundreds of times faster.
 
----
-
-## 第五幕　1959–1960 年：斯坦福的 ADALINE
-
-就在罗森布拉特在康奈尔造感知机的同时（见第一章），斯坦福大学的年轻教授**伯纳德·维德罗（Bernard Widrow）**
-和他的第一个博士生**马辛·"泰德"·霍夫（Marcian "Ted" Hoff）**，在 1959 年秋天想出了另一种学习规则。
-
-感知机只在猜错时调整，而且每次调整的幅度是固定的。维德罗和霍夫的规则是：
-**每来一个样本，都按"错了多少"成比例地调整权重**。错得多就多调，错得少就少调。
-这个规则叫 **LMS（最小均方）**，也叫维德罗-霍夫规则或 delta 规则。它本质上就是**一次只看一个样本的梯度下降**。
-他们用它造了一个叫 **ADALINE**（自适应线性神经元）的设备。
-
-LMS 后来在信号处理领域大放异彩，大量用于电话线路的回声消除等自适应滤波中。
-
-而那位博士生泰德·霍夫，后来成了英特尔的第 12 号员工，
-主导设计了 1971 年 11 月发布的 **Intel 4004：世界上第一款商用微处理器**。
-
-> 🧪 **动手**：运行 [`lms_1960.py`](./lms_1960.py)。比一比"每步看全部数据"和"每次只看一个样本"，
-> 在看了同样多的数据之后，谁离答案更近。
-
-> 💡 伏笔：→ [LMS 与感知机](#14-lms-与感知机)
+> 💡 Look ahead: → [The gradient](#5-the-gradient), [Gradient descent and the learning rate](#6-gradient-descent-and-the-learning-rate), [Feature scaling](#7-feature-scaling)
 
 ---
 
-## 第六幕　1958–2014 年：从回归到分类，从 SGD 到 Adam
+## Act 3 — 1875–1886: Sweet Peas, Heights, and the Odd Name "Regression"
 
-线性回归预测的是一个**数**（身高、位置）。可很多问题要回答的是**是或否**：这封邮件是不是垃圾邮件？这张卡片的标记在左边还是右边？
+**Francis Galton** was Darwin's cousin, a Victorian scholar who wanted to measure just about everything.
+He wanted to know: how are parents' traits passed on to their children?
 
-1958 年，英国统计学家**大卫·考克斯（David Cox）** 系统地提出了**逻辑回归**：
-先算出线性模型的结果，再用一条 S 形曲线（logistic 函数，也就是第一章实验 3 里的 sigmoid）把它压到 0 到 1 之间，当成"是"的概率。
-它至今仍是最常用的分类方法之一，也是神经网络里一个神经元的标准形态。
+In 1875, he ran a very creative experiment. He sorted sweet pea seeds by weight into 7 grades, from very large to very small,
+put 10 seeds of each grade into packets, and mailed them to 7 friends, asking them to plant the seeds and send back the next generation of seeds they harvested.
+What he found: the offspring of large seeds were also on the large side, but **not as large as their parents**; the offspring of small seeds were also on the small side, but **not as small as their parents**.
+The offspring had all "gone back" some of the way toward the average.
 
-梯度下降本身也在不断进化。2014 年 12 月，**迪德里克·金马（Diederik Kingma）** 和**吉米·巴（Jimmy Ba）** 发表了 **Adam** 优化器：
-它为每个参数自动调整步长，还会参考之前几步的方向，不容易被噪声带偏。
-Adam 很快成了深度学习里最常用的优化器之一，今天训练大语言模型，用的大多是 Adam 家族的变体。
+In 1886, he confirmed the same phenomenon with human height. He collected the heights of 928 adult children from 205 families
+and published the paper *Regression towards Mediocrity in Hereditary Stature*.
+When parents were somewhat taller than average, their children were, on average, taller by only about two-thirds of that gap.
 
-从柯西 1847 年的三页短文，到今天训练几千亿个参数，核心的一步始终没变：**算梯度，往下走一小步**。
+He called this phenomenon **regression** (literally, "going back"). Later, the whole set of methods for "describing the relationship between two quantities with a straight line"
+took over the name, and we still use it today, even though most problems have nothing to do with "going back."
 
-> 💡 伏笔：→ [从回归到分类](#12-从回归到分类逻辑回归)、[优化器](#13-优化器动量与-adam)
+(Galton's history also has a dark side: he coined the word "eugenics," an idea that later caused serious harm.)
 
----
+> 🧪 **Try it**: run [`galton_1886.py`](./galton_1886.py). It uses **Galton's real data from back then**.
+> You'll compute that "about two-thirds" yourself, and you'll discover that regression to the mean is a purely statistical phenomenon.
 
-## 尾声：两种求答案的思路
-
-这一章出现了两种"求最优参数"的思路：
-
-1. **直接解公式**（勒让德、高斯）：对线性模型，最小二乘有精确的公式解，一步到位。
-2. **一步步走过去**（柯西、罗宾斯-门罗、维德罗-霍夫）：不需要公式，只需要会算梯度。
-
-为什么今天的深度学习只用第二种？因为神经网络是非线性的，根本没有公式解；
-而且当参数有几千亿个、数据有几万亿个 token 时，哪怕有公式也算不动。
-只有梯度下降，特别是随机梯度下降，能扛得住这样的规模。
+> 💡 Look ahead: → [Regression to the mean](#10-regression-to-the-mean)
 
 ---
 
-## 动手：四个小实验
+## Act 4 — 1951: Reaching the Finish Line, Noise and All
+
+Every step of gradient descent requires computing the "exact" downhill direction. But what if every measurement is noisy, and all you can get is a **rough direction**?
+
+In 1951, the statisticians **Herbert Robbins** and **Sutton Monro**
+published *A Stochastic Approximation Method*. They proved that even if the direction of every step is noisy, as long as the step size **shrinks gradually** in the right way,
+you'll still reach the right answer in the end.
+
+This very "theoretical"-looking paper later became the theoretical foundation of **stochastic gradient descent (SGD)**.
+
+> 💡 Look ahead: → [Batch, stochastic and mini-batch](#8-batch-stochastic-and-mini-batch-gradient-descent), [Learning rate decay](#9-learning-rate-decay)
+
+---
+
+## Act 5 — 1959–1960: Stanford's ADALINE
+
+At the same time Rosenblatt was building the perceptron at Cornell (see Chapter 1), a young Stanford professor, **Bernard Widrow**,
+and his first PhD student, **Marcian "Ted" Hoff**, came up with a different learning rule in the fall of 1959.
+
+The perceptron adjusts only when it guesses wrong, and each adjustment is a fixed size. Widrow and Hoff's rule:
+**for every example that comes in, adjust the weights in proportion to "how wrong" it was**. Very wrong, big adjustment; slightly wrong, small adjustment.
+This rule is called **LMS (least mean squares)**, also known as the Widrow–Hoff rule or the delta rule. At heart, it's just **gradient descent that looks at one example at a time**.
+They used it to build a device called **ADALINE** (adaptive linear neuron).
+
+LMS later became a huge success in signal processing, widely used in adaptive filtering such as echo cancellation on telephone lines.
+
+And that PhD student, Ted Hoff, later became Intel's employee number 12
+and led the design of the **Intel 4004**, released in November 1971: **the world's first commercial microprocessor**.
+
+> 🧪 **Try it**: run [`lms_1960.py`](./lms_1960.py). Compare "looking at all the data every step" with "looking at one example at a time":
+> after seeing the same amount of data, which one is closer to the answer?
+
+> 💡 Look ahead: → [LMS and the perceptron](#14-lms-and-the-perceptron)
+
+---
+
+## Act 6 — 1958–2014: From Regression to Classification, from SGD to Adam
+
+Linear regression predicts a **number** (a height, a position). But many problems need a **yes or no**: Is this email spam? Is the mark on this card on the left or the right?
+
+In 1958, the British statistician **David Cox** systematically laid out **logistic regression**:
+first compute the linear model's output, then use an S-shaped curve (the logistic function, which is the sigmoid from Chapter 1's Lab 3) to squash it into the range 0 to 1, and treat that as the probability of "yes."
+It is still one of the most widely used classification methods, and it's also the standard form of a single neuron in a neural network.
+
+Gradient descent itself kept evolving too. In December 2014, **Diederik Kingma** and **Jimmy Ba** published the **Adam** optimizer:
+it automatically adjusts the step size for each parameter and also takes the directions of the previous few steps into account, so noise is less likely to throw it off course.
+Adam quickly became one of the most widely used optimizers in deep learning, and today most large language models are trained with variants from the Adam family.
+
+From Cauchy's three-page note in 1847 to training hundreds of billions of parameters today, the core step has never changed: **compute the gradient, take a small step downhill**.
+
+> 💡 Look ahead: → [From regression to classification](#12-from-regression-to-classification-logistic-regression), [Optimizers](#13-optimizers-momentum-and-adam)
+
+---
+
+## Epilogue — Two Ways to Find the Answer
+
+This chapter showed two ways of "finding the best parameters":
+
+1. **Solve the formula directly** (Legendre, Gauss): for linear models, least squares has an exact closed-form solution that gets there in one step.
+2. **Walk there step by step** (Cauchy, Robbins–Monro, Widrow–Hoff): no formula needed, just the ability to compute gradients.
+
+Why does deep learning today use only the second? Because neural networks are nonlinear and simply have no closed-form solution;
+and when there are hundreds of billions of parameters and trillions of tokens of data, you couldn't compute it even if there were a formula.
+Only gradient descent, especially stochastic gradient descent, can handle that kind of scale.
+
+---
+
+## Labs
 
 ```bash
 pip install numpy
-python ceres_1801.py             # 1801：用最小二乘找回谷神星
-python gradient_descent_1847.py  # 1847：梯度下降、学习率、特征缩放
-python galton_1886.py            # 1886：高尔顿的真实数据和"回归平均值"
-python lms_1960.py               # 1951–1960：随机梯度下降与 LMS
+python ceres_1801.py             # 1801: finding Ceres again with least squares
+python gradient_descent_1847.py  # 1847: gradient descent, learning rate, feature scaling
+python galton_1886.py            # 1886: Galton's real data and "regression to the mean"
+python lms_1960.py               # 1951–1960: stochastic gradient descent and LMS
 ```
 
-| 实验 | 你应该看到 | 思考题（脚本末尾也有） |
+| Lab | What you should see | Think about it (also at the end of each script) |
 |---|---|---|
-| `ceres_1801.py` | 重演 2000 次：最小二乘 90% 的情况误差在半度以内，两点法只有约 58% | 为什么用平方和，而不是绝对值之和？ |
-| `gradient_descent_1847.py` | 原始数据走 5000 步还没到；中心化后 20 步就到了；学习率稍微大一点就越跳越远 | 学习率的上限是由什么决定的？ |
-| `galton_1886.py` | 斜率 0.65，约等于高尔顿说的 2/3；换成标准分后，两个方向的斜率都是 0.46 | "封面诅咒"是真的吗？ |
-| `lms_1960.py` | 只看 1000 个样本，SGD 已经很接近答案，批量梯度下降还一步没走 | 为什么数据是"流"进来的时候只能用 SGD？ |
+| `ceres_1801.py` | Replayed 2,000 times: least squares is within half a degree 90% of the time, the two-point method only about 58% | Why the sum of squares, rather than the sum of absolute values? |
+| `gradient_descent_1847.py` | On the raw data, 5,000 steps still don't get there; after centering, 20 steps do; make the learning rate just a little bigger and it jumps farther and farther away | What sets the upper limit on the learning rate? |
+| `galton_1886.py` | Slope 0.65, close to Galton's 2/3; in standard scores, the slope is 0.46 in both directions | Is the "cover jinx" real? |
+| `lms_1960.py` | After only 1,000 examples, SGD is already very close to the answer, while batch gradient descent hasn't taken a single step | Why is SGD the only option when the data "streams" in? |
 
-数据说明：[`data/galton_1886.csv`](./data/galton_1886.csv) 是高尔顿 1886 年论文中的原始数据（928 行），
-转录自统计学家 Michael Friendly 维护的 R 包 HistData。
+About the data: [`data/galton_1886.csv`](./data/galton_1886.csv) is the original data from Galton's 1886 paper (928 rows),
+transcribed from the R package HistData, maintained by the statistician Michael Friendly.
 
 ---
 
-## 概念解释
+## Concepts
 
-### 1. 回归与线性模型
+### 1. Regression and Linear Models
 
-**一句话**：回归就是根据输入预测一个数；线性模型就是"每个输入乘一个权重，再加起来"。
+**In one sentence**: regression means predicting a number from inputs; a linear model means "multiply each input by a weight, then add them up."
 
 ```
-预测值 = w1·x1 + w2·x2 + … + b
+prediction = w1·x1 + w2·x2 + … + b
 ```
-- **x**（特征）：输入的信息，比如父母的身高；
-- **w**（权重）：每个特征有多重要，比如 0.65；
-- **b**（偏置/截距）：所有特征都为 0 时的基准值。
+- **x** (features): the input information, like the parents' heights;
+- **w** (weights): how much each feature matters, like 0.65;
+- **b** (bias/intercept): the baseline value when all the features are 0.
 
-第一章的感知机也是线性模型，只是最后多了一步"大于 0 输出 1，否则输出 0"。
+Chapter 1's perceptron is a linear model too; it just adds one final step: "greater than 0, output 1; otherwise output 0."
 
-📖 登场：[第三幕](#第三幕18751886-年甜豌豆身高和回归这个怪名字)
+📖 First appears in: [Act 3](#act-3--18751886-sweet-peas-heights-and-the-odd-name-regression)
 
-### 2. "线性"到底是对谁线性？
+### 2. What Exactly Is "Linear" About a Linear Model?
 
-线性模型里的"线性"，指的是**对参数（w、b）是线性的**，而不是对输入。
-所以 `y = w1·x + w2·x² + b` 也是线性模型：把 x² 当成一个新特征就行了。
-这让线性模型能拟合曲线，同时保留最小二乘的公式解。
-神经网络的厉害之处，就在于它能**自己学出**该用什么样的特征（第一章实验 3 的隐藏层），不需要人去设计 x²。
+The "linear" in linear model means **linear in the parameters (w, b)**, not in the inputs.
+So `y = w1·x + w2·x² + b` is a linear model too: just treat x² as a new feature.
+This lets linear models fit curves while keeping least squares' closed-form solution.
+The power of neural networks is that they can **learn on their own** which features to use (the hidden layer in Chapter 1's Lab 3), so no one has to design x² by hand.
 
-### 3. 残差、最小二乘与均方误差
+### 3. Residuals, Least Squares and Mean Squared Error
 
-- **残差**：真实值 − 预测值，也就是每个点"差了多少"。
-- **最小二乘**：选择让**残差平方和**最小的参数。
-- **均方误差（MSE）**：残差平方的平均值，是最常用的回归损失函数。
+- **Residual**: actual value − predicted value, that is, how far off each point is.
+- **Least squares**: choose the parameters that make the **sum of squared residuals** as small as possible.
+- **Mean squared error (MSE)**: the average of the squared residuals, the most common loss function for regression.
 
-为什么用平方？
-1. 正负误差不会互相抵消；
-2. 大的误差被放大惩罚，模型会尽量避免离谱的错误；
-3. 平方函数处处可导，能直接求导解出公式（正规方程），也方便梯度下降；
-4. 高斯证明了：如果观测误差服从正态分布，最小二乘给出的就是"最可能"的答案。
+Why squares?
+1. Positive and negative errors don't cancel each other out;
+2. Big errors get an extra-heavy penalty, so the model works hard to avoid wild mistakes;
+3. The square function is differentiable everywhere, so you can take derivatives and solve for a formula directly (the normal equations), and it also makes gradient descent easy;
+4. Gauss proved that if the observation errors follow a normal distribution, least squares gives the "most likely" answer.
 
-缺点是对**离群点**很敏感：一个特别离谱的数据点，会把整条直线拽过去。这时可以改用绝对值误差等其他损失函数。
+The downside is that it's very sensitive to **outliers**: one wildly off data point can drag the whole line toward it. In that case you can switch to other loss functions, such as absolute error.
 
-📖 登场：[序幕](#序幕1801-年元旦巴勒莫一颗会动的星星)、[第一幕](#第一幕18051820-年最小二乘法到底是谁发明的)　🧪 `ceres_1801.py`
+📖 First appears in: [Prologue](#prologue--new-years-day-1801-palermo-a-star-that-moved), [Act 1](#act-1--18051820-who-really-invented-least-squares)　🧪 `ceres_1801.py`
 
-### 4. 正规方程（解析解）
+### 4. The Normal Equations (Closed-Form Solution)
 
-对线性模型，把均方误差对每个参数求导、令导数等于 0，就得到一组方程，叫**正规方程**：
+For a linear model, take the derivative of the mean squared error with respect to each parameter and set it to 0, and you get a set of equations called the **normal equations**:
 ```
 (XᵀX) w = Xᵀy
 ```
-解出来就是最小二乘的答案。实验 1 里手算的那个 2×2 方程组，就是它最简单的样子。
-它的缺点是：特征有 d 个时，解这个方程的计算量大约和 d³ 成正比，特征一多就算不动了；而且非线性模型根本没有这样的公式。
+Solving them gives the least squares answer. The 2×2 system solved by hand in Lab 1 is their simplest form.
+The downsides: with d features, the work needed to solve them grows roughly in proportion to d³, so with many features it becomes too much to compute; and nonlinear models have no such formula at all.
 
-### 5. 梯度
+### 5. The Gradient
 
-**梯度**是一个向量，它指向"函数值上升最快的方向"，长度表示有多陡。
-它的每个分量，就是损失对某一个参数的偏导数：这个参数增加一点点，损失会变多少。
-往**梯度的反方向**走，损失下降得最快。
+The **gradient** is a vector that points in "the direction in which the function rises fastest," and its length tells you how steep it is.
+Each of its components is the partial derivative of the loss with respect to one parameter: how much the loss changes if that parameter goes up a tiny bit.
+Walk in **the opposite direction of the gradient**, and the loss drops fastest.
 
-### 6. 梯度下降与学习率
+### 6. Gradient Descent and the Learning Rate
 
 ```
-参数 ← 参数 − 学习率 × 梯度
+parameters ← parameters − learning rate × gradient
 ```
-- **学习率太小**：每步都很稳，但要走很久；
-- **学习率刚好**：很快到达谷底；
-- **学习率太大**：一步迈过谷底，跳到对面更高的地方，越跳越远，最后"爆炸"。
+- **Learning rate too small**: every step is steady, but it takes forever;
+- **Learning rate just right**: it reaches the bottom of the valley quickly;
+- **Learning rate too big**: one step overshoots the bottom of the valley and lands higher up on the other side, it jumps farther and farther, and finally it "blows up."
 
-学习率的上限由损失函数"最陡的方向有多陡"决定：越陡，步子就得越小。
-实验 2 里，学习率从"偏大"到"太大"只差了一点点，结果一个收敛、一个发散，就是因为跨过了这个上限。
+The upper limit on the learning rate is set by how steep the loss function is in its steepest direction: the steeper it is, the smaller the steps have to be.
+In Lab 2, going from "a bit big" to "too big" changes the learning rate only a tiny bit, yet one converges and the other diverges. That's because it crosses this limit.
 
-📖 登场：[第二幕](#第二幕1847-年柯西的下山法)　🧪 `gradient_descent_1847.py`
+📖 First appears in: [Act 2](#act-2--1847-cauchys-downhill-method)　🧪 `gradient_descent_1847.py`
 
-### 7. 特征缩放
+### 7. Feature Scaling
 
-如果一个方向很陡、另一个方向很平，损失函数就像一条**又窄又长的峡谷**。
-学习率只能按陡的方向来定（否则会发散），结果在平的方向上几乎走不动。
+If one direction is very steep and another is very flat, the loss function looks like a **long, narrow canyon**.
+The learning rate has to be set for the steep direction (otherwise it diverges), and as a result it can barely move along the flat direction.
 
-**中心化**（减去平均值）和**标准化**（再除以标准差）能把峡谷变成一个圆圆的碗，梯度下降就快得多。
-实验 2 里，原始数据的峡谷两个方向的陡峭程度差了几百万倍，中心化后只差 3 倍。
-这也是为什么几乎所有机器学习流程的第一步，都是把数据缩放到相近的范围。
+**Centering** (subtracting the mean) and **standardizing** (then also dividing by the standard deviation) turn the canyon into a nice round bowl, and gradient descent gets much faster.
+In Lab 2, the raw data's canyon is millions of times steeper in one direction than in the other; after centering, the difference is only 3 times.
+That's also why the first step of almost every machine learning pipeline is to scale the data to similar ranges.
 
-### 8. 批量、随机与小批量梯度下降
+### 8. Batch, Stochastic and Mini-Batch Gradient Descent
 
-| | 每一步看多少数据 | 特点 |
+| | How much data per step | What it's like |
 |---|---|---|
-| **批量梯度下降** | 全部数据 | 方向准，但每一步都很贵 |
-| **随机梯度下降（SGD）** | 1 个样本 | 每一步很便宜，方向有噪声、会抖 |
-| **小批量梯度下降** | 几十到几千个 | 两者的折中，今天的标准做法，也最适合 GPU 并行 |
+| **Batch gradient descent** | All of it | Accurate direction, but every step is expensive |
+| **Stochastic gradient descent (SGD)** | 1 example | Every step is cheap; the direction is noisy and it jitters |
+| **Mini-batch gradient descent** | Tens to thousands | A compromise between the two; today's standard practice, and the best fit for GPU parallelism |
 
-**epoch（轮）**：把全部训练数据完整地看一遍，叫一个 epoch。
+**Epoch**: one complete pass through all the training data is called an epoch.
 
-📖 登场：[第四幕](#第四幕1951-年带着噪声也能走到终点)、[第五幕](#第五幕19591960-年斯坦福的-adaline)　🧪 `lms_1960.py`
+📖 First appears in: [Act 4](#act-4--1951-reaching-the-finish-line-noise-and-all), [Act 5](#act-5--19591960-stanfords-adaline)　🧪 `lms_1960.py`
 
-### 9. 学习率衰减
+### 9. Learning Rate Decay
 
-SGD 的方向有噪声，到了终点附近会一直在周围抖动。
-如果让学习率**逐渐变小**，抖动也会越来越小，最后稳稳停在答案上。
-罗宾斯和门罗 1951 年证明的，正是步长应该怎样变小才能保证收敛。
-今天训练大模型时，学习率通常先"预热"（从小慢慢升高），再逐渐衰减。
+SGD's direction is noisy, so near the finish line it keeps jittering around.
+If you make the learning rate **shrink gradually**, the jitter shrinks too, and in the end it settles firmly on the answer.
+What Robbins and Monro proved in 1951 was exactly how the step size should shrink to guarantee convergence.
+When large models are trained today, the learning rate is usually "warmed up" first (slowly raised from a small value), then gradually decayed.
 
-### 10. 回归平均值
+### 10. Regression to the Mean
 
-两个量不完全相关时，一方很极端，另一方往往**没那么极端**，更靠近平均值。
-这不是什么神秘力量，而是统计规律：极端值里通常有一部分是"运气"，而运气不会遗传，也不会持续。
+When two quantities aren't perfectly correlated and one of them is extreme, the other tends to be **less extreme**, closer to the average.
+This isn't some mysterious force; it's a statistical regularity: an extreme value usually includes a share of "luck," and luck isn't inherited and doesn't last.
 
-生活中很多"效果"其实是回归平均值造成的错觉：考得特别差之后的进步，表现特别好之后的下滑（"封面诅咒"）。
-判断一个方法到底有没有效，需要对照组，而不能只看前后对比。
+Many "effects" in everyday life are really illusions caused by regression to the mean: the improvement after an especially bad exam, the slump after an especially good performance (the "cover jinx").
+To judge whether a method really works, you need a control group; a before-and-after comparison isn't enough.
 
-📖 登场：[第三幕](#第三幕18751886-年甜豌豆身高和回归这个怪名字)　🧪 `galton_1886.py`
+📖 First appears in: [Act 3](#act-3--18751886-sweet-peas-heights-and-the-odd-name-regression)　🧪 `galton_1886.py`
 
-### 11. 外推的风险
+### 11. The Danger of Extrapolation
 
-在数据覆盖的范围**内部**做预测叫**内插**，比较可靠；在范围**外面**做预测叫**外推**，很危险。
-实验 1 用 41 天的数据预测第 364 天，能成功，是因为我们用的模型形式（匀速运动）恰好是对的。
-高斯能找回谷神星，也是因为他用了正确的物理模型（开普勒的椭圆轨道）。
-如果模型形式本身就错了，数据拟合得再好，外推也会错得离谱。
+Predicting **inside** the range your data covers is called **interpolation**, and it's fairly reliable; predicting **outside** that range is called **extrapolation**, and it's dangerous.
+Lab 1 uses 41 days of data to predict day 364. It works because the form of model we used (motion at a constant speed) happens to be right.
+Gauss could find Ceres again because he, too, used the right physical model (Kepler's elliptical orbits).
+If the form of the model itself is wrong, then no matter how well it fits the data, extrapolation can go wildly wrong.
 
-### 12. 从回归到分类：逻辑回归
+### 12. From Regression to Classification: Logistic Regression
 
-逻辑回归 = 线性模型 + sigmoid 函数：
+Logistic regression = linear model + sigmoid function:
 ```
-概率 = sigmoid(w·x + b) = 1 / (1 + e^-(w·x + b))
+probability = sigmoid(w·x + b) = 1 / (1 + e^-(w·x + b))
 ```
-sigmoid 把任意实数压到 0～1 之间，当作"是"的概率。训练时通常不用均方误差，
-而是用**交叉熵**损失：如果真实答案是"是"，模型给"是"的概率越低，惩罚就越重。
+The sigmoid squashes any real number into the range 0–1, which is treated as the probability of "yes." Training usually doesn't use mean squared error,
+but **cross-entropy** loss instead: if the true answer is "yes," the lower the probability the model gives to "yes," the heavier the penalty.
 
-一个逻辑回归，其实就是一个"会输出概率的神经元"。把很多个这样的神经元连成多层，就是第一章的神经网络。
+A logistic regression is really just "a neuron that outputs a probability." Connect lots of these neurons in layers, and you get the neural networks of Chapter 1.
 
-📖 登场：[第六幕](#第六幕19582014-年从回归到分类从-sgd-到-adam)
+📖 First appears in: [Act 6](#act-6--19582014-from-regression-to-classification-from-sgd-to-adam)
 
-### 13. 优化器：动量与 Adam
+### 13. Optimizers: Momentum and Adam
 
-普通梯度下降只看"当前这一步"的梯度。改进的方法主要有两类：
-- **动量**：像一个滚下山的球，会保留之前的速度。在峡谷里不容易来回撞，在平地上也能继续往前滚。
-- **自适应学习率**：给每个参数配一个自己的步长。经常剧烈变化的参数步子小一点，很少更新的参数步子大一点。
+Plain gradient descent looks only at the gradient of "the current step." There are two main kinds of improvements:
+- **Momentum**: like a ball rolling downhill, it keeps some of its earlier speed. In a canyon it's less likely to bang back and forth, and on flat ground it can keep rolling forward.
+- **Adaptive learning rates**: give each parameter its own step size. Parameters that often swing wildly take smaller steps; parameters that rarely get updated take bigger ones.
 
-**Adam** 把两者结合了起来，几乎不用怎么调参就能用，所以成了深度学习的默认选择。
+**Adam** combines the two and works with hardly any tuning, so it became the default choice in deep learning.
 
-📖 登场：[第六幕](#第六幕19582014-年从回归到分类从-sgd-到-adam)
+📖 First appears in: [Act 6](#act-6--19582014-from-regression-to-classification-from-sgd-to-adam)
 
-### 14. LMS 与感知机
+### 14. LMS and the Perceptron
 
-| | 感知机规则（1958） | LMS 规则（1960） |
+| | Perceptron rule (1958) | LMS rule (1960) |
 |---|---|---|
-| 什么时候更新 | 只在猜错时 | 每个样本都更新 |
-| 更新多少 | 固定：`w += y·x` | 和误差成正比：`w += η·(y − ŷ)·x` |
-| 本质 | 一种启发式规则 | 对均方误差做随机梯度下降 |
-| 数据不能被直线完美分开时 | 永远停不下来（第一章的 XOR） | 会稳定在误差最小的位置 |
+| When it updates | Only on a wrong guess | On every example |
+| How much it updates | A fixed amount: `w += y·x` | In proportion to the error: `w += η·(y − ŷ)·x` |
+| What it really is | A heuristic rule | Stochastic gradient descent on the mean squared error |
+| When no straight line can split the data perfectly | It never stops (Chapter 1's XOR) | It settles where the error is smallest |
 
-LMS 告诉我们：**学习规则可以从"最小化一个损失函数"推导出来**，而不是靠直觉设计。
-1986 年的反向传播，就是把这个思路推广到了多层网络。
+LMS shows us that **a learning rule can be derived from "minimizing a loss function,"** instead of being designed by intuition.
+Backpropagation in 1986 extended this idea to multilayer networks.
 
-📖 登场：[第五幕](#第五幕19591960-年斯坦福的-adaline)
+📖 First appears in: [Act 5](#act-5--19591960-stanfords-adaline)
 
 ---
 
-## 参考资料
+## References
 
-- [Gauss Predicts the Orbit of Ceres](https://thatsmaths.com/2021/06/24/gauss-predicts-the-orbit-of-ceres/)（ThatsMaths, 2021）
-- Wikipedia, [Least squares](https://en.wikipedia.org/wiki/Least_squares)（勒让德与高斯的优先权之争）
+- [Gauss Predicts the Orbit of Ceres](https://thatsmaths.com/2021/06/24/gauss-predicts-the-orbit-of-ceres/) (ThatsMaths, 2021)
+- Wikipedia, [Least squares](https://en.wikipedia.org/wiki/Least_squares) (the priority dispute between Legendre and Gauss)
 - A.-L. Cauchy, [Méthode générale pour la résolution des systèmes d'équations simultanées](https://gtfp.cs.rhul.ac.uk/pulskamp/Cauchy/Orbits/1847%20CR%20536%28383%29.pdf), *Comptes Rendus* 25, 1847
 - F. Galton, *Regression towards Mediocrity in Hereditary Stature*, Journal of the Anthropological Institute 15, 1886
-- J. M. Stanton, [Galton, Pearson, and the Peas: A Brief History of Linear Regression for Statistics Instructors](https://jse.amstat.org/v9n3/stanton.html), *Journal of Statistics Education*, 2001（甜豌豆实验）
-- M. Friendly, *HistData: Data Sets from the History of Statistics and Data Visualization*（R 包，高尔顿数据的来源）
+- J. M. Stanton, [Galton, Pearson, and the Peas: A Brief History of Linear Regression for Statistics Instructors](https://jse.amstat.org/v9n3/stanton.html), *Journal of Statistics Education*, 2001 (the sweet pea experiment)
+- M. Friendly, *HistData: Data Sets from the History of Statistics and Data Visualization* (R package; source of the Galton data)
 - H. Robbins & S. Monro, [A Stochastic Approximation Method](https://projecteuclid.org/euclid.aoms/1177729391), *Annals of Mathematical Statistics*, 1951
 - B. Widrow & M. E. Hoff, *Adaptive Switching Circuits*, IRE WESCON Convention Record, 1960
-- Wikipedia, [ADALINE](https://en.wikipedia.org/wiki/ADALINE)、[Least mean squares filter](https://en.wikipedia.org/wiki/Least_mean_squares_filter)
-- Computer History Museum, [Ted Hoff](https://computerhistory.org/profile/ted-hoff/)（Intel 4004）
+- Wikipedia, [ADALINE](https://en.wikipedia.org/wiki/ADALINE), [Least mean squares filter](https://en.wikipedia.org/wiki/Least_mean_squares_filter)
+- Computer History Museum, [Ted Hoff](https://computerhistory.org/profile/ted-hoff/) (Intel 4004)
 - D. R. Cox, *The Regression Analysis of Binary Sequences*, Journal of the Royal Statistical Society B, 1958
 - D. P. Kingma & J. Ba, [Adam: A Method for Stochastic Optimization](https://arxiv.org/abs/1412.6980), 2014
 
 ---
 
-⬅️ [第一章 机器学习从哪里来](../01-ml-origins/)　|　[返回目录](../README.md)　|　➡️ [第三章 神经网络与自动求导](../03-neural-nets/)
+⬅️ [Chapter 1 · Where Machine Learning Came From](../01-ml-origins/) | [Contents](../README.md) | ➡️ [Chapter 3 · Neural Networks and Autodiff](../03-neural-nets/)

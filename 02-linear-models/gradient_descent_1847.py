@@ -1,16 +1,17 @@
 """
-实验 2：1847 年，柯西的"下山法"：梯度下降
-==========================================
+Lab 2: 1847, Cauchy's "downhill method": gradient descent
+=========================================================
 
-最小二乘有现成的公式，可当未知数成千上万、方程是非线性的时候，就没有公式可用了。
-1847 年，柯西提出了一个通用的办法：**站在哪里，就朝最陡的下坡方向走一小步，反复走。**
+Least squares has a ready-made formula, but when there are thousands of unknowns and the equations are nonlinear,
+there's no formula to use. In 1847, Cauchy proposed a general method:
+**wherever you're standing, take a small step in the steepest downhill direction, and keep doing it.**
 
-这里用高尔顿 1886 年的真实数据（父母身高 → 子女身高）来拟合一条直线，
-看看梯度下降怎么一步步走到最小二乘的答案，以及：
-  * 学习率太小、刚好、太大，分别会怎样
-  * 为什么先把数据"中心化"，梯度下降会快几百倍
+Here we use Galton's real 1886 data (parent height → child height) to fit a straight line,
+and watch gradient descent work its way, step by step, to the least squares answer. We'll also see:
+  * what happens when the learning rate is too small, just right, or too big
+  * why "centering" the data first makes gradient descent hundreds of times faster
 
-运行：python gradient_descent_1847.py
+Run: python gradient_descent_1847.py
 """
 
 from pathlib import Path
@@ -19,7 +20,7 @@ import numpy as np
 
 data = np.genfromtxt(Path(__file__).with_name("data") / "galton_1886.csv",
                      delimiter=",", skip_header=4)
-x, y = data[:, 0], data[:, 1]          # x：父母平均身高，y：子女身高（英寸）
+x, y = data[:, 0], data[:, 1]          # x: average parent height, y: child height (inches)
 
 
 def loss(a, b, x):
@@ -27,7 +28,7 @@ def loss(a, b, x):
 
 
 def gradient(a, b, x):
-    r = y - (a + b * x)                 # 残差：真实值 - 预测值
+    r = y - (a + b * x)                 # residual: actual value - predicted value
     return -2 * r.mean(), -2 * (r * x).mean()
 
 
@@ -35,49 +36,49 @@ def descend(x, lr, steps, a=0.0, b=0.0):
     path = [(a, b)]
     for _ in range(steps):
         ga, gb = gradient(a, b, x)
-        a, b = a - lr * ga, b - lr * gb       # 朝下坡方向走一小步
+        a, b = a - lr * ga, b - lr * gb       # take a small step downhill
         path.append((a, b))
         if not np.isfinite(a) or abs(a) > 1e6:
             break
     return a, b, path
 
 
-# 标准答案：最小二乘的公式解
+# The reference answer: the least squares closed-form solution
 X = np.column_stack([np.ones_like(x), x])
 a_best, b_best = np.linalg.lstsq(X, y, rcond=None)[0]
-print(f"最小二乘的标准答案：子女身高 = {a_best:.2f} + {b_best:.3f} × 父母平均身高\n")
+print(f"Least squares reference answer: child height = {a_best:.2f} + {b_best:.3f} × average parent height\n")
 
-# ---------------------------------------------------------------- 第一幕：直接下山
-print("【第一幕】直接用原始数据下山（父母身高在 64～73 英寸之间）")
-lam = np.linalg.eigvalsh(2 * X.T @ X / len(x))          # 损失"碗"在两个方向上的陡峭程度
-lr = 1.9 / lam.max()                                    # 不发散的前提下，尽量大的学习率
+# ---------------------------------------------------------------- Act 1: straight downhill
+print("[Act 1] Walk downhill on the raw data (parent heights are between 64 and 73 inches)")
+lam = np.linalg.eigvalsh(2 * X.T @ X / len(x))          # how steep the loss "bowl" is in its two directions
+lr = 1.9 / lam.max()                                    # as large a learning rate as possible without diverging
 a, b, _ = descend(x, lr, 5000)
-print(f"   学习率 {lr:.6f}（再大一点就会发散），走了 5000 步：")
-print(f"   斜率 = {b:.3f}（标准答案 {b_best:.3f}），损失 {loss(a, b, x):.2f}（最小 {loss(a_best, b_best, x):.2f}）")
-print(f"   原因：这个'碗'一个方向比另一个方向陡 {lam.max() / lam.min():,.0f} 倍，是一条又窄又长的峡谷。")
-print("   步子大了会在峡谷两壁之间来回撞，步子小了沿着谷底几乎走不动。\n")
+print(f"   Learning rate {lr:.6f} (any bigger and it diverges), after 5,000 steps:")
+print(f"   slope = {b:.3f} (reference answer {b_best:.3f}), loss {loss(a, b, x):.2f} (minimum {loss(a_best, b_best, x):.2f})")
+print(f"   Why: this 'bowl' is {lam.max() / lam.min():,.0f} times steeper in one direction than in the other. It's a long, narrow canyon.")
+print("   Big steps bang back and forth between the canyon walls; small steps barely move along the canyon floor.\n")
 
-# ---------------------------------------------------------------- 第二幕：中心化
-xc = x - x.mean()                                       # 中心化：以平均身高为原点
+# ---------------------------------------------------------------- Act 2: centering
+xc = x - x.mean()                                       # centering: make the average height the origin
 lam_c = np.linalg.eigvalsh(2 * np.column_stack([np.ones_like(xc), xc]).T
                            @ np.column_stack([np.ones_like(xc), xc]) / len(xc))
-print("【第二幕】先把父母身高减去平均值（中心化），再下山")
-print(f"   现在两个方向的陡峭程度只差 {lam_c.max() / lam_c.min():.1f} 倍，'峡谷'变成了一个圆一点的'碗'。\n")
+print("[Act 2] First subtract the mean from the parent heights (centering), then walk downhill")
+print(f"   Now one direction is only {lam_c.max() / lam_c.min():.1f} times steeper than the other: the 'canyon' has become a rounder 'bowl'.\n")
 
-settings = [("太小", 0.02 / lam_c.max()), ("刚好", 1.0 / lam_c.max()), ("太大", 2.05 / lam_c.max())]
-print("   学习率  |  第 1 步    第 5 步    第 20 步   第 100 步  的损失")
+settings = [("too small", 0.02 / lam_c.max()), ("just right", 1.0 / lam_c.max()), ("too big", 2.05 / lam_c.max())]
+print("   learning rate    |    step 1     step 5    step 20   step 100  (loss)")
 for name, lr in settings:
     _, _, path = descend(xc, lr, 100)
     ls = [loss(*path[min(i, len(path) - 1)], xc) for i in (1, 5, 20, 100)]
-    cells = "  ".join(f"{v:9.2f}" if v < 1e6 else "   爆炸了" for v in ls)
-    print(f"   {name} {lr:.3f} | {cells}")
+    cells = "  ".join(f"{v:9.2f}" if v < 1e6 else " blown up" for v in ls)
+    print(f"   {name:<10} {lr:.3f} | {cells}")
 
 lr = 1.0 / lam_c.max()
 a, b, path = descend(xc, lr, 100)
-print(f"\n   学习率刚好时，100 步后：斜率 = {b:.3f}（标准答案 {b_best:.3f}）✓")
+print(f"\n   With the learning rate just right, after 100 steps: slope = {b:.3f} (reference answer {b_best:.3f}) ✓")
 
-# ---------------------------------------------------------------- 画出每一步的位置
-print("\n每一步之后，斜率走到了哪里（│ 是标准答案，● 是当前位置）：")
+# ---------------------------------------------------------------- Show where each step lands
+print("\nWhere the slope is after each step (│ is the reference answer, ● is the current position):")
 lo, hi, width = -1.2, 2.5, 46
 
 
@@ -94,14 +95,14 @@ def marker_line(value):
     return "".join(cells)
 
 
-for name, factor in [("刚好", 1.0), ("偏大，但还能收敛", 1.8), ("太大，越跳越远", 2.05)]:
+for name, factor in [("just right", 1.0), ("a bit big, but still converges", 1.8), ("too big, jumps farther and farther", 2.05)]:
     _, _, path = descend(xc, factor / lam_c.max(), 8)
-    print(f"\n   学习率{name}（{factor / lam_c.max():.3f}）")
+    print(f"\n   Learning rate {name} ({factor / lam_c.max():.3f})")
     for step in (0, 1, 2, 3, 4, 8):
-        print(f"   第 {step} 步 [{marker_line(path[step][1])}] 斜率 {path[step][1]:+.3f}")
+        print(f"   step {step} [{marker_line(path[step][1])}] slope {path[step][1]:+.3f}")
 
 print("""
-想一想：
-  1. "太大"的学习率只比"偏大"大了一点点，为什么一个收敛、一个发散？
-  2. 第一幕里，如果耐心走 100 万步，能走到标准答案吗？
-  3. 如果再除以标准差（标准化），陡峭程度会差几倍？学习率可以取多大？""")
+Think about it:
+  1. The "too big" learning rate is only a tiny bit bigger than the "a bit big" one. Why does one converge and the other diverge?
+  2. In Act 1, if you patiently took 1,000,000 steps, would you reach the reference answer?
+  3. If you also divide by the standard deviation (standardize), how many times steeper is one direction than the other? How big can the learning rate be?""")

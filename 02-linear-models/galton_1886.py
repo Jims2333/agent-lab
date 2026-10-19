@@ -1,16 +1,17 @@
 """
-实验 3：1886 年，高尔顿发现的"回归"
-====================================
+Lab 3: 1886, Galton discovers "regression"
+==========================================
 
-这是高尔顿当年真实的数据：205 个家庭、928 个成年子女的身高（单位：英寸）。
-"父母身高"是父亲和母亲的平均（母亲的身高先乘以 1.08，女儿的也一样，这是高尔顿的做法）。
+This is Galton's real data from back then: the heights (in inches) of 928 adult children from 205 families.
+"Parent height" is the average of the father and the mother (the mother's height is first multiplied by 1.08,
+and so are the daughters' heights; this is how Galton did it).
 
-我们来重现他的发现：
-  * 父母很高的，孩子平均也高，但没有父母那么高
-  * 父母很矮的，孩子平均也矮，但没有父母那么矮
-  * 都往平均值"退回"了一些，这就是"回归"（regression）这个词的来历
+Let's recreate his discovery:
+  * children of very tall parents are tall on average too, but not as tall as their parents
+  * children of very short parents are short on average too, but not as short as their parents
+  * all of them "go back" some of the way toward the average, which is where the word "regression" comes from
 
-运行：python galton_1886.py
+Run: python galton_1886.py
 """
 
 from pathlib import Path
@@ -20,30 +21,31 @@ import numpy as np
 data = np.genfromtxt(Path(__file__).with_name("data") / "galton_1886.csv",
                      delimiter=",", skip_header=4)
 parent, child = data[:, 0], data[:, 1]
-print(f"共 {len(child)} 个孩子。父母平均身高的均值 {parent.mean():.1f}，孩子身高的均值 {child.mean():.1f}\n")
+print(f"{len(child)} children in all. Mean parent height (the father–mother average): {parent.mean():.1f}; mean child height: {child.mean():.1f}\n")
 
-# ---------------------------------------------------------------- 按父母身高分组看
-print("按父母身高分组，看孩子的平均身高：")
-print("   父母身高 | 人数 | 孩子平均 | 比父母   | 往平均值退回了")
+# ---------------------------------------------------------------- Group by parent height
+print("The children's average height, grouped by parent height:")
+print("   parents  | kids | kids avg | vs. parents   | pulled back toward the mean")
 mean = parent.mean()
 for h in sorted(set(parent)):
     kids = child[parent == h]
     if len(kids) < 10:
         continue
     diff = kids.mean() - h
-    # 离平均值太近时，这个比例会被噪声放大，就不算了
+    # Too close to the mean, this ratio gets blown up by noise, so we skip it
     pulled = 1 - (kids.mean() - mean) / (h - mean) if abs(h - mean) >= 1.5 else None
     pulled_txt = f"{pulled:5.0%}" if pulled is not None else "   —"
-    arrow = "↓ 矮了" if diff < 0 else "↑ 高了"
+    arrow = "↓ shorter" if diff < 0 else "↑ taller "
     print(f"   {h:7.1f}  | {len(kids):4d} |  {kids.mean():6.1f}  | {arrow} {abs(diff):.1f} | {pulled_txt}")
 
-# ---------------------------------------------------------------- 最小二乘拟合
+# ---------------------------------------------------------------- Least squares fit
 b, a = np.polyfit(parent, child, 1)
-print(f"\n最小二乘拟合：孩子身高 ≈ {a:.1f} + {b:.2f} × 父母身高")
-print(f"斜率 {b:.2f}：父母比平均高 3 英寸，孩子平均只比平均高 {3 * b:.1f} 英寸。高尔顿当年估计约为 2/3。\n")
+print(f"\nLeast squares fit: child height ≈ {a:.1f} + {b:.2f} × parent height")
+print(f"Slope {b:.2f}: when the parents are 3 inches above average, their children are, on average, only {3 * b:.1f} inches above average. "
+      "Galton's own estimate back then was about 2/3.\n")
 
-# ---------------------------------------------------------------- 散点图
-print("散点图（字符越密，那个位置的人越多）：")
+# ---------------------------------------------------------------- Scatter plot
+print("Scatter plot (the denser the character, the more people at that spot):")
 px = np.arange(64, 74)
 cy = np.arange(74, 61, -1)
 for row in cy:
@@ -51,22 +53,24 @@ for row in cy:
     for col in px:
         n = np.sum((np.abs(parent - col - 0.25) <= 0.5) & (np.abs(child - row) <= 0.5))
         line += f" {' .:-=+*#%@'[min(n // 3, 9)] if n else ' '} "
-    print(f"   孩子 {row} |{line}")
-print("           父母 " + "".join(f"{c:^3d}" for c in px))
-print("   点云是一个斜着的椭圆，但比 45° 线平：父母每高 1 英寸，孩子平均只高约 0.65 英寸。")
+    print(f"   child {row} |{line}")
+print("      parent " + "".join(f"{c:^3d}" for c in px))
+print("   The cloud is a tilted ellipse, but flatter than the 45° line: for each extra inch of parent height,"
+      " children are on average only about 0.65 inches taller.")
 
-# ---------------------------------------------------------------- 反过来看
+# ---------------------------------------------------------------- The other way around
 zc = (child - child.mean()) / child.std()
 zp = (parent - parent.mean()) / parent.std()
 print(f"""
-反过来想：如果用"孩子的身高"去预测"父母的身高"，会不会出现"孩子高的，父母更高"？
-换成标准分（离平均值有几个标准差）来看：
-   用父母预测孩子：斜率 {np.polyfit(zp, zc, 1)[0]:.2f}
-   用孩子预测父母：斜率 {np.polyfit(zc, zp, 1)[0]:.2f}
-两个方向都小于 1，而且一模一样（都等于两者的相关系数）。
-所以"回归平均值"不是什么神秘的遗传力量，而是一个统计现象：
-只要两个量不是完全相关，极端的一方去预测另一方，结果总会更靠近平均值。
+Now flip it around: if you use "the child's height" to predict "the parents' height", do you get "tall children have even taller parents"?
+Switch to standard scores (how many standard deviations from the mean) and look:
+   Predicting children from parents: slope {np.polyfit(zp, zc, 1)[0]:.2f}
+   Predicting parents from children: slope {np.polyfit(zc, zp, 1)[0]:.2f}
+Both directions are less than 1, and exactly the same (both equal the correlation coefficient between the two).
+So "regression to the mean" isn't some mysterious hereditary force. It's a statistical phenomenon:
+as long as two quantities aren't perfectly correlated, when you use an extreme value of one to predict the other,
+the prediction always lands closer to the mean.
 
-想一想：
-  1. 一个篮球队员今年表现特别好，上了杂志封面，第二年表现变差了。这能说明"封面诅咒"吗？
-  2. 一次考试考得特别差的学生，下次考试往往会进步。这一定是补课的功劳吗？""")
+Think about it:
+  1. A basketball player has an amazing year and makes a magazine cover; the next year, his performance drops. Does this prove the "cover jinx"?
+  2. Students who do especially badly on one exam often improve on the next one. Is that necessarily thanks to extra tutoring?""")

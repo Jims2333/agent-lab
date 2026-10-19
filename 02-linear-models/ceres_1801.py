@@ -1,25 +1,27 @@
 """
-实验 1：1801 年，用最小二乘法找回"丢失的行星"
-================================================
+Lab 1: 1801, using least squares to find the "lost planet" again
+================================================================
 
-1801 年元旦，皮亚齐发现了谷神星，追踪了 41 天、约两打观测之后，它消失在太阳的光芒里。
-要在一年后重新找到它，就得用这几十个**带误差的观测**，算出最可信的轨道。
+On New Year's Day 1801, Piazzi discovered Ceres. After 41 days of tracking and about two dozen observations,
+it vanished into the Sun's glare.
+To find it again a year later, you have to take those few dozen **observations, each with some error**,
+and work out the most believable orbit.
 
-这里做一个大大简化的版本：
-  * 假设"行星"在天上的角度随时间匀速变化：角度 = a + b × 天数
-  * 41 天里随机挑 24 个晚上观测，每次观测都有一点误差
-  * 任务：预测第 364 天（12 月 31 日）它在哪里
+Here is a greatly simplified version:
+  * assume the "planet's" angle in the sky changes at a constant rate: angle = a + b × day
+  * observe on 24 randomly chosen nights within 41 days; every observation has a little error
+  * the task: predict where it will be on day 364 (December 31)
 
-真实的轨道计算复杂得多（椭圆轨道有 6 个未知数，地球自己也在动）。
-这里只保留最核心的想法：**用很多个有误差的观测，求出最可信的参数。**
+Real orbit calculations are much more complicated (an elliptical orbit has 6 unknowns, and the Earth is moving too).
+Here we keep only the core idea: **use many observations with errors to find the most believable parameters.**
 
-运行：python ceres_1801.py
+Run: python ceres_1801.py
 """
 
 import numpy as np
 
-TRUE_A, TRUE_B = 51.5, 0.214     # 真实的起始角度（度）和每天移动的角度（度/天）
-NOISE = 0.05                     # 每次观测的误差（度）
+TRUE_A, TRUE_B = 51.5, 0.214     # the true starting angle (degrees) and how far it moves each day (degrees/day)
+NOISE = 0.05                     # error of each observation (degrees)
 N_OBS, LAST_DAY, TARGET_DAY = 24, 40, 364
 
 rng = np.random.default_rng(1801)
@@ -32,14 +34,14 @@ def observe():
 
 
 def two_point_fit(t, y):
-    """最朴素的办法：只用第一次和最后一次观测，连一条直线。"""
+    """The most naive approach: use only the first and the last observation, and draw a straight line through them."""
     b = (y[-1] - y[0]) / (t[-1] - t[0])
     return y[0] - b * t[0], b
 
 
 def least_squares_fit(t, y):
-    """最小二乘：找一条直线，让所有观测点到直线的'误差平方和'最小。
-    求导令其为 0，得到两个方程（正规方程），手算 2×2 就能解出来。"""
+    """Least squares: find the straight line that minimizes the 'sum of squared errors' between all the observations and the line.
+    Take the derivatives and set them to 0 to get two equations (the normal equations): a 2×2 system you can solve by hand."""
     n, st, sy = len(t), t.sum(), y.sum()
     stt, sty = (t * t).sum(), (t * y).sum()
     b = (n * sty - st * sy) / (n * stt - st * st)
@@ -47,18 +49,18 @@ def least_squares_fit(t, y):
     return a, b
 
 
-# ---------------------------------------------------------------- 一次具体的"历史"
+# ---------------------------------------------------------------- One specific "history"
 t, y = observe()
 a2, b2 = two_point_fit(t, y)
 a, b = least_squares_fit(t, y)
 truth = TRUE_A + TRUE_B * TARGET_DAY
 
-print(f"皮亚齐的 {N_OBS} 次观测（第 0～{LAST_DAY} 天），每次误差约 ±{NOISE}°")
-print("   天数:", " ".join(f"{d:.0f}" for d in t[:12]), "…")
+print(f"Piazzi's {N_OBS} observations (days 0–{LAST_DAY}), each with an error of about ±{NOISE}°")
+print("   days:", " ".join(f"{d:.0f}" for d in t[:12]), "…")
 print()
 
-# 用 ASCII 画出观测点和最小二乘直线（为了看得清，纵轴画的是"减去真实直线后的偏差"）
-print("观测点（●）和最小二乘直线（─）相对真实位置的偏差：")
+# Draw the observations and the least squares line in ASCII (so you can see them, the vertical axis shows the "deviation from the true line")
+print("Deviation of the observations (●) and of the least squares line (─) from the true position:")
 rows = np.linspace(0.12, -0.12, 9)
 for r in rows:
     line = ""
@@ -72,19 +74,19 @@ for r in rows:
         else:
             line += " "
     print(f"   {r:+.2f}° |{line}")
-print("          " + "第 0 天" + " " * 28 + f"第 {LAST_DAY} 天\n")
+print("           " + "day 0" + " " * 30 + f"day {LAST_DAY}\n")
 
-print("最小二乘的'正规方程'（手算即可）：")
+print("The least squares 'normal equations' (you can solve them by hand):")
 print(f"   n = {len(t)},  Σt = {t.sum():.0f},  Σt² = {(t * t).sum():.0f},  Σy = {y.sum():.2f},  Σty = {(t * y).sum():.1f}")
-print(f"   解出：a = {a:.4f}°，b = {b:.5f}°/天")
+print(f"   Solution: a = {a:.4f}°, b = {b:.5f}°/day")
 lstsq = np.linalg.lstsq(np.column_stack([np.ones_like(t), t]), y, rcond=None)[0]
-print(f"   用 numpy 验算：a = {lstsq[0]:.4f}°，b = {lstsq[1]:.5f}°/天  ✓\n")
+print(f"   Checked with numpy: a = {lstsq[0]:.4f}°, b = {lstsq[1]:.5f}°/day  ✓\n")
 
-print(f"预测第 {TARGET_DAY} 天的位置（真实位置 {truth:.2f}°）：")
-print(f"   两点法：  {a2 + b2 * TARGET_DAY:.2f}°，误差 {abs(a2 + b2 * TARGET_DAY - truth):.2f}°")
-print(f"   最小二乘：{a + b * TARGET_DAY:.2f}°，误差 {abs(a + b * TARGET_DAY - truth):.2f}°\n")
+print(f"Predicted position on day {TARGET_DAY} (true position {truth:.2f}°):")
+print(f"   Two-point method: {a2 + b2 * TARGET_DAY:.2f}°, error {abs(a2 + b2 * TARGET_DAY - truth):.2f}°")
+print(f"   Least squares:    {a + b * TARGET_DAY:.2f}°, error {abs(a + b * TARGET_DAY - truth):.2f}°\n")
 
-# ---------------------------------------------------------------- 重演 2000 次历史
+# ---------------------------------------------------------------- Replay history 2000 times
 errs2, errs = [], []
 for _ in range(2000):
     t, y = observe()
@@ -94,14 +96,14 @@ for _ in range(2000):
     errs.append(abs(a + b * TARGET_DAY - truth))
 errs2, errs = np.array(errs2), np.array(errs)
 
-print("把这段历史重演 2000 次，统计预测误差：")
-print(f"   两点法：  平均误差 {errs2.mean():.2f}°，误差在半度以内的比例 {np.mean(errs2 < 0.5):.0%}")
-print(f"   最小二乘：平均误差 {errs.mean():.2f}°，误差在半度以内的比例 {np.mean(errs < 0.5):.0%}")
+print("Replaying this history 2,000 times and tallying the prediction errors:")
+print(f"   Two-point method: mean error {errs2.mean():.2f}°, within half a degree {np.mean(errs2 < 0.5):.0%} of the time")
+print(f"   Least squares:    mean error {errs.mean():.2f}°, within half a degree {np.mean(errs < 0.5):.0%} of the time")
 print("""
-只用两个观测，另外 22 个就白白浪费了，误差还会被拉长 364 天的"杠杆"放大。
-最小二乘让每个观测都出一份力，误差互相抵消，预测稳得多。
+Using only two observations throws the other 22 away, and the errors get magnified by a "lever" stretched out to 364 days.
+Least squares puts every observation to work, the errors cancel each other out, and the prediction is much steadier.
 
-想一想：
-  1. 把 NOISE 调大到 0.2，半度以内的比例会变成多少？
-  2. 观测天数从 41 天缩短到 10 天（LAST_DAY = 10），为什么预测会差很多？
-  3. 为什么是"误差的平方和"最小，而不是"误差的绝对值之和"最小？（提示：见 README 的概念解释）""")
+Think about it:
+  1. Raise NOISE to 0.2. What does the share within half a degree become?
+  2. Shorten the observation window from 41 days to 10 (LAST_DAY = 10). Why does the prediction get much worse?
+  3. Why minimize the "sum of squared errors" and not the "sum of absolute errors"? (Hint: see the Concepts in the README)""")
