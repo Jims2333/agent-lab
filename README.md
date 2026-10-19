@@ -1,200 +1,227 @@
-# 🤖 agent-lab
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/banner-dark.svg">
+  <img alt="agent-lab: nine chapters and the years their stories span, from 1801 to 2026" src="assets/banner-light.svg">
+</picture>
 
-**边做边学：从 1958 年的感知机，一路学到今天的 Harness、多 Agent 协同，以及让 Claude、GPT、DeepSeek 一起干活。**
+[![CI](https://github.com/Jims2333/agent-lab/actions/workflows/ci.yml/badge.svg)](https://github.com/Jims2333/agent-lab/actions/workflows/ci.yml)
+![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue)
+[![Code: MIT](https://img.shields.io/badge/code-MIT-green)](./LICENSE)
+[![Text: CC BY 4.0](https://img.shields.io/badge/text-CC%20BY%204.0-lightgrey)](./LICENSE-docs.md)
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/Jims2333/agent-lab)
 
-1958 年，《纽约时报》报道第一台会学习的机器时，用的标题是 *"New Navy Device Learns By Doing"*（边做边学）。
-这个仓库沿用同一个思路：每一章都先讲**真实发生过的故事**，再**亲手跑代码**复现关键时刻，最后才解释**概念**。
+**Learning by doing: from the 1958 perceptron to harness engineering, multi-agent systems, and getting Claude, GPT and DeepSeek to work together.**
 
-## 学习路线
+In 1958, when *The New York Times* reported on the first machine that could learn, the headline was *"New Navy Device Learns By Doing."*
+This course follows the same idea. Every chapter first tells **stories that really happened**, then has you **run code** that
+recreates the key moment, and only then explains the **concepts**.
 
-| 章节 | 内容 | 动手做什么 | 状态 |
-|---|---|---|---|
-| [01 机器学习从哪里来](./01-ml-origins/) | 1943–2026 的故事：感知机、AI 寒冬、反向传播、ImageNet、Transformer、Agent | 复现 1958 感知机、1969 XOR 困境、1986 反向传播 | ✅ |
-| [02 线性模型与梯度下降](./02-linear-models/) | 1801–2014 的故事：找回谷神星、最小二乘之争、柯西下山法、高尔顿的"回归"、LMS、Adam | 用高尔顿的真实数据手写梯度下降，比较批量与随机梯度下降 | ✅ |
-| [03 神经网络与自动求导](./03-neural-nets/) | 1970–2022 的故事：反向模式自动微分、万能逼近、梯度消失、ReLU、Dropout、深度学习框架 | 手写自动求导引擎并用它训练网络，观察 30 层网络里的梯度消失与爆炸 | ✅ |
-| [04 从 CNN 到 Transformer](./04-cnn-to-transformer/) | 1959–2020 的故事：猫的视觉皮层、Neocognitron、ResNet、LSTM、注意力的诞生、Transformer、ViT | 手写卷积与注意力，比较 RNN 和注意力，组装一个完整的 Transformer | ✅ |
-| [05 大语言模型与 API](./05-llm-and-api/) | 1913–2025 的故事：马尔可夫数字母、香农猜字母、词向量、BPE、规模定律、RLHF、DeepSeek-R1 | 训练 n-gram 模型和 BPE 分词器，玩转采样参数，用统一客户端调用 Claude / GPT / DeepSeek | ✅ |
-| [06 Agent 循环](./06-agent-loop/) | 1966–2025 的故事：ELIZA、Shakey、SHRDLU、ReAct、函数调用、SWE-bench、Claude Code | 迷你 ELIZA、用 JSON Schema 定义并安全执行工具、从零写一个 ReAct agent | ✅ |
-| [07 Harness 工程](./07-harness/) | 2024–2026 的故事：SWE-agent 的 ACI、Replit 删库事件、上下文工程、长时 agent 的交接、OpenAI 的 harness engineering | 给编程 agent 加上沙箱、权限闸门、预算、上下文整理、验收和日志；比较五种上下文管理策略 | ✅ |
-| [08 多 Agent 协同](./08-multi-agent/) | 1973–2025 的故事：Actor 模型、Hearsay-II 的黑板、合同网、《心智社会》、2023 年的组队热潮、MAST 失败分类、Anthropic 与 Cognition 的争论 | 编排者-工作者并行调研；合同网投标分活；多 agent 辩论；写-审循环在子进程里跑测试 | ✅ |
-| [09 跨模型协作](./09-cross-model/) | 1969–2026 的故事：浴室里写成的 RFC 1、TCP/IP、万维网、LSP、MCP、A2A | 在三家模型之间路由和故障转移；跨厂商交叉核对；用标准库实现迷你 A2A；毕业项目：三家模型分工做学习路线卡片 | ✅ |
+> 🀄 This course was first written in Chinese. The original Chinese edition is kept on the
+> [`chinese-edition`](https://github.com/Jims2333/agent-lab/tree/chinese-edition) branch.
 
-**番外篇**
+## Contents
 
-| 番外 | 内容 |
+- [Course map](#course-map)
+- [Side quests](#side-quests)
+- [Quick start](#quick-start)
+- [Using real models](#using-real-models)
+- [How the course is written](#how-the-course-is-written)
+- [After the course](#after-the-course)
+- [Repository layout](#repository-layout)
+- [Contributing](#contributing)
+- [License](#license)
+- [Citation](#citation)
+
+## Course map
+
+| Chapter | Stories | What you build |
+|---|---|---|
+| [1 · Where Machine Learning Came From](./01-ml-origins/) | 1943–2023: the perceptron, the AI winters, backpropagation, ImageNet, the Transformer, agents | Recreate the 1958 perceptron, the 1969 XOR dead end and 1986 backpropagation |
+| [2 · Linear Models and Gradient Descent](./02-linear-models/) | 1801–2014: finding Ceres again, the fight over least squares, Cauchy's descent method, Galton's "regression", LMS, Adam | Hand-written gradient descent on Galton's real data; batch vs stochastic gradient descent |
+| [3 · Neural Networks and Autodiff](./03-neural-nets/) | 1970–2022: reverse-mode autodiff, universal approximation, vanishing gradients, ReLU, dropout, deep learning frameworks | Write an autodiff engine from scratch and train a network with it; watch gradients vanish and explode in a 30-layer network |
+| [4 · From CNNs to Transformers](./04-cnn-to-transformer/) | 1959–2020: the cat's visual cortex, the Neocognitron, ResNet, LSTM, the birth of attention, the Transformer, ViT | Hand-written convolution and attention; RNN vs attention; assemble a complete Transformer block |
+| [5 · Large Language Models and APIs](./05-llm-and-api/) | 1913–2025: Markov counting letters, Shannon guessing letters, word vectors, BPE, scaling laws, RLHF, DeepSeek-R1 | Train an n-gram model and a BPE tokenizer, play with sampling settings, call Claude / GPT / DeepSeek through one client |
+| [6 · The Agent Loop](./06-agent-loop/) | 1966–2025: ELIZA, Shakey, SHRDLU, ReAct, function calling, SWE-bench, Claude Code | A mini ELIZA; tools defined with JSON Schema and run safely; a ReAct agent from scratch |
+| [7 · Harness Engineering](./07-harness/) | 2024–2026: SWE-agent's ACI, the Replit database deletion, context engineering, hand-offs for long-running agents, OpenAI's harness engineering | Give a coding agent a sandbox, a permission gate, budgets, context management, an acceptance check and a log; compare five context strategies |
+| [8 · Multi-Agent Collaboration](./08-multi-agent/) | 1971–2025: the Actor model, Hearsay-II's blackboard, the Contract Net, *The Society of Mind*, the 2023 wave, the MAST failure taxonomy, Anthropic vs Cognition | Parallel orchestrator–workers research; Contract Net bidding; multi-agent debate; a writer–reviewer loop that runs tests in a subprocess |
+| [9 · Cross-Model Collaboration](./09-cross-model/) | 1969–2026: RFC 1 written in a bathroom, TCP/IP, the Web, LSP, MCP, A2A | Routing and failover across three vendors; cross-vendor checking; a mini A2A in the standard library; capstone: three vendors build a study card together |
+
+## Side quests
+
+| Side quest | What it covers |
 |---|---|
-| [两个 AI 是怎么"聊天"的](./side-quests/ai-talks-to-ai/) | 让 Claude 和 DeepSeek / GPT 对话的原理：无状态 API、角色翻转、传话 harness、多 agent 分工、MCP / A2A。附可运行的 `relay.py` |
-| [两个 App 之间的桥梁](./side-quests/app-bridge/) | 让 ChatGPT 和 Claude 两个桌面 App 互相传话：软件之间的通信方式、MCP 协议底层、本地与远程服务器、隧道。附可运行的 MCP 信箱服务器 |
+| [1 · How Do Two AIs "Talk"?](./side-quests/ai-talks-to-ai/) | How Claude can chat with DeepSeek or GPT: stateless APIs, role flipping, a relay harness, splitting work between agents, MCP and A2A. Includes a runnable `relay.py` |
+| [2 · A Bridge Between the ChatGPT and Claude Apps](./side-quests/app-bridge/) | Letting the two desktop apps pass messages: how programs talk to each other, the MCP protocol underneath, local vs remote servers, tunnels. Includes a runnable MCP mailbox server |
 
-## 快速开始
+## Quick start
+
+You need Python 3.10 or newer. The first four chapters use only numpy; chapters 5–9 use only the standard library in mock mode.
 
 ```bash
 git clone https://github.com/Jims2333/agent-lab.git
 cd agent-lab
 pip install -r requirements.txt
 
-# 第一章的三个实验
+python tools/run_labs.py          # run every lab once (about a minute, no API key needed)
+cd 01-ml-origins && python perceptron_1958.py   # or start reading and run labs one by one
+```
+
+Or click **Open in GitHub Codespaces** above to get a ready-to-run environment in your browser.
+
+<details>
+<summary>Every lab, chapter by chapter</summary>
+
+```bash
+# Chapter 1
 cd 01-ml-origins
 python perceptron_1958.py
 python xor_1969.py
 python backprop_1986.py
 
-# 第二章的四个实验
+# Chapter 2
 cd ../02-linear-models
 python ceres_1801.py
 python gradient_descent_1847.py
 python galton_1886.py
 python lms_1960.py
 
-# 第三章的三个实验
+# Chapter 3
 cd ../03-neural-nets
 python autograd.py
 python mlp_moons.py
 python vanishing_gradient.py
 
-# 第四章的四个实验
+# Chapter 4
 cd ../04-cnn-to-transformer
 python convolution.py
 python attention.py
 python rnn_vs_attention.py
 python transformer_block.py
 
-# 第五章的四个实验（默认用假模型，不需要 API key）
+# Chapter 5 (mock model by default; no API key needed)
 cd ../05-llm-and-api
 python markov_1913.py
 python bpe_tokenizer.py
 python sampling.py
 python chat_api.py
 
-# 第六章的三个实验
+# Chapter 6
 cd ../06-agent-loop
 python eliza_1966.py
 python tools.py
 python react_agent.py
 
-# 第七章的两个实验
+# Chapter 7
 cd ../07-harness
 python harness.py
 python context_budget.py
 
-# 第八章的四个实验
+# Chapter 8
 cd ../08-multi-agent
 python orchestrator.py
 python contract_net.py
 python debate.py
 python write_review.py
 
-# 第九章的四个实验（加 --live 让配置了 key 的厂商用真实模型）
+# Chapter 9 (add --live to use real models for the vendors whose keys you have set)
 cd ../09-cross-model
 python router.py
 python cross_check.py
 python a2a_mini.py
 python capstone.py
 
-# 番外 1：两个 AI 聊天（mock 模式，不需要 API key）
+# Side quest 1: two AIs chatting (mock mode, no API key needed)
 cd ../side-quests/ai-talks-to-ai
 python relay.py --show-history
 
-# 番外 2：看看 App 和 MCP 服务器之间说了什么（需要 pip install "mcp[cli]"）
+# Side quest 2: see what an app and an MCP server say to each other (needs: pip install "mcp[cli]>=1.20,<2")
 cd ../app-bridge
 python wire_demo.py
 ```
 
-需要 Python 3.10+。前四章只依赖 numpy，第 5～9 章的假模型模式只用标准库。
-从第 5 章开始可以接入真实的大模型（需要对应的 API key，只放在环境变量里），但所有实验默认都用假模型，不需要任何 key 也能跑通。
+</details>
 
-| 厂商 | 环境变量 | 默认型号 |
-|---|---|---|
-| Claude | `ANTHROPIC_API_KEY` | `claude-opus-5-5` |
-| GPT | `OPENAI_API_KEY` | `gpt-5.5` |
-| DeepSeek | `DEEPSEEK_API_KEY` | `deepseek-v4-flash` |
+## Using real models
 
-> 关于真实模型模式：所有调用真实 API 的代码路径，作者都用模拟服务器测试过，但**没有用真实的 API key 跑过**。
-> 如果你遇到问题，欢迎提 issue。
+From chapter 5 on, labs can call real models. Keys are read from environment variables only. Every lab still works without them.
 
-## 学完之后
+| Vendor | Environment variable | Default model | Install |
+|---|---|---|---|
+| Claude | `ANTHROPIC_API_KEY` | `claude-opus-5-5` | `pip install "anthropic>=1.11"` |
+| GPT | `OPENAI_API_KEY` | `gpt-5.5` | `pip install "openai>=1.0"` |
+| DeepSeek | `DEEPSEEK_API_KEY` | `deepseek-v4-flash` | `pip install "openai>=1.0"` (OpenAI-compatible API) |
 
-九章走完，你手里已经有了一整套"玩具零件"：自动求导引擎、注意力、分词器、ReAct 循环、harness、多 agent 编排、适配层和迷你 A2A。接下来可以这样继续：
+Use `--provider claude|gpt|deepseek` in chapters 5–8, and `--live` in chapter 9. In Codespaces, add the keys as Codespaces secrets.
 
-1. **换上真实模型重跑一遍**：配置一两家的 key，用 `--provider` 或 `--live` 运行第 5～9 章，对比真实模型和假模型剧本的差别。真实模型不会按剧本"犯错"，这本身就很有启发。
-2. **建一个自己的小评测集**：第九章的路由表、交叉核对都依赖"哪家在哪类任务上够用"，这个问题只有你自己的测试数据能回答。
-3. **把手写的零件换成正式工具**：自动求导换成 PyTorch，模型调用换成各家官方 SDK，MCP 用官方的 `mcp` Python SDK，A2A 用 `a2a-sdk`。因为你知道它们里面在做什么，换起来会很快。
-4. **读原始资料**：每章末尾的参考资料都是一手来源，论文和原文往往比任何转述都精彩。
-5. **做一个自己的项目**：比如把番外 2 的 MCP 信箱和第九章的 A2A 结合起来，或者给第七章的 harness 加一道"委托给外部 agent 之前先问人"的权限闸门。
+> **Honest note:** every real-API code path was tested against a local mock server, but **not with real API keys**.
+> If something breaks with a real model, please [open an issue](https://github.com/Jims2333/agent-lab/issues/new?template=bug_report.yml).
 
-## 写作约定
+## How the course is written
 
-- **故事不编造**：人名、时间、地点、引语都有出处，每章末尾列出参考资料；只有单一来源的轶事会注明"据某某回忆"。
-- **先故事，后概念**：概念统一放在每章最后解释，并标注它在哪个故事里登场。
-- **代码从零写**：能用 numpy 手写的就不用框架，先看清原理，再用工具。
-- **每个实验都能跑**：固定随机种子，输出可复现，脚本末尾附思考题。
+**Stories are true.**
+- People, dates, places and quotes all have sources, listed at the end of each chapter.
+- Details that only one person reported are marked "according to X".
+- Anything that can't be verified is left out.
 
-## 目录结构
+**Story first, concepts last.** Concepts are explained at the end of each chapter, each linked to the story where it first appears.
+
+**Code from scratch.** If it can be written with numpy or the standard library, it is, so you see the idea before you reach for a framework.
+
+**Every lab runs.** Random seeds are fixed so the output is reproducible, labs that use a language model default to a mock model, and every script ends with a few *Think about it* questions.
+
+## After the course
+
+After nine chapters you have a box of toy parts: an autodiff engine, attention, a tokenizer, a ReAct loop, a harness,
+multi-agent orchestration, an adapter layer and a mini A2A. Some ways to keep going:
+
+1. **Run it again with real models.**
+   - Set a key for one or two vendors and run chapters 5–9 with `--provider` or `--live`.
+   - Compare with the mock scripts. Real models won't make the scripted mistakes, and that difference is a lesson in itself.
+2. **Build your own small eval set.** Chapter 9's routing table and cross-checking both depend on knowing which model is good enough for which task, and only your own test data can answer that.
+3. **Swap the hand-made parts for real tools.** Replace autodiff with PyTorch, the model calls with each vendor's official SDK, MCP with the official `mcp` Python SDK, and A2A with `a2a-sdk`. Because you know what they do inside, the switch will be quick.
+4. **Read the original sources.** Every chapter ends with first-hand references; the papers and original writing are often better than any retelling.
+5. **Build something of your own.** For example, combine side quest 2's MCP mailbox with chapter 9's A2A, or give chapter 7's harness a permission gate that asks you before delegating work to an outside agent.
+
+## Repository layout
 
 ```
 agent-lab/
-├── README.md
-├── requirements.txt
-├── 01-ml-origins/              # 第一章：机器学习从哪里来
-│   ├── README.md               #   故事 → 实验 → 概念 → 参考资料
-│   ├── perceptron_1958.py
-│   ├── xor_1969.py
-│   └── backprop_1986.py
-├── 02-linear-models/           # 第二章：线性模型与梯度下降
-│   ├── README.md
-│   ├── ceres_1801.py
-│   ├── gradient_descent_1847.py
-│   ├── galton_1886.py
-│   ├── lms_1960.py
-│   └── data/galton_1886.csv    #   高尔顿 1886 年的真实身高数据
-├── 03-neural-nets/             # 第三章：神经网络与自动求导
-│   ├── README.md
-│   ├── autograd.py             #   手写的自动求导引擎（Value 类）
-│   ├── mlp_moons.py
-│   └── vanishing_gradient.py
-├── 04-cnn-to-transformer/      # 第四章：从 CNN 到 Transformer
-│   ├── README.md
-│   ├── convolution.py
-│   ├── attention.py
-│   ├── rnn_vs_attention.py
-│   └── transformer_block.py
-├── 05-llm-and-api/            # 第五章：大语言模型与 API
-│   ├── README.md
-│   ├── markov_1913.py
-│   ├── bpe_tokenizer.py
-│   ├── sampling.py
-│   ├── chat_api.py
-│   └── data/corpus.txt         #   第 1～4 章的正文，当作训练语料
-├── 06-agent-loop/              # 第六章：Agent 循环
-│   ├── README.md
-│   ├── eliza_1966.py
-│   ├── tools.py                #   工具说明书 + 安全执行（后面几章也会用）
-│   └── react_agent.py
-├── 07-harness/                 # 第七章：Harness 工程
-│   ├── README.md
-│   ├── harness.py
-│   └── context_budget.py
-├── 08-multi-agent/             # 第八章：多 Agent 协同
-│   ├── README.md
-│   ├── orchestrator.py         #   工作者复用第六章的 ReAct agent
-│   ├── contract_net.py
-│   ├── debate.py
-│   └── write_review.py
-├── 09-cross-model/             # 第九章：跨模型协作
-│   ├── README.md
-│   ├── team.py                 #   三家厂商的名单：--live 时有 key 的用真实模型
-│   ├── router.py
-│   ├── cross_check.py
-│   ├── a2a_mini.py             #   用标准库实现的 A2A 1.0 最小子集
-│   └── capstone.py             #   毕业项目：复用第 6～9 章的零件
-├── common/
-│   └── llm.py                  # 第 5～9 章共用：统一调用 Claude / GPT / DeepSeek / 假模型
-└── side-quests/
-    ├── ai-talks-to-ai/         # 番外 1：两个 AI 是怎么聊天的
-    │   ├── README.md
-    │   └── relay.py
-    └── app-bridge/             # 番外 2：ChatGPT 和 Claude 两个 App 之间的桥梁
-        ├── README.md
-        ├── bridge_server.py
-        └── wire_demo.py
+├── 01-ml-origins/            Chapter 1: stories → labs → concepts → references
+├── 02-linear-models/         Chapter 2 (data/galton_1886.csv: Galton's real 1886 height data)
+├── 03-neural-nets/           Chapter 3 (autograd.py: a hand-written autodiff engine)
+├── 04-cnn-to-transformer/    Chapter 4
+├── 05-llm-and-api/           Chapter 5 (data/corpus.txt: the text of chapters 1–4, used as training data)
+├── 06-agent-loop/            Chapter 6 (tools.py: tool specs + safe execution, reused later)
+├── 07-harness/               Chapter 7
+├── 08-multi-agent/           Chapter 8 (workers reuse chapter 6's ReAct agent)
+├── 09-cross-model/           Chapter 9 (a2a_mini.py: a stdlib subset of A2A 1.0; capstone.py reuses chapters 6–9)
+├── common/llm.py             Shared by chapters 5–9: one client for Claude / GPT / DeepSeek / mock
+├── side-quests/
+│   ├── ai-talks-to-ai/       Side quest 1: how two AIs chat
+│   └── app-bridge/           Side quest 2: a bridge between the ChatGPT and Claude apps
+├── tools/
+│   ├── run_labs.py           Runs every lab with the mock model (used by CI)
+│   └── check_links.py        Checks every relative link and #anchor (used by CI)
+├── assets/                   Banner images
+├── .github/                  CI workflow, issue forms, PR template
+├── .devcontainer/            Codespaces / dev container setup
+├── CONTRIBUTING.md · CODE_OF_CONDUCT.md · SECURITY.md · CITATION.cff
+└── LICENSE (code: MIT) · LICENSE-docs.md (text: CC BY 4.0)
 ```
+
+## Contributing
+
+Fact corrections are the most valuable contribution: this course only works if every story is true.
+See [CONTRIBUTING.md](./CONTRIBUTING.md), and use the issue forms for
+[fact corrections](https://github.com/Jims2333/agent-lab/issues/new?template=fact_correction.yml),
+[bugs](https://github.com/Jims2333/agent-lab/issues/new?template=bug_report.yml) and
+[chapter ideas](https://github.com/Jims2333/agent-lab/issues/new?template=chapter_idea.yml).
+
+## License
+
+- **Code**: [MIT](./LICENSE).
+- **Text**: [CC BY 4.0](./LICENSE-docs.md). Reuse, translate and remix it, with credit.
+
+## Citation
+
+If this course helps your teaching or writing, GitHub's **Cite this repository** button (from [CITATION.cff](./CITATION.cff))
+gives you a ready-made citation.

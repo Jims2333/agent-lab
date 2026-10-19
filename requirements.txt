@@ -1,11 +1,11 @@
-# 第 1～4 章需要：
+# Chapters 1–4 need:
 numpy>=1.24
 
-# 第 5～9 章默认用假模型，只需要标准库。
-# 想接真实模型（--provider claude/gpt/deepseek 或第九章的 --live），按需安装：
+# Chapters 5–9 use a mock model by default and need only the standard library.
+# To call real models (--provider claude/gpt/deepseek, or --live in chapter 9), install what you need:
 # anthropic>=1.11      # Claude
-# openai>=1.0          # GPT 和 DeepSeek（DeepSeek 兼容 OpenAI 的接口）
+# openai>=1.0          # GPT and DeepSeek (DeepSeek's API is OpenAI-compatible)
 
-# 番外 1（side-quests/ai-talks-to-ai）的真实模型模式同上。
-# 番外 2（side-quests/app-bridge）需要：
-# mcp[cli]>=1.20
+# Side quest 1 (side-quests/ai-talks-to-ai): same as above for real-model mode.
+# Side quest 2 (side-quests/app-bridge) needs:
+# mcp[cli]>=1.20,<2    # written for the 1.x SDK; 2.x renamed FastMCP
