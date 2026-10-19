@@ -1,344 +1,343 @@
-# 第五章　大语言模型与 API：一场持续百年的"猜下一个字"游戏
+# Chapter 5 — Large Language Models and APIs: A Century-Long Game of "Guess the Next Word"
 
-> 你和 ChatGPT、Claude、DeepSeek 聊天时，它们在做的事情说穿了只有一件：**预测下一个 token**。
-> 这个想法最早可以追溯到 1913 年，一位俄国数学家拿着普希金的长诗，一个字母一个字母地数。
-> 这一章讲这场"猜下一个字"的游戏怎么一路玩到了今天，以及怎么通过 API 去用这些模型。
+> When you chat with ChatGPT, Claude or DeepSeek, what they are doing, once you strip it down, is just one thing: **predicting the next token**.
+> The idea goes back to 1913, when a Russian mathematician took a long poem by Pushkin and counted it, letter by letter.
+> This chapter is about how this game of "guess the next word" has been played all the way to today, and how to use these models through an API.
 
-**怎么读这一章：** 先看故事，再跑实验，最后看[概念解释](#概念解释)。
-从这一章开始，实验会用到仓库根目录下的公共客户端 [`common/llm.py`](../common/llm.py)，它统一了 Claude、GPT、DeepSeek 三家的接口。
-所有实验默认用**假模型（mock）**，不需要任何 API key 也能跑。
+**How to read this chapter:** Read the stories first, then run the labs, and save the [Concepts](#concepts) for last. The labs use a mock model by default, so no API key is needed.
+Starting with this chapter, the labs use the shared client in the repo root, [`common/llm.py`](../common/llm.py), which puts Claude, GPT and DeepSeek behind one common interface.
 
-| 年份 | 发生了什么 | 对应实验 / 概念 |
+| When | What happened | Lab / concept |
 |---|---|---|
-| 1913 | 马尔可夫数《叶甫盖尼·奥涅金》的字母 | 🧪 `markov_1913.py` |
-| 1948–1951 | 香农的 n-gram 和"猜字母"实验 | 语言模型、困惑度 |
-| 2003–2013 | 神经语言模型和词向量 | 词嵌入 |
-| 1994–2016 | BPE：从压缩算法到分词器 | 🧪 `bpe_tokenizer.py` |
-| 2019–2022 | GPT-2、规模定律、GPT-3、Chinchilla | 规模定律 |
-| 2022 | InstructGPT 和 RLHF | 预训练、微调、RLHF |
-| 2025 | DeepSeek-R1 | 推理模型、开放权重 |
-| — | 温度和采样 | 🧪 `sampling.py` |
-| — | 通过 API 使用大模型 | 🧪 `chat_api.py` |
+| 1913 | Markov counts the letters of *Eugene Onegin* | 🧪 `markov_1913.py` |
+| 1948–1951 | Shannon's n-grams and "guess the letter" experiment | Language models, perplexity |
+| 2003–2013 | Neural language models and word vectors | Word embeddings |
+| 1994–2016 | BPE: from compression algorithm to tokenizer | 🧪 `bpe_tokenizer.py` |
+| 2019–2022 | GPT-2, scaling laws, GPT-3, Chinchilla | Scaling laws |
+| 2022 | InstructGPT and RLHF | Pretraining, fine-tuning, RLHF |
+| 2025 | DeepSeek-R1 | Reasoning models, open weights |
+| — | Temperature and sampling | 🧪 `sampling.py` |
+| — | Using large models through an API | 🧪 `chat_api.py` |
 
 ---
 
-## 序幕　1913 年，圣彼得堡：数字母的数学家
+## Prologue — 1913, St. Petersburg: The Mathematician Who Counted Letters
 
-**安德烈·马尔可夫（Andrey Markov）** 是圣彼得堡的数学家，脾气出了名地倔。
-当时，另一位数学家**涅克拉索夫（Pavel Nekrasov）** 提出了一个论证：概率论里的"大数定律"只对**相互独立**的事件成立；
-既然社会统计数字（比如犯罪率）很稳定，那么人们的选择就是相互独立的，由此可以推出"自由意志"存在。
-马尔可夫反感这种把概率论拉去给神学背书的做法。更重要的是，他认为论证里的数学前提就是错的：
-**相互依赖的事件，同样可以有稳定的平均值。**
+**Andrey Markov** was a mathematician in St. Petersburg, famous for his stubborn temper.
+At the time, another mathematician, **Pavel Nekrasov**, had put forward an argument: the "law of large numbers" in probability theory holds only for **independent** events;
+since social statistics (crime rates, for example) are very stable, people's choices must be independent of each other, and from that you can conclude that "free will" exists.
+Markov disliked this way of dragging probability theory in to vouch for theology. More importantly, he believed the mathematical premise of the argument was simply wrong:
+**events that depend on each other can have stable averages too.**
 
-为了证明这一点，他做了一件看起来很笨的事：拿起普希金的诗体小说《叶甫盖尼·奥涅金》，
-把前 2 万个字母一个个分成元音和辅音，统计结果是元音约 43%、辅音约 57%。
-接着他又统计：前一个字母是元音时，下一个是元音的概率是多少？是辅音时又是多少？
-两者差别很大：**下一个字母取决于前一个字母**。可整段文字的统计规律依然稳定。
+To prove it, he did something that looked rather dumb: he took Pushkin's novel in verse *Eugene Onegin*
+and sorted its first 20,000 letters, one by one, into vowels and consonants. The count came out at about 43% vowels and about 57% consonants.
+Then he counted again: when a letter is a vowel, what is the probability that the next one is a vowel? And when it is a consonant?
+The two were very different: **the next letter depends on the letter before it**. And yet the statistics of the text as a whole stayed stable.
 
-1913 年，他发表了这项研究。这种"下一个状态只取决于当前状态"的链条，后来就叫**马尔可夫链**。
-文字第一次被当成一个可以用概率描述的序列。
+In 1913, he published this study. This kind of chain, where "the next state depends only on the current state," later came to be called a **Markov chain**.
+For the first time, text was treated as a sequence that could be described with probabilities.
 
-> 🧪 **动手**：运行 [`markov_1913.py`](./markov_1913.py)。用本仓库前四章的文字重做马尔可夫的实验，
-> 再训练 1～4 阶的 n-gram 模型，让它们续写"神经网络"。
+> 🧪 **Try it**: run [`markov_1913.py`](./markov_1913.py). Redo Markov's experiment on the text of this repo's first four chapters,
+> then train n-gram models of order 1, 2, 3, 4, 6 and 8 and have them continue "neural network".
 
-> 💡 伏笔：→ [语言模型](#1-语言模型)
-
----
-
-## 第一幕　1948–1951 年：香农的"猜字母"游戏
-
-1948 年，贝尔实验室的**克劳德·香农（Claude Shannon）** 发表了信息论的奠基之作《通信的数学理论》。
-文章里有一段很好玩的演示：他用越来越复杂的统计规则来"造"英语。
-- 每个字母等概率随机出现，造出来的是 "XFOML RXKHRJFFJUJ ZLPWCFWKCYJ…"，完全是乱码；
-- 按英语里字母出现的频率来抽，就开始有点像样了；
-- 再考虑"前一两个字母是什么"，造出来的东西越来越像英语；
-- 换成以单词为单位，甚至能拼出几个看起来通顺的短语。
-
-这就是 **n-gram 语言模型**：根据前面 n-1 个符号，预测下一个。
-
-1951 年，香农又发表了《印刷英语的预测与熵》。他让人看一段文字的开头，猜下一个字母是什么，记录要猜几次才对。
-结果，他估计英语每个字母的信息量只有大约 0.6～1.3 比特，远低于随机字母的 4.7 比特。
-**人类语言有大量的冗余，下一个字往往是可以猜到的。** 七十年后，大模型的训练目标正是这个游戏：猜下一个 token。
-
-> 💡 伏笔：→ [n-gram 与数据稀疏](#2-n-gram-与数据稀疏)、[困惑度](#3-困惑度)
+> 💡 Look ahead: → [Language models](#1-language-models)
 
 ---
 
-## 第二幕　2003–2013 年：把词变成向量
+## Act 1 — 1948–1951: Shannon's "Guess the Letter" Game
 
-n-gram 有一个致命弱点：它只能"死记硬背"。训练语料里出现过"猫在沙发上睡觉"，
-它对"狗在沙发上睡觉"仍然一无所知，因为它不知道"猫"和"狗"很像。上下文越长，没见过的组合越多（实验 1 里能看到这一点）。
+In 1948, **Claude Shannon** of Bell Labs published the founding work of information theory, *A Mathematical Theory of Communication*.
+It contains a delightful demo: he "built" English with more and more elaborate statistical rules.
+- If every letter appears at random with equal probability, what comes out is "XFOML RXKHRJFFJUJ ZLPWCFWKCYJ…", pure gibberish;
+- If you draw the letters according to how often they appear in English, it starts to look a bit more like the real thing;
+- If you also take into account "what the previous one or two letters were," the output looks more and more like English;
+- And if you switch to whole words as the unit, it can even string together a few phrases that read smoothly.
 
-2003 年，**本吉奥**等人在《机器学习研究杂志》上发表了《一个神经概率语言模型》。
-他们的核心想法是：给每个词分配一个**向量**（几十到几百个数字），意思相近的词，向量也相近。
-这样，模型从"猫"学到的东西，就能自然地迁移到"狗"身上。这就是**词嵌入**。
+This is the **n-gram language model**: predict the next symbol from the n-1 symbols before it.
 
-2013 年，谷歌的**托马斯·米科洛夫（Tomas Mikolov）** 等人发布了 **word2vec**，让训练词向量变得又快又便宜。
-人们惊讶地发现，这些向量里藏着语义关系：`国王 - 男人 + 女人` 算出来的向量，最接近的词是 `女王`。
+In 1951, Shannon published *Prediction and Entropy of Printed English*. He had people look at the beginning of a passage, guess the next letter, and recorded how many guesses it took to get it right.
+From the results, he estimated that each letter of English carries only about 0.6 to 1.3 bits of information, far below the 4.7 bits of a random letter.
+**Human language is highly redundant, and what comes next can often be guessed.** Seventy years later, the training objective of large models is exactly this game: guess the next token.
 
-今天的大模型，第一步依然是把每个 token 变成一个向量（第四章实验 4 里的"词嵌入"）。
-
-> 💡 伏笔：→ [词嵌入](#5-词嵌入)
-
----
-
-## 第三幕　1994–2016 年：一个压缩算法，变成了分词器
-
-模型该以什么为单位来读文字？以"字母"为单位，序列太长；以"词"为单位，词表太大，新词、错别字、人名全都不认识。
-
-答案来自一个意想不到的地方。1994 年 2 月，程序员**菲利普·盖奇（Philip Gage）** 在《C 用户杂志》上发表了一篇短文
-《一种新的数据压缩算法》。方法很简单：在数据里找出**出现次数最多的一对相邻字节**，用一个没用过的新字节代替它，然后重复。
-它叫 **BPE（字节对编码）**。
-
-二十多年后，爱丁堡大学的**里科·森里奇（Rico Sennrich）**、巴里·哈多（Barry Haddow）和亚历山德拉·伯奇（Alexandra Birch）
-把 BPE 用到了机器翻译上：常见的词保留为一个整体，罕见的词拆成更小的"子词"。
-这样，词表大小可控，又不会遇到"不认识的词"。后来的 GPT-2 把 BPE 改成直接在字节上运行，任何语言、任何符号都能处理。
-今天几乎所有大模型的分词器，都是这个思路的变体。
-
-> 🧪 **动手**：运行 [`bpe_tokenizer.py`](./bpe_tokenizer.py)。从零训练一个 BPE 分词器，看它先学会了哪些"词"，
-> 再比较中文、英文、生僻字、代码各要多少个 token。
-
-> 💡 伏笔：→ [token 与 BPE](#4-token-与-bpe)
+> 💡 Look ahead: → [n-grams and data sparsity](#2-n-grams-and-data-sparsity), [Perplexity](#3-perplexity)
 
 ---
 
-## 第四幕　2019–2022 年：越大越好？
+## Act 2 — 2003–2013: Turning Words into Vectors
 
-2018 年，OpenAI 发布了第一代 GPT（第一章讲过）。2019 年 2 月，他们发布 **GPT-2** 时做了一个罕见的决定：
-出于对滥用的担忧，**暂不公开**最大的 15 亿参数版本，只先放出小模型，再在几个月里分阶段放出更大的版本。
-最大的模型直到 2019 年 11 月才完整公开。这次"分阶段发布"引发了 AI 界关于开放与安全的长期争论。
+n-grams have a fatal weakness: all they can do is "memorize by rote." If the training corpus contains "the cat is sleeping on the sofa,"
+the model still knows nothing about "the dog is sleeping on the sofa," because it doesn't know that "cat" and "dog" are alike. The longer the context, the more combinations it has never seen (you can see this in Lab 1).
 
-2020 年 1 月，OpenAI 的**贾里德·卡普兰（Jared Kaplan）** 等人发表了《神经语言模型的规模定律》。
-他们发现：模型的表现（测试损失）和**参数量、数据量、计算量**之间，存在非常平滑、可预测的幂律关系。
-也就是说，只要按比例投入更多资源，模型就会稳定地变好。几个月后的 **GPT-3**（1750 亿参数）把这个判断推到了极致，
-还展示了一种新能力：只要在提示里给几个例子，不用重新训练，模型就能学会新任务（"上下文学习"）。
+In 2003, **Bengio** and colleagues published *A Neural Probabilistic Language Model* in the *Journal of Machine Learning Research*.
+Their core idea: give every word a **vector** (a few dozen to a few hundred numbers), so that words with similar meanings get similar vectors.
+That way, what the model learns from "cat" carries over naturally to "dog." This is the **word embedding**.
 
-2022 年，DeepMind 的 **Chinchilla** 论文修正了这个故事：他们用 1.4 万亿个 token 训练了一个 700 亿参数的模型，
-表现大幅超过了参数多 4 倍、但只用了 3000 亿 token 训练的 Gopher（2800 亿参数）。
-结论是：之前的大模型普遍**"喂得太少"**，数据和参数应该同步增长。
+In 2013, **Tomas Mikolov** and colleagues at Google released **word2vec**, which made training word vectors fast and cheap.
+People were amazed to find semantic relationships hidden in these vectors: compute `king - man + woman`, and the word closest to the resulting vector is `queen`.
 
-> 💡 伏笔：→ [规模定律](#9-规模定律)
+Today's large models still start by turning each token into a vector (the "word embeddings" in Lab 4 of Chapter 4).
 
----
-
-## 第五幕　2022 年：从"会续写"到"听得懂话"
-
-预训练出来的模型很会**续写**，但不一定会**回答**。你问它一个问题，它可能接着编出更多的问题。
-
-2022 年，OpenAI 的 Long Ouyang 等人发表了 **InstructGPT** 论文：
-先请人写出高质量的"问题 + 回答"示范，用它们微调模型；再请人给模型的多个回答排序，训练一个"打分模型"；
-最后用强化学习让模型去争取高分。这套方法叫 **RLHF**（基于人类反馈的强化学习）。
-
-结果令人意外：标注员更喜欢只有 **13 亿参数**的 InstructGPT 的回答，而不是 **1750 亿参数**的原版 GPT-3。
-模型的"能力"和它"是否按人的意图行事"，是两回事。同年 11 月，用类似方法训练的 ChatGPT 上线了。
-
-> 💡 伏笔：→ [预训练、微调与 RLHF](#8-预训练微调与-rlhf)
+> 💡 Look ahead: → [Word embeddings](#5-word-embeddings)
 
 ---
 
-## 第六幕　2025 年 1 月：DeepSeek 带来的震动
+## Act 3 — 1994–2016: A Compression Algorithm Becomes a Tokenizer
 
-2025 年 1 月 20 日，中国公司**深度求索（DeepSeek）** 发布了推理模型 **DeepSeek-R1**，并开放了模型权重。
-它在数学、编程等需要推理的任务上，表现接近当时最强的闭源模型。
+What unit should a model read text in? With "letters" as the unit, the sequences get too long; with "words," the vocabulary gets too big, and new words, typos and names are all unknown to it.
 
-引起轰动的还有成本。DeepSeek 在此前的 V3 技术报告里写道，V3 的最后一轮正式训练用了约 278.8 万个 H800 GPU 小时，
-按每小时 2 美元计算，约 560 万美元。这个数字不包括此前的研究和实验，但仍然远低于外界对顶级模型训练成本的想象。
+The answer came from an unexpected place. In February 1994, the programmer **Philip Gage** published a short article, *A New Algorithm for Data Compression*, in *The C Users Journal*.
+The method was simple: find the **pair of adjacent bytes that occurs most often** in the data, replace it with a new byte that hasn't been used yet, and repeat.
+It is called **BPE (byte pair encoding)**.
 
-1 月 27 日，DeepSeek 的应用冲上了美国 App Store 免费榜的前列，英伟达股价当天下跌约 17%，市值蒸发约 5900 亿美元，
-创下美国股市单日市值损失的纪录。
+More than twenty years later, **Rico Sennrich**, Barry Haddow and Alexandra Birch at the University of Edinburgh
+applied BPE to machine translation: common words are kept whole, and rare words are split into smaller "subwords."
+That keeps the vocabulary size under control without ever running into an "unknown word." Later, GPT-2 changed BPE to run directly on bytes, so it can handle any language and any symbol.
+Almost every large model's tokenizer today is a variation on this idea.
 
-对这个仓库来说，DeepSeek 还有一层意义：它的 API 和 OpenAI 的接口兼容，番外 1 里就是这样把它接进来的。
+> 🧪 **Try it**: run [`bpe_tokenizer.py`](./bpe_tokenizer.py). Train a BPE tokenizer from scratch and see which "words" it learns first,
+> then compare how many tokens English, Chinese, rare words and code each take.
 
-> 💡 伏笔：→ [推理模型](#10-推理模型)、[开放权重与 API](#12-开放权重与闭源-api)
-
----
-
-## 第七幕　今天：模型变成了服务
-
-最大的模型有几千亿个参数，普通电脑根本装不下。所以大多数人用大模型的方式，是通过网络调用厂商提供的 **API**：
-把一段对话发过去，收到模型的回复，按使用的 token 数付费。
-
-API 有几个初学者一定会踩的坑，实验 4 会一一演示：
-1. 它**不记得你**：每次请求都是全新的，"记忆"要靠你把历史对话一起发过去；
-2. 因此对话越长，每次请求越**贵**、越**慢**；
-3. 生成需要时间，所以要用**流式输出**，边生成边显示。
-
-> 🧪 **动手**：运行 [`sampling.py`](./sampling.py) 看采样参数怎么影响输出，
-> 再运行 [`chat_api.py`](./chat_api.py)，用假模型或真实模型体验 API 的这三个特点。
-
-> 💡 伏笔：→ [采样](#7-采样温度top-ktop-p)、[API 的基本规则](#11-api-的基本规则)
+> 💡 Look ahead: → [Tokens and BPE](#4-tokens-and-bpe)
 
 ---
 
-## 尾声
+## Act 4 — 2019–2022: Is Bigger Better?
 
-从马尔可夫数字母，到香农猜字母，再到今天的大模型，任务始终没变：**根据前文，预测下一个**。
-变的是三件事：模型能看的前文越来越长（从 1 个字母到上百万个 token）；预测的方法从计数变成了神经网络；
-训练的数据从一首长诗变成了大半个互联网。
+In 2018, OpenAI released the first GPT (covered in Chapter 1). In February 2019, when they released **GPT-2**, they made an unusual decision:
+out of concern about misuse, they **held back** the largest version, with 1.5 billion parameters, for the time being. They released only a small model at first, then released bigger versions in stages over several months.
+The largest model wasn't fully released until November 2019. This "staged release" set off a long-running debate in the AI world about openness and safety.
 
-但一个只会"说"的模型，还不能替你"做事"。下一章，我们给它接上工具，让它变成一个 **agent**。
+In January 2020, **Jared Kaplan** of OpenAI and colleagues published *Scaling Laws for Neural Language Models*.
+They found that a model's performance (its test loss) follows a very smooth, predictable power-law relationship with **the number of parameters, the amount of data and the amount of compute**.
+In other words, as long as you put in more resources in proportion, the model gets steadily better. A few months later, **GPT-3** (175 billion parameters) pushed this bet to the extreme,
+and also showed a new ability: give it just a few examples in the prompt, with no retraining, and the model can pick up a new task ("in-context learning").
+
+In 2022, DeepMind's **Chinchilla** paper revised this story: they trained a 70-billion-parameter model on 1.4 trillion tokens,
+and it substantially outperformed Gopher (280 billion parameters), which had 4 times as many parameters but was trained on only 300 billion tokens.
+The conclusion: earlier large models had generally been **"underfed,"** and data and parameters should grow together.
+
+> 💡 Look ahead: → [Scaling laws](#9-scaling-laws)
 
 ---
 
-## 动手：四个小实验
+## Act 5 — 2022: From "Good at Continuing" to "Good at Listening"
+
+A pretrained model is great at **continuing** text, but not necessarily at **answering**. Ask it a question, and it may just go on to make up more questions.
+
+In 2022, Long Ouyang and colleagues at OpenAI published the **InstructGPT** paper:
+first, have people write high-quality "question + answer" demonstrations and fine-tune the model on them; next, have people rank several of the model's answers and train a "scoring model";
+finally, use reinforcement learning to get the model to go after high scores. This method is called **RLHF** (reinforcement learning from human feedback).
+
+The result was surprising: labelers preferred the answers of InstructGPT, with only **1.3 billion parameters**, over those of the original GPT-3, with **175 billion parameters**.
+A model's "ability" and "whether it does what people intend" are two different things. In November of the same year, ChatGPT, trained with a similar method, went live.
+
+> 💡 Look ahead: → [Pretraining, fine-tuning and RLHF](#8-pretraining-fine-tuning-and-rlhf)
+
+---
+
+## Act 6 — Jan 2025: The DeepSeek Shock
+
+On January 20, 2025, the Chinese company **DeepSeek** released the reasoning model **DeepSeek-R1** and made its model weights openly available.
+On tasks that need reasoning, such as math and programming, its performance came close to the strongest closed models of the time.
+
+What also caused a stir was the cost. In its earlier V3 technical report, DeepSeek wrote that the final official training run of V3 took about 2.788 million H800 GPU hours,
+or about $5.6 million at $2 per hour. That figure doesn't include the earlier research and experiments, but it was still far below what people imagined it cost to train a top model.
+
+On January 27, DeepSeek's app shot into the top ranks of the US App Store's free chart, and Nvidia's stock fell about 17% that day, wiping out about $590 billion in market value,
+a record single-day loss of market value in the US stock market.
+
+For this repo, DeepSeek matters in one more way: its API is compatible with OpenAI's interface, and that's how Side Quest 1 plugs it in.
+
+> 💡 Look ahead: → [Reasoning models](#10-reasoning-models), [Open weights and APIs](#12-open-weights-and-closed-apis)
+
+---
+
+## Act 7 — Today: Models Become a Service
+
+The biggest models have hundreds of billions of parameters; an ordinary computer simply can't hold them. So most people use large models by calling an **API** that a provider offers over the network:
+send a conversation over, get the model's reply back, and pay by the number of tokens used.
+
+APIs have a few pitfalls that beginners are bound to fall into, and Lab 4 demos them one by one:
+1. It **doesn't remember you**: every request starts from scratch, and any "memory" depends on you sending the conversation history along with it;
+2. So the longer the conversation, the more **expensive** and the **slower** each request gets;
+3. Generating takes time, so you use **streaming** to show the output while it is being generated.
+
+> 🧪 **Try it**: run [`sampling.py`](./sampling.py) to see how the sampling parameters change the output,
+> then run [`chat_api.py`](./chat_api.py) to experience these three properties of APIs with the mock model or a real model.
+
+> 💡 Look ahead: → [Sampling](#7-sampling-temperature-top-k-top-p), [The basic rules of APIs](#11-the-basic-rules-of-apis)
+
+---
+
+## Epilogue — The Task That Never Changed
+
+From Markov counting letters, to Shannon guessing letters, to today's large models, the task has never changed: **given what came before, predict what comes next**.
+Three things did change: the context a model can see has grown longer and longer (from 1 letter to millions of tokens); the way of predicting has gone from counting to neural networks;
+and the training data has gone from one long poem to the better part of the internet.
+
+But a model that can only "talk" can't yet "do things" for you. In the next chapter, we connect it to tools and turn it into an **agent**.
+
+---
+
+## Labs
 
 ```bash
 pip install numpy
-python markov_1913.py     # 1913/1948：马尔可夫的实验和 n-gram 语言模型（约 10 秒）
-python bpe_tokenizer.py   # 1994/2016：从零训练 BPE 分词器（约 6 秒）
-python sampling.py        # 温度、top-k、top-p
-python chat_api.py        # API：无状态、token 和费用、流式输出（默认用假模型）
+python markov_1913.py     # 1913/1948: Markov's experiment and n-gram language models (about 2 seconds)
+python bpe_tokenizer.py   # 1994/2016: training a BPE tokenizer from scratch (about 2 seconds)
+python sampling.py        # temperature, top-k, top-p
+python chat_api.py        # APIs: statelessness, tokens and cost, streaming (uses the mock model by default)
 
-# 换成真实模型（需要对应的 API key 和 SDK：pip install anthropic openai）
-python chat_api.py --provider claude      # 需要 ANTHROPIC_API_KEY
-python chat_api.py --provider deepseek    # 需要 DEEPSEEK_API_KEY
+# Switch to a real model (needs the matching API key and SDK: pip install anthropic openai)
+python chat_api.py --provider claude      # needs ANTHROPIC_API_KEY
+python chat_api.py --provider deepseek    # needs DEEPSEEK_API_KEY
 python chat_api.py --provider gpt --interactive
 ```
 
-| 实验 | 你应该看到 | 思考题（脚本末尾也有） |
+| Lab | What you should see | Think about it (also at the end of each script) |
 |---|---|---|
-| `markov_1913.py` | "经"紧跟在"神"后面的概率是平时的 266 倍；困惑度从 1-gram 的 414 降到 3-gram 的 67，再往上就不降了 | 4-gram 在训练集上的困惑度是多少？ |
-| `bpe_tokenizer.py` | 最先学会的是"，""的""。"这些高频字符；"神经网络"成了一个 token；生僻字要 2～3 个 token 一个字 | 为什么不直接把每个汉字当成一个 token？ |
-| `sampling.py` | 贪心解码陷入"1 年，他在 1 年"的循环；温度 1.8 时 92% 的片段是新拼出来的 | 怎样让模型每次回答都一样？ |
-| `chat_api.py` | 不带历史时模型不知道你叫什么；8 轮对话里每轮发送的 token 越来越多 | 100 轮对话的总费用和轮数是什么关系？ |
+| `markov_1913.py` | A 'u' right after a 'q' is 48 times as likely as usual; perplexity falls from 24.1 for the 1-gram to 5.9 for the 4-gram, then levels off (4.8 for the 6-gram, 4.6 for the 8-gram) | What is the 8-gram's perplexity on the training set? |
+| `bpe_tokenizer.py` | The first merges are common letter pairs like `' '` + `'t'` and `'h'` + `'e'`, and the 7th is already `' the'`; `' networks'` and `' learn'` are single tokens; the Chinese sentence costs 3 tokens per character | Why not just make every word a token? |
+| `sampling.py` | Greedy decoding gets stuck in a "the the the" loop; at temperature 1.8, 44% of the pieces are newly spliced together | How do you make a model give the same answer every time? |
+| `chat_api.py` | Without the history, the model doesn't know your name; over 8 turns, every turn sends more tokens than the one before | How does the total cost of a 100-turn conversation relate to the number of turns? |
 
-关于真实模型模式：`common/llm.py` 的真实 API 路径，我用一个模拟 Anthropic 和 OpenAI 接口格式的本地服务器测试过
-（包括工具调用和流式输出），但没有用真实的 API key 跑过。如果遇到问题，欢迎提 issue。
+About real-model mode: I tested the real-API path in `common/llm.py` against a local server that mimics the Anthropic and OpenAI API formats (including tool calls and streaming),
+but I have not run it with a real API key. If you run into problems, please open an issue.
 
 ---
 
-## 概念解释
+## Concepts
 
-### 1. 语言模型
+### 1. Language Models
 
-**一句话**：给一段前文，算出下一个 token 是各个候选的概率。
+**In one sentence**: given some preceding text, compute the probability of each candidate for the next token.
 
-有了这个能力，生成文字就很简单：算出概率，挑一个，接到后面，再算下一个……一直重复。
-马尔可夫的链、香农的 n-gram、今天的 GPT，都是语言模型，区别在于"怎么算这个概率"。
+With that ability, generating text is easy: compute the probabilities, pick one, append it, compute the next one... and keep repeating.
+Markov's chains, Shannon's n-grams and today's GPT are all language models; the difference is "how that probability is computed."
 
-📖 登场：[序幕](#序幕1913-年圣彼得堡数字母的数学家)、[第一幕](#第一幕19481951-年香农的猜字母游戏)
+📖 First appears in: [Prologue](#prologue--1913-st-petersburg-the-mathematician-who-counted-letters), [Act 1](#act-1--19481951-shannons-guess-the-letter-game)
 
-### 2. n-gram 与数据稀疏
+### 2. n-grams and Data Sparsity
 
-n-gram 模型只看前 n-1 个 token，用"在语料里数出来的频率"当作概率。
-n 越大，看的上下文越长，预测越准，但需要的数据呈指数增长：长的上下文在语料里"一模一样出现过"的机会越来越少。
-这叫**数据稀疏**。实验 1 里，3-gram 之后困惑度就降不下去了。
+An n-gram model looks only at the previous n-1 tokens and uses "the frequency counted in the corpus" as the probability.
+The bigger n is, the longer the context it sees and the more accurate its predictions, but the data it needs grows exponentially: the chance that a long context appeared in the corpus "exactly as is" keeps shrinking.
+This is called **data sparsity**. In Lab 1, beyond the 6-gram the perplexity hardly falls any further.
 
-📖 登场：[第一幕](#第一幕19481951-年香农的猜字母游戏)　🧪 `markov_1913.py`
+📖 First appears in: [Act 1](#act-1--19481951-shannons-guess-the-letter-game)　🧪 `markov_1913.py`
 
-### 3. 困惑度
+### 3. Perplexity
 
-困惑度（perplexity）衡量模型对一段**没见过的**文字有多"意外"。
-直观理解：困惑度 100，就是模型每预测一个 token，平均相当于在 100 个候选里瞎猜。越低越好。
-它和训练时用的交叉熵损失是一回事：困惑度 = e^(平均交叉熵)。
+Perplexity measures how "surprised" a model is by a piece of text it **has never seen**.
+Intuitively: a perplexity of 100 means that each time the model predicts a token, it is, on average, like guessing blindly among 100 candidates. Lower is better.
+It is the same thing as the cross-entropy loss used in training: perplexity = e^(average cross-entropy).
 
 🧪 `markov_1913.py`
 
-### 4. token 与 BPE
+### 4. Tokens and BPE
 
-**token** 是模型读写的最小单位，可能是一个字、一个词、半个词，甚至一个字节。
-**BPE** 从单个字节出发，反复把最常见的相邻一对合并成新 token，直到词表达到预定大小（真实模型通常有几万到几十万个）。
+A **token** is the smallest unit a model reads and writes: it may be a character, a word, half a word, or even a single byte.
+**BPE** starts from single bytes and repeatedly merges the most common adjacent pair into a new token, until the vocabulary reaches a preset size (real models usually have tens of thousands to hundreds of thousands of tokens).
 
-几个实用的结论：
-- 价格、速度、上下文窗口，都是按 **token** 算的，不是按字数；
-- 同样的内容，不同语言、不同模型的 token 数可能差很多；
-- 模型是以 token 为单位"看"文字的，所以它有时数不清一个词里有几个字母。
+A few practical takeaways:
+- Prices, speed and context windows are all counted in **tokens**, not in characters or words;
+- The same content can have very different token counts in different languages and on different models;
+- A model "sees" text token by token, which is why it sometimes can't count how many letters are in a word.
 
-📖 登场：[第三幕](#第三幕19942016-年一个压缩算法变成了分词器)　🧪 `bpe_tokenizer.py`
+📖 First appears in: [Act 3](#act-3--19942016-a-compression-algorithm-becomes-a-tokenizer)　🧪 `bpe_tokenizer.py`
 
-### 5. 词嵌入
+### 5. Word Embeddings
 
-每个 token 对应一个向量（大模型里通常有几千维）。训练会让意思相近、用法相近的 token，向量也相近。
-它解决了 n-gram"死记硬背"的问题：模型可以从相似的上下文里举一反三。
-大模型的第一层就是一张巨大的"嵌入表"：用 token 的编号去查表，得到它的向量。
+Every token corresponds to a vector (in large models, usually thousands of dimensions). Training makes tokens with similar meanings and usage end up with similar vectors.
+This solves the n-gram's "rote memorization" problem: the model can generalize from similar contexts.
+The first layer of a large model is a huge "embedding table": look up a token's ID in the table to get its vector.
 
-📖 登场：[第二幕](#第二幕20032013-年把词变成向量)
+📖 First appears in: [Act 2](#act-2--20032013-turning-words-into-vectors)
 
-### 6. 上下文窗口
+### 6. The Context Window
 
-模型一次能处理的 token 上限，包括你发过去的全部内容和它生成的回答。
-早期的 GPT 只有几千个 token，今天的一些模型已经达到上百万（比如 Claude Opus 5.5 是 100 万）。
-超出窗口的内容，模型就看不到了。而且即使在窗口之内，内容越长，请求越贵、越慢。第七章会讲怎么管理它。
+The maximum number of tokens a model can handle at once, including everything you send it and the answer it generates.
+Early GPT models had only a few thousand tokens; some models today have reached a million or more (Claude Opus 5.5, for example, has 1 million).
+Content beyond the window is invisible to the model. And even within the window, the longer the content, the more expensive and slower the request. Chapter 7 covers how to manage it.
 
-### 7. 采样：温度、top-k、top-p
+### 7. Sampling: Temperature, top-k, top-p
 
-模型给出的是概率分布，"挑哪个"由采样策略决定：
-- **贪心**：每次都挑概率最高的。稳定，但容易重复；
-- **温度**：先把分布"拉尖"（温度 < 1）或"压平"（温度 > 1），再抽签；
-- **top-k**：只在概率最高的 k 个候选里抽；
-- **top-p**：从高到低累加，只在凑够概率 p 的那些候选里抽，候选数量会自动伸缩。
+The model outputs a probability distribution; "which one to pick" is decided by the sampling strategy:
+- **Greedy**: always pick the most likely one. Stable, but prone to repeating itself;
+- **Temperature**: first "sharpen" the distribution (temperature < 1) or "flatten" it (temperature > 1), then draw;
+- **top-k**: draw only from the k most likely candidates;
+- **top-p**: add up the probabilities from the top down, and draw only from the candidates it takes to reach probability p; the number of candidates adjusts itself.
 
-需要准确、稳定的任务（代码、数学、信息抽取）用低温；需要创意的任务用高一点的温度。
-注意：有些新模型在开启"深度思考"时不允许修改这些参数，以各家文档为准。
+Use a low temperature for tasks that need accuracy and stability (code, math, information extraction), and a somewhat higher one for creative tasks.
+Note: some newer models don't let you change these parameters when "thinking" mode is on; check each provider's documentation.
 
 🧪 `sampling.py`
 
-### 8. 预训练、微调与 RLHF
+### 8. Pretraining, Fine-Tuning and RLHF
 
-训练一个对话模型通常分三步：
-1. **预训练**：在海量文本上"猜下一个 token"，学会语言和世界知识。这一步最贵；
-2. **微调**（指令微调）：用人写的"问题 + 好回答"继续训练，让模型学会按指令回答，而不是一味续写；
-3. **RLHF**：让人给多个回答排序，训练一个打分模型，再用强化学习让模型的回答更符合人的偏好。
-   后来也出现了用 AI 自己的反馈代替一部分人工的方法。
+Training a chat model usually takes three steps:
+1. **Pretraining**: "guess the next token" on a huge amount of text, to learn language and knowledge about the world. This is the most expensive step;
+2. **Fine-tuning** (instruction tuning): keep training on human-written "question + good answer" pairs, so the model learns to answer instructions instead of blindly continuing the text;
+3. **RLHF**: have people rank several answers, train a scoring model, then use reinforcement learning to make the model's answers better match people's preferences.
+   Later, methods also appeared that replace part of the human work with feedback from the AI itself.
 
-📖 登场：[第五幕](#第五幕2022-年从会续写到听得懂话)
+📖 First appears in: [Act 5](#act-5--2022-from-good-at-continuing-to-good-at-listening)
 
-### 9. 规模定律
+### 9. Scaling Laws
 
-模型的表现随着**参数量、数据量、计算量**的增加，以可预测的幂律方式提升。
-它让训练大模型从"碰运气"变成了"可规划的工程"：先用小模型做实验，再外推出大模型需要多少资源、能达到什么效果。
-Chinchilla 又补充了一点：参数和数据要按比例一起增长，只堆参数是浪费。
+A model's performance improves in a predictable, power-law way as the **number of parameters, the amount of data and the amount of compute** grow.
+They turned training large models from "trying your luck" into "engineering you can plan": experiment with small models first, then extrapolate how many resources a large model needs and what results it can reach.
+Chinchilla added one more point: parameters and data should grow together in proportion; piling on parameters alone is a waste.
 
-📖 登场：[第四幕](#第四幕20192022-年越大越好)
+📖 First appears in: [Act 4](#act-4--20192022-is-bigger-better)
 
-### 10. 推理模型
+### 10. Reasoning Models
 
-普通的对话模型拿到问题就直接开始写答案。**推理模型**会先在内部生成一段很长的"思考过程"，
-把问题拆开、尝试、检查、修正，然后才给出答案。它们通常用大规模强化学习训练：在数学、编程这类能自动判断对错的任务上，
-奖励最终答对的思考方式。DeepSeek-R1、Claude 的"深度思考"、OpenAI 的 o 系列都属于这一类。
-代价是更慢、用的 token 更多。
+An ordinary chat model starts writing the answer as soon as it gets the question. A **reasoning model** first generates a long internal "thinking process":
+it breaks the problem down, tries things, checks and corrects itself, and only then gives the answer. Reasoning models are usually trained with large-scale reinforcement learning: on tasks like math and programming, where right and wrong can be checked automatically,
+the ways of thinking that end in a correct answer get rewarded. DeepSeek-R1, Claude's "extended thinking" and OpenAI's o series all belong to this category.
+The price is that they are slower and use more tokens.
 
-📖 登场：[第六幕](#第六幕2025-年-1-月deepseek-带来的震动)
+📖 First appears in: [Act 6](#act-6--jan-2025-the-deepseek-shock)
 
-### 11. API 的基本规则
+### 11. The Basic Rules of APIs
 
-- **无状态**：每次请求都是独立的。多轮对话要你自己保存历史，每次整段发过去；
-- **消息角色**：`system`（给模型的总体设定和规则）、`user`（用户说的话）、`assistant`（模型之前的回答）；
-- **按 token 计费**：输入和输出分别计价，输出通常更贵。多轮对话因为每次都要重发历史，总费用大约随轮数的平方增长；
-- **流式输出**：服务器边生成边发送，用户能更早看到开头；
-- **API key**：相当于你的账户密码，只能放在环境变量里，绝不能写进代码或提交到 GitHub。
+- **Stateless**: every request is independent. For a multi-turn conversation, you have to keep the history yourself and send the whole thing every time;
+- **Message roles**: `system` (the overall setup and rules for the model), `user` (what the user says), `assistant` (the model's earlier answers);
+- **Billed by the token**: input and output are priced separately, and output is usually more expensive. Because a multi-turn conversation resends the history every time, the total cost grows roughly with the square of the number of turns;
+- **Streaming**: the server sends the output while it is generating it, so the user sees the beginning sooner;
+- **API key**: this is like your account password. Keep it only in an environment variable; never write it into your code or commit it to GitHub.
 
-📖 登场：[第七幕](#第七幕今天模型变成了服务)　🧪 `chat_api.py`
+📖 First appears in: [Act 7](#act-7--today-models-become-a-service)　🧪 `chat_api.py`
 
-### 12. 开放权重与闭源 API
+### 12. Open Weights and Closed APIs
 
-- **闭源 API**（Claude、GPT 等）：模型只在厂商的服务器上运行，你通过 API 使用；
-- **开放权重**（DeepSeek-R1、Llama 等）：模型参数可以下载，有条件的话可以在自己的机器上运行、修改、微调。
+- **Closed APIs** (Claude, GPT and others): the model runs only on the provider's servers, and you use it through an API;
+- **Open weights** (DeepSeek-R1, Llama and others): the model's parameters can be downloaded, and if you have the hardware you can run, modify and fine-tune it on your own machine.
 
-两者各有取舍：闭源 API 用起来最省事，通常也最强；开放权重给了你更多控制权和隐私保障，但需要自己的算力。
-很多开放权重模型也同时提供 API，比如 DeepSeek。
+Each has its trade-offs: closed APIs are the least hassle to use, and usually the strongest; open weights give you more control and privacy, but you need your own compute.
+Many open-weight models are also offered through an API, DeepSeek for example.
 
-📖 登场：[第六幕](#第六幕2025-年-1-月deepseek-带来的震动)
+📖 First appears in: [Act 6](#act-6--jan-2025-the-deepseek-shock)
 
 ---
 
-## 参考资料
+## References
 
-- Wikipedia, [Andrey Markov](https://en.wikipedia.org/wiki/Andrey_Markov)；B. Hayes, *First Links in the Markov Chain*, *American Scientist*, 2013
+- Wikipedia, [Andrey Markov](https://en.wikipedia.org/wiki/Andrey_Markov); B. Hayes, *First Links in the Markov Chain*, *American Scientist*, 2013
 - C. E. Shannon, *A Mathematical Theory of Communication*, *Bell System Technical Journal*, 1948
 - C. E. Shannon, [Prediction and Entropy of Printed English](https://www.nokia.com/bell-labs/publications-and-media/publications/prediction-and-entropy-of-printed-english/), 1951
 - Y. Bengio et al., [A Neural Probabilistic Language Model](https://www.jmlr.org/papers/v3/bengio03a.html), *JMLR*, 2003
-- T. Mikolov et al., *Efficient Estimation of Word Representations in Vector Space*, 2013（word2vec）
+- T. Mikolov et al., *Efficient Estimation of Word Representations in Vector Space*, 2013 (word2vec)
 - T. Mikolov et al., [Linguistic Regularities in Continuous Space Word Representations](https://aclanthology.org/N13-1090.pdf), 2013
 - P. Gage, [A New Algorithm for Data Compression](https://jacobfilipp.com/DrDobbs/articles/CUJ/1994/9402/gage/gage.htm), *C Users Journal*, 1994
-- R. Sennrich, B. Haddow, A. Birch, *Neural Machine Translation of Rare Words with Subword Units*, ACL 2016；Wikipedia, [Byte-pair encoding](https://en.wikipedia.org/wiki/Byte-pair_encoding)
-- I. Solaiman et al., [Release Strategies and the Social Impacts of Language Models](https://arxiv.org/abs/1908.09203), 2019（GPT-2 分阶段发布）
+- R. Sennrich, B. Haddow, A. Birch, *Neural Machine Translation of Rare Words with Subword Units*, ACL 2016; Wikipedia, [Byte-pair encoding](https://en.wikipedia.org/wiki/Byte-pair_encoding)
+- I. Solaiman et al., [Release Strategies and the Social Impacts of Language Models](https://arxiv.org/abs/1908.09203), 2019 (GPT-2's staged release)
 - J. Kaplan et al., *Scaling Laws for Neural Language Models*, 2020
-- J. Hoffmann et al., [Training Compute-Optimal Large Language Models](https://arxiv.org/abs/2203.15556), 2022（Chinchilla）
-- L. Ouyang et al., *Training Language Models to Follow Instructions with Human Feedback*, 2022；OpenAI, [Aligning language models to follow instructions](https://openai.com/index/instruction-following/)
-- DeepSeek-AI, *DeepSeek-V3 Technical Report*, 2024；*DeepSeek-R1*, 2025
+- J. Hoffmann et al., [Training Compute-Optimal Large Language Models](https://arxiv.org/abs/2203.15556), 2022 (Chinchilla)
+- L. Ouyang et al., *Training Language Models to Follow Instructions with Human Feedback*, 2022; OpenAI, [Aligning language models to follow instructions](https://openai.com/index/instruction-following/)
+- DeepSeek-AI, *DeepSeek-V3 Technical Report*, 2024; *DeepSeek-R1*, 2025
 - Business Standard, [DeepSeek sparks AI stock selloff; Nvidia loses record $593 bn in mcap](https://www.business-standard.com/amp/markets/news/deepseek-sparks-ai-stock-selloff-nvidia-loses-record-593-bn-in-mcap-125012800095_1.html), 2025
 
 ---
 
-⬅️ [第四章 从 CNN 到 Transformer](../04-cnn-to-transformer/)　|　[返回目录](../README.md)　|　➡️ [第六章 Agent 循环](../06-agent-loop/)
+⬅️ [Chapter 4 · From CNNs to Transformers](../04-cnn-to-transformer/) | [Contents](../README.md) | ➡️ [Chapter 6 · The Agent Loop](../06-agent-loop/)

@@ -1,18 +1,18 @@
 """
-实验 2：从零训练一个 BPE 分词器
-=================================
+Lab 2: Training a BPE tokenizer from scratch
+============================================
 
-大模型读的不是"字"，也不是"词"，而是 **token**。token 是怎么切出来的？
-今天 GPT 系列用的方法，源头是 1994 年菲利普·盖奇在《C 用户杂志》上发表的一个**压缩算法**：
-  反复找出数据里出现次数最多的"相邻两个单位"，把它们合并成一个新单位。
-2016 年，森里奇（Sennrich）等人把它用到了机器翻译上；GPT-2 又把它改成在**字节**上运行。
+Large language models don't read "characters" or "words"; they read **tokens**. How are tokens cut out of text?
+The method the GPT series uses today goes back to a **compression algorithm** Philip Gage published in *The C Users Journal* in 1994:
+  over and over, find the "pair of adjacent units" that occurs most often in the data, and merge it into one new unit.
+In 2016, Sennrich and colleagues applied it to machine translation; GPT-2 then changed it to run on **bytes**.
 
-这里从零实现字节级 BPE：
-  1. 在本仓库的中文语料上训练，看它先学会了哪些"词"
-  2. 用它给中文、英文、代码分词，数一数 token
-  3. 理解为什么"按 token 计费"时，不同语言的价格会不一样
+Here we implement byte-level BPE from scratch:
+  1. Train it on this repo's English corpus and see which "words" it learns first
+  2. Use it to tokenize English, Chinese and code, and count the tokens
+  3. Understand why, when you're "billed by the token," different languages cost different amounts
 
-运行：python bpe_tokenizer.py
+Run: python bpe_tokenizer.py
 """
 
 import re
@@ -20,7 +20,7 @@ from collections import Counter
 from pathlib import Path
 
 N_MERGES = 400
-# 先粗切成小块，合并只在块内部进行（GPT-2 也是这么做的）：连续的汉字 / 英文单词 / 数字 / 其他符号
+# First cut the text into small chunks; merges only happen inside a chunk (GPT-2 does this too): runs of CJK characters / English words / numbers / other symbols
 CHUNK = re.compile(r"[一-鿿]+| ?[A-Za-z]+| ?\d+|\s+|[^\sA-Za-z\d一-鿿]+")
 
 
@@ -30,9 +30,9 @@ def load_corpus():
 
 
 def train_bpe(text, n_merges):
-    # 每个小块先表示成一串字节（一个汉字是 3 个字节）
+    # Each chunk starts out as a sequence of bytes (an English letter is 1 byte, a Chinese character is 3)
     chunks = Counter(tuple(c.encode("utf-8")) for c in CHUNK.findall(text))
-    vocab = {i: bytes([i]) for i in range(256)}           # 初始词表：256 个字节
+    vocab = {i: bytes([i]) for i in range(256)}           # initial vocabulary: the 256 bytes
     merges = []
     for step in range(n_merges):
         pairs = Counter()
@@ -41,12 +41,12 @@ def train_bpe(text, n_merges):
                 pairs[(a, b)] += freq
         if not pairs:
             break
-        (a, b), freq = pairs.most_common(1)[0]           # 出现最多的相邻一对
+        (a, b), freq = pairs.most_common(1)[0]           # the adjacent pair that occurs most often
         new_id = 256 + step
         vocab[new_id] = vocab[a] + vocab[b]
         merges.append(((a, b), new_id, freq))
         new_chunks = Counter()
-        for seq, f in chunks.items():                    # 把所有 (a, b) 替换成新编号
+        for seq, f in chunks.items():                    # replace every (a, b) with the new id
             out, i = [], 0
             while i < len(seq):
                 if i < len(seq) - 1 and seq[i] == a and seq[i + 1] == b:
@@ -64,7 +64,7 @@ def encode(text, merges):
     ids = []
     for chunk in CHUNK.findall(text):
         seq = list(chunk.encode("utf-8"))
-        for (a, b), new_id, _ in merges:                 # 按训练时的顺序，依次应用每一条合并规则
+        for (a, b), new_id, _ in merges:                 # apply every merge rule, in the order it was learned
             out, i = [], 0
             while i < len(seq):
                 if i < len(seq) - 1 and seq[i] == a and seq[i + 1] == b:
@@ -83,18 +83,18 @@ def show_token(vocab, tid):
     try:
         return raw.decode("utf-8")
     except UnicodeDecodeError:
-        return "<" + raw.hex(" ") + ">"                   # 半个汉字（不完整的字节）
+        return "<" + raw.hex(" ") + ">"                   # part of a character (incomplete bytes)
 
 
 if __name__ == "__main__":
     text = load_corpus()
-    print(f"语料：{len(text):,} 个字符 = {len(text.encode('utf-8')):,} 个字节\n")
+    print(f"Corpus: {len(text):,} characters = {len(text.encode('utf-8')):,} bytes\n")
     vocab, merges = train_bpe(text, N_MERGES)
 
-    print(f"【1】训练：做了 {len(merges)} 次合并，词表从 256 个字节长到 {len(vocab)} 个 token")
-    print("   最先学会的 12 个合并（出现最多的相邻一对）：")
+    print(f"[1] Training: {len(merges)} merges, and the vocabulary grows from 256 bytes to {len(vocab)} tokens")
+    print("   The first 12 merges it learned (the most frequent adjacent pairs):")
     for (a, b), new_id, freq in merges[:12]:
-        print(f"     {show_token(vocab, a)!s:>10} + {show_token(vocab, b)!s:<10} → {show_token(vocab, new_id)!r:<12} 出现 {freq} 次")
+        print(f"     {show_token(vocab, a)!r:>10} + {show_token(vocab, b)!r:<10} → {show_token(vocab, new_id)!r:<12} seen {freq} times")
     long_tokens = sorted((v for v in vocab.values() if len(v) >= 6), key=len, reverse=True)
     words = []
     for v in long_tokens:
@@ -102,31 +102,32 @@ if __name__ == "__main__":
             words.append(v.decode("utf-8"))
         except UnicodeDecodeError:
             pass
-    print("   学到的一些多字 token：" + "、".join(words[:15]))
-    print("   一个汉字在 UTF-8 里是 3 个字节，所以最早的合并往往是在'拼出常见汉字'；之后才把常见的字拼成词。\n")
+    print("   Some of the long tokens it learned: " + ", ".join(repr(w) for w in words[:15]))
+    print("   In UTF-8 an English letter is a single byte, so the earliest merges glue common letter pairs together (' ' + 't', 'h' + 'e');")
+    print("   only after that are those pieces put together into words (' t' + 'he' → ' the'). A leading space is part of the token.\n")
 
-    print("【2】分词：同一个意思，不同的写法，各要多少个 token？")
+    print("[2] Tokenizing: the same meaning, written different ways. How many tokens does each take?")
     samples = [
-        ("中文", "神经网络通过反向传播来学习。"),
-        ("英文", "Neural networks learn through backpropagation."),
-        ("中文（生僻）", "饕餮之徒在鳜鱼面前踟蹰。"),
-        ("代码", "loss.backward()  # compute gradients"),
+        ("English", "Neural networks learn through backpropagation."),
+        ("Chinese", "神经网络通过反向传播来学习。"),
+        ("English (rare words)", "The gourmand dithered before the mandarin fish."),
+        ("Code", "loss.backward()  # compute gradients"),
     ]
     for name, s in samples:
         ids = encode(s, merges)
         pieces = " | ".join(show_token(vocab, i) for i in ids)
-        print(f"   {name}：{len(s)} 个字符 → {len(ids)} 个 token")
+        print(f"   {name}: {len(s)} characters → {len(ids)} tokens")
         print(f"     {pieces}")
     print("""
-   * 训练语料里常见的词（比如'神经网络'、'学习'）会被合并成一个 token；没那么常见的（比如'传播'）还是一个字一个字地切；
-   * 语料里没见过的生僻字，只能拆回字节，一个字要用 2～3 个 token；
-   * 这个分词器是在中文语料上训练的，所以英文反而被切得很碎。真实模型的分词器在海量多语言数据上训练，
-     但同样的规律依然存在：在训练数据里占比越高的语言，每个 token 能装的信息越多。
+   * Words that are common in the training corpus (like ' networks' and ' learn') get merged into a single token; less common ones (like 'backpropagation') are still cut into pieces;
+   * Rare words the corpus has never seen fall apart into small pieces, often just a letter or two per token (' gourmand' → ' g | ou | r | m | and');
+   * This tokenizer was trained on an English corpus with no Chinese in it, so the Chinese sentence is cut up very finely: every character falls back to its 3 UTF-8 bytes, 3 tokens per character.
+     Real models' tokenizers are trained on huge multilingual datasets, but the same pattern still holds: the bigger a language's share of the training data, the more information each token can carry.
 
-   这件事和钱有关：大模型 API 按 token 计费，上下文窗口也按 token 计算。
-   同样的内容，换一种语言或者换一家模型（分词器不同），token 数可能差好几成。
+   This is about money: LLM APIs charge by the token, and context windows are measured in tokens too.
+   The same content, in another language or on another provider's model (with a different tokenizer), can take tens of percent more or fewer tokens.
 
-想一想：
-  1. 把 N_MERGES 改成 50 和 2000，同样的句子 token 数会怎么变？词表变大有什么代价？
-  2. 为什么不直接把每个汉字当成一个 token？（提示：想想那些生僻字和其他语言）
-  3. 'loss.backward()' 被切成了哪几块？大模型写代码时，为什么"空格"和"缩进"也是 token？""")
+Think about it:
+  1. Change N_MERGES to 50 and to 2000. How does the token count for the same sentences change? What does a bigger vocabulary cost?
+  2. Why not just make every word a token? (Hint: think about rare words and other languages)
+  3. What pieces is 'loss.backward()' cut into? When a large model writes code, why are "spaces" and "indentation" tokens too?""")

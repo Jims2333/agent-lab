@@ -1,20 +1,20 @@
 """
-实验 1：从马尔可夫到 n-gram：最早的"语言模型"
-===============================================
+Lab 1: From Markov to n-grams: the earliest "language models"
+=============================================================
 
-1913 年，马尔可夫数了《叶甫盖尼·奥涅金》的前 2 万个字母，证明了一件事：
-**下一个字母是什么，和前一个字母有关。** 文字不是一串互相独立的随机符号。
+In 1913, Markov counted the first 20,000 letters of *Eugene Onegin* and proved one thing:
+**what the next letter is depends on the letter before it.** Text is not a string of independent random symbols.
 
-1948 年，香农用同样的思路造出了"n-gram 语言模型"：根据前 n-1 个字符，预测下一个字符。
-ChatGPT 做的事情本质上一样，都是"预测下一个"，只是看的上下文长得多、预测的方法强得多。
+In 1948, Shannon used the same idea to build the "n-gram language model": predict the next character from the previous n-1 characters.
+What ChatGPT does is essentially the same thing, "predict the next one"; it just looks at a much longer context and predicts in a much more powerful way.
 
-这里的语料是本仓库第 1～4 章的正文（data/corpus.txt），我们：
-  1. 重做马尔可夫的实验：字和字之间真的有依赖吗？
-  2. 训练 1～4 阶的 n-gram 模型，让它们"续写"
-  3. 用"困惑度"给它们打分，看看为什么 n 越大不一定越好
+The corpus here is the body text of Chapters 1–4 of this repo (data/corpus.txt). We will:
+  1. Redo Markov's experiment: do characters really depend on each other?
+  2. Train n-gram models of order 1, 2, 3, 4, 6 and 8 and have them "continue" a text
+  3. Score them with "perplexity" and see why a bigger n isn't always better
 
-运行：python markov_1913.py
-（sampling.py 会 import 这里的函数）
+Run: python markov_1913.py
+(sampling.py imports the functions in this file)
 """
 
 import math
@@ -29,10 +29,10 @@ def load_corpus():
 
 
 def build_model(text, n):
-    """统计每个"前 n-1 个字"后面，各个字出现了多少次。返回 {上下文: Counter(下一个字)}。"""
+    """Count, for every "previous n-1 characters", how often each character came next. Returns {context: Counter(next character)}."""
     counts = defaultdict(Counter)
     for i in range(len(text)):
-        for k in range(n):                       # 同时记下 0～n-1 阶的统计，方便"退回"到短上下文
+        for k in range(n):                       # also record the order 0 to n-1 counts, so we can "back off" to shorter contexts
             if i - k < 0:
                 break
             counts[text[i - k:i]][text[i]] += 1
@@ -40,7 +40,7 @@ def build_model(text, n):
 
 
 def next_distribution(model, context, n, vocab):
-    """插值平滑：把不同长度上下文的预测按权重混在一起，避免"没见过就是 0 概率"。"""
+    """Interpolation smoothing: mix the predictions from contexts of different lengths by weight, so "never seen" doesn't mean "probability 0"."""
     weights = {0: 0.05, 1: 0.15, 2: 0.3, 3: 0.5}
     probs = Counter()
     total_w = 0.0
@@ -54,7 +54,7 @@ def next_distribution(model, context, n, vocab):
         total_w += w
         for ch, cnt in c.items():
             probs[ch] += w * cnt / s
-    floor = 1e-4                                  # 给所有字留一点点概率
+    floor = 1e-4                                  # leave a tiny bit of probability for every character
     return {ch: (probs.get(ch, 0.0) + floor / len(vocab)) / (total_w + floor) for ch in vocab}
 
 
@@ -67,16 +67,16 @@ def generate(model, n, prompt, length, vocab, rng, temperature=1.0, top_p=1.0):
 
 
 def sample(dist, rng, temperature=1.0, top_p=1.0):
-    """按概率抽一个字。temperature 和 top_p 的作用见 sampling.py。"""
+    """Draw one character according to the probabilities. For what temperature and top_p do, see sampling.py."""
     items = sorted(dist.items(), key=lambda kv: -kv[1])
     if temperature < 1e-6:
-        return items[0][0]                        # 温度为 0：总是选最可能的那个（贪心）
+        return items[0][0]                        # temperature 0: always pick the most likely one (greedy)
     logits = [math.log(p) / temperature for _, p in items]
     m = max(logits)
     ws = [math.exp(l - m) for l in logits]
     s = sum(ws)
     ws = [w / s for w in ws]
-    if top_p < 1.0:                               # 只保留累计概率达到 top_p 的那些候选
+    if top_p < 1.0:                               # keep only the candidates whose cumulative probability reaches top_p
         keep, acc = [], 0.0
         for (ch, _), w in zip(items, ws):
             keep.append((ch, w))
@@ -89,7 +89,7 @@ def sample(dist, rng, temperature=1.0, top_p=1.0):
 
 
 def perplexity(model, n, text, vocab):
-    """困惑度：模型平均每一步"在几个字之间犹豫"。越低越好。"""
+    """Perplexity: how many characters the model is "torn between," on average, at each step. Lower is better."""
     log_sum = 0.0
     for i in range(1, len(text)):
         ctx = text[max(0, i - (n - 1)):i] if n > 1 else ""
@@ -103,42 +103,45 @@ if __name__ == "__main__":
     vocab = sorted(set(text))
     split = int(len(text) * 0.9)
     train, test = text[:split], text[split:]
-    print(f"语料：{len(text):,} 个字符，{len(vocab)} 种不同的字符。前 90% 用来训练，后 10% 用来测试。\n")
+    print(f"Corpus: {len(text):,} characters, {len(vocab)} distinct characters. The first 90% is for training, the last 10% for testing.\n")
 
-    # ------------------------------------------------------------ 1. 马尔可夫的问题
-    print("【1】重做马尔可夫的实验：下一个字和前一个字有关吗？")
+    # ------------------------------------------------------------ 1. Markov's question
+    print("[1] Redoing Markov's experiment: does the next character depend on the one before it?")
     uni = Counter(train)
     bi = build_model(train, 2)
     total = sum(uni.values())
-    for prev, nxt in [("学", "习"), ("神", "经"), ("梯", "度"), ("模", "型")]:
+    for prev, nxt in [("t", "h"), ("c", "k"), ("x", "p"), ("q", "u")]:
         p_alone = uni[nxt] / total
         p_after = bi[prev][nxt] / max(sum(bi[prev].values()), 1)
-        print(f"   '{nxt}' 出现的概率：随便一个位置 {p_alone:6.2%}  →  紧跟在'{prev}'后面 {p_after:6.1%}"
-              f"（{p_after / p_alone:,.0f} 倍）")
-    print("   如果字和字互相独立，两个概率应该差不多。差了几百倍，说明文字是一条有记忆的'链'。")
-    print("   马尔可夫 1913 年数《奥涅金》的元音和辅音，得出的是同一个结论。\n")
+        print(f"   Chance of '{nxt}': at a random spot {p_alone:6.2%}  →  right after '{prev}' {p_after:6.1%}"
+              f"  ({p_after / p_alone:,.0f}x)")
+    print("   If characters were independent of each other, the two probabilities would be about the same. A gap of 7x to 48x shows that text is a 'chain' with memory.")
+    print("   When Markov counted the vowels and consonants of Onegin in 1913, he came to the same conclusion.\n")
 
-    # ------------------------------------------------------------ 2. 续写
-    print("【2】让不同阶的 n-gram 模型续写'神经网络'（每个模型都用同一个随机种子）")
-    models = {n: build_model(train, n) for n in (1, 2, 3, 4)}
+    # ------------------------------------------------------------ 2. Continuing a text
+    print("[2] Have n-gram models of different orders continue 'neural network' (every model uses the same random seed)")
+    models = {n: build_model(train, n) for n in (1, 2, 3, 4, 6, 8)}
     for n, model in models.items():
         rng = random.Random(1913)
-        out = generate(model, n, "神经网络", 50, vocab, rng)
-        hint = {1: "只看字频，不看上下文", 2: "看前 1 个字", 3: "看前 2 个字", 4: "看前 3 个字"}[n]
-        print(f"   {n}-gram（{hint}）：{out.replace(chr(10), ' ')}")
-    print("   n 越大，局部越通顺；但它只是在拼接见过的片段，并不'理解'内容。\n")
+        out = generate(model, n, "neural network", 50, vocab, rng)
+        hint = {1: "character frequencies only, no context", 2: "looks at the previous 1 character",
+                3: "looks at the previous 2 characters", 4: "looks at the previous 3 characters",
+                6: "looks at the previous 5 characters", 8: "looks at the previous 7 characters"}[n]
+        print(f"   {n}-gram ({hint}): {out.replace(chr(10), ' ')}")
+    print("   The bigger n is, the more fluent the text is locally; but the model is only splicing together pieces it has seen. It doesn't 'understand' anything.\n")
 
-    # ------------------------------------------------------------ 3. 困惑度
-    print("【3】在没见过的测试文本上打分（困惑度，越低越好）")
+    # ------------------------------------------------------------ 3. Perplexity
+    print("[3] Scoring on test text the models have never seen (perplexity, lower is better)")
     for n, model in models.items():
         ppl = perplexity(model, n, test[:3000], vocab)
-        print(f"   {n}-gram：困惑度 {ppl:7.1f}  {'█' * int(ppl / 15)}")
-    print(f"""   困惑度 100 的意思是：模型每预测一个字，平均就像在 100 个字里瞎猜。
-   从 1-gram 到 3-gram 进步很大；再往上，进步变小甚至变差：上下文越长，在训练语料里"一模一样出现过"的机会越少（数据稀疏）。
-   这就是 n-gram 的天花板。2003 年本吉奥的神经语言模型、后来的 Transformer，
-   正是用"向量"代替"死记硬背"，让模型能从相似的上下文里举一反三。
+        print(f"   {n}-gram: perplexity {ppl:7.1f}  {'█' * int(ppl)}")
+    print(f"""   A perplexity of 10 means: each time the model predicts a character, it is, on average, like guessing blindly among 10 characters.
+   From the 1-gram to the 4-gram the gains are big; after that they shrink fast, and from the 6-gram to the 8-gram the score barely moves:
+   the longer the context, the smaller the chance that exactly the same context ever appeared in the training corpus (data sparsity).
+   That is the ceiling of n-grams. Bengio's neural language model in 2003, and later the Transformer,
+   replaced "rote memorization" with "vectors," so that a model can generalize from similar contexts.
 
-想一想：
-  1. 把语料换成你自己的文字（比如聊天记录、日记），续写会变成什么风格？
-  2. 4-gram 在训练集上的困惑度会是多少？为什么和测试集差这么多？（提示：过拟合）
-  3. 一个看前 1000 个字的 n-gram 模型，需要多少语料才能"见过"足够多的上下文？""")
+Think about it:
+  1. Swap the corpus for your own writing (say, chat logs or a diary). What style do the continuations take on?
+  2. What would the 8-gram's perplexity be on the training set? Why is it so different from the test set? (Hint: overfitting)
+  3. For an n-gram model that looks at the previous 1,000 characters, how much text would it need to have "seen" enough contexts?""")

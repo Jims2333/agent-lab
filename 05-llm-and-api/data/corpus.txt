@@ -1,818 +1,854 @@
-# 语料：本仓库第 1～4 章 README 的正文（去掉了表格、代码、链接和参考资料），用于第五章的实验。
-第一章　机器学习从哪里来
-1958 年 7 月 8 日，《纽约时报》登了一条新闻，标题是：
-"New Navy Device Learns By Doing"（海军新装置：边做边学）。
-六十多年后，我们用同样的方式开始这个仓库。
-这一章讲的是：机器是怎么一步步学会"学习"的。从 1943 年一个流浪少年写下的神经元方程，
-到 2026 年一群 AI agent 分工合作写代码。中间有天才、有赌局、有寒冬，也有一个人在卧室里用两块游戏显卡改变了历史。
-1. 先看故事（第 1～12 幕）。所有人名、时间、地点、引语都有出处，列在文末的参考资料里。
-只有一个来源的轶事，我会写明"据某某回忆/报道"。
-2. 再跑三个小实验，亲手复现 1958、1969、1986 年的三个关键时刻。
-3. 最后看概念解释。故事里埋下的每个概念，都在那里展开讲。
-序幕　1958 年 7 月，华盛顿："边做边学"的机器
-1958 年 7 月 7 日，美国海军研究办公室在华盛顿的美国气象局召开了一场发布会。
-台上的主角是康奈尔航空实验室一位 29 岁的心理学家，弗兰克·罗森布拉特（Frank Rosenblatt），
-道具是一台重达 5 吨、塞满一个房间的 IBM 704 计算机。
-演示内容听起来很简单：给机器看一张张打孔卡片，有的在左边打了标记，有的在右边。
-没有人写规则告诉它"左"和"右"是什么。看了 50 张卡片之后，它自己学会了分辨左右。
-第二天，《纽约时报》的标题是"New Navy Device Learns By Doing; Psychologist Shows Embryo of Computer
-Designed to Read and Grow Wiser"（海军新装置边做边学；心理学家展示能阅读、会变聪明的计算机雏形）。
-报道里还写道，海军期待它将来"能走、能说、能看、能写、能自我复制，并意识到自己的存在"。
-罗森布拉特本人称它是"第一台能够产生原创想法的机器"。《纽约客》的评价更夸张：
-"在我们看来，这是人类大脑有史以来第一个真正的对手。"
-这台机器叫 感知机（Perceptron）。要理解它为什么让人这么激动，又为什么后来跌得那么惨，
-我们得先回到 15 年前的芝加哥。
-伏笔：机器"学会"了，可它到底学到了什么？→ 模型与参数
-第一幕　1943 年，芝加哥：流浪少年和神经元的逻辑
-沃尔特·皮茨（Walter Pitts） 1923 年出生在底特律一个贫穷的家庭。
-据他的朋友 Jerome Lettvin 回忆（Nautilus 杂志 2015 年的长文转述了这些故事）：
-12 岁那年，皮茨为了躲避街头的霸凌者钻进了公共图书馆，在那里发现了罗素和怀特海的《数学原理》。
-他在图书馆里待了三天，把这部近 2000 页的巨著从头读到尾，还找出了几处错误，写信寄给了罗素。
-罗素回信邀请他去剑桥读研究生，可他当时只有 12 岁。
-15 岁时，皮茨听说罗素要来芝加哥大学讲学，就离家出走去了芝加哥。
-他没有学籍，靠打零工过活，偷偷溜进教室听课，在那里认识了医学生 Lettvin。
-Lettvin 把他介绍给了神经生理学家 沃伦·麦卡洛克（Warren McCulloch）。
-麦卡洛克一直想用逻辑来解释大脑，听完这个少年的想法后被迷住了，干脆邀请他住进自己在郊区的家。
-1943 年，两人发表了论文《神经活动中内在思想的逻辑演算》。
-论文的核心想法是：一个神经元可以看成一个开关。它接收其他神经元传来的信号，
-信号加起来超过某个阈值，它就"放电"，否则就沉默。把这样的开关连成网络，就能计算任何逻辑命题。
-这是人类第一次用数学写下"人工神经元"。不过它有一个缺陷：网络里的连接是人设计好的，不会学习。
-皮茨后来的人生是个悲剧。他去了 MIT，和控制论之父维纳共事，被视为天才。
-1952 年，维纳突然和麦卡洛克以及所有与他相关的人断绝往来，其中也包括皮茨。皮茨深受打击，开始酗酒，始终没有拿到博士学位。据 Nautilus 记载，他烧掉了自己的博士论文和多年的笔记。
-1969 年 5 月，他在 46 岁时去世；同年 9 月，麦卡洛克也离开了人世。
-伏笔：神经元 = 加权求和 + 阈值。→ 神经元与感知机
-第二幕　1949–1950 年：学习的规则，思考的机器
-神经元有了，可大脑是怎么"学会"东西的？
-1949 年，加拿大心理学家 唐纳德·赫布（Donald Hebb） 在《行为的组织》一书中提出：
-如果神经元 A 反复参与让神经元 B 放电，那么 A 到 B 的连接就会变强。
-后人把它概括成一句顺口溜："一起放电的神经元，会连在一起"（cells that fire together, wire together）。
-这是第一次有人明确提出，学习就是改变连接的强度。
-一年后，1950 年，艾伦·图灵（Alan Turing） 在哲学期刊《Mind》上发表了《计算机器与智能》。
-文章第一句就是："我提议考虑这样一个问题：'机器能思考吗？'"
-他提出了著名的"模仿游戏"，也就是后来的图灵测试。
-这篇文章的最后一节标题是《学习机器》，图灵在其中写道：
-与其编一个程序去模拟成年人的大脑，为什么不编一个模拟儿童大脑的程序，然后去教育它？
-一位心理学家说"学习就是调整连接"，一位数学家说"不如造一台会学习的机器"。
-这两个想法，要等到罗森布拉特才真正合在一起。
-伏笔：调整连接强度 = 调整参数。→ 模型与参数
-第三幕　1956–1959 年：一个夏天，和一盘跳棋
-1955 年，四位年轻学者联名写了一份经费申请：
-约翰·麦卡锡（John McCarthy）、马文·明斯基（Marvin Minsky）、
-纳撒尼尔·罗切斯特（Nathaniel Rochester） 和信息论之父 克劳德·香农（Claude Shannon）。
-他们提议 1956 年夏天在达特茅斯学院开一个为期两个月、十个人参加的研讨会。
-"人工智能"（Artificial Intelligence）这个词，就是在这份申请书里第一次出现的。
-申请书的语气非常乐观："我们认为，只要精心挑选一组科学家，一起工作一个夏天，
-就能在其中一个或多个问题上取得重大进展。"这些问题包括：让机器使用语言、形成抽象概念、自我改进。
-（剧透：一个夏天远远不够，七十年后这些问题仍有一部分没解决。）
-同一时期，IBM 的工程师 阿瑟·塞缪尔（Arthur Samuel） 正在做一件更"接地气"的事：教计算机下跳棋。
-他的程序会记住下过的局面，以及这些局面最后导致了输还是赢，下得越多，就下得越好。
-1956 年 2 月 24 日，这个程序在电视上公开亮相。据阿尔伯塔大学跳棋 AI 团队整理的史料记载，
-IBM 总裁托马斯·沃森安排向股东展示这个程序，并预言这会让 IBM 股价上涨 15 个点，结果真的涨了。
-1959 年，塞缪尔发表论文《用跳棋游戏研究机器学习》。
-"机器学习"（Machine Learning）这个词由此流传开来。
-1962 年，他的程序战胜了自称"跳棋大师"的罗伯特·尼利（Robert Nealey）。
-有一句话常被当成塞缪尔给机器学习下的定义："让计算机在没有被明确编程的情况下获得学习能力的研究领域。"
-但这句话在他 1959 年的论文里找不到原文，是后人的概括。论文里的原话是：
-"让计算机从经验中学习，最终应该能省掉大量这类细致的编程工作。"
-伏笔：从经验中学习、越下越好。→ 什么是机器学习、三种学习方式
-第四幕　1958–1960 年：罗森布拉特和他的"电子大脑"
-现在回到序幕的那场发布会。
-罗森布拉特把前面几个想法拼到了一起：用麦卡洛克-皮茨的神经元（加权求和 + 阈值），
-加上类似赫布的规则（根据经验调整连接强度），得到一台会学习的机器。
-他的学习规则只有一句话：猜对了什么都不做，猜错了就调整权重。
-1958 年的演示其实是在 IBM 704 上"模拟"感知机。两年后的 1960 年 6 月 23 日，
-专门制造的硬件 Mark I 感知机 公开亮相：
-它的"眼睛"是 20×20 = 400 个光电管组成的阵列，相当于一块 400 像素的视网膜；
-每个连接的权重存在一个电位器里；
-学习时，由电机去拧这些电位器，每次猜错，就有电机转动。
-今天，Mark I 感知机陈列在美国国家历史博物馆（史密森尼学会）。
-罗森布拉特是个多才多艺的人：他钢琴弹得很好，还参与建造过一座天文台。
-1971 年 7 月 11 日，他在切萨皮克湾的一次划船事故中去世，那天正好是他 43 岁的生日。
-动手：运行 perceptron_1958.py，你会亲手复现这场演示：
-20×20 的卡片、50 次试验、学会分辨左右。然后再多给它看 1000 张卡片，看看会发生什么。
-伏笔：在训练卡片上全对，不代表在新卡片上全对。→ 泛化与过拟合
-第五幕　1969–1973 年：一本书，一堵墙，一个冬天
-马文·明斯基，也就是达特茅斯会议的发起人之一，和罗森布拉特早就认识：
-他们都上过纽约的布朗克斯科学高中，明斯基比罗森布拉特低一个年级。
-两人对神经网络的看法截然相反，在学术会议上公开辩论过，私下据说一直保持着友好关系。
-1969 年，明斯基和 MIT 的数学家 西摩尔·派珀特（Seymour Papert） 出版了《感知机》（Perceptrons）。
-这本书用严格的数学证明了：单层感知机能做的事情非常有限。
-最有名的例子是"异或"（XOR）：两个输入"不一样"时输出 1，"一样"时输出 0。
-就这么简单的规则，感知机永远学不会。
-这本书的影响远远超出了数学本身。神经网络研究的经费和热情大幅退潮，很多研究者转向别的方向。
-两年后，罗森布拉特意外去世，这个领域失去了最有力的捍卫者。
-寒冬不只降临在神经网络头上。1973 年，英国数学家 詹姆斯·莱特希尔（James Lighthill）
-受英国科学研究委员会委托，写了一份评估人工智能研究的报告。他的结论很严厉：
-"这个领域迄今为止的任何发现，都没有产生当初承诺的重大影响。"
-英国政府随后削减了大部分大学的 AI 研究经费。同年 6 月，BBC 还在英国皇家研究院录了一场电视辩论：
-莱特希尔一方，对面是 John McCarthy 等三位 AI 研究者。
-后人把这段时期称为第一次 AI 寒冬。
-动手：运行 xor_1969.py。同一个感知机，学 AND 和 OR 都很快，
-学 XOR 却永远停不下来。你还会看到一张小图，解释为什么一条直线分不开 XOR。
-伏笔：一条直线能分开吗？→ 线性可分与 XOR
-第六幕　1986 年：误差往回传
-问题其实早就有人想到了答案：多加一层。在输入和输出之间加一层"隐藏层"，XOR 就能解决。
-真正的难题是：隐藏层的权重该怎么调？输出错了，到底该怪哪个隐藏神经元？
-1986 年，大卫·鲁梅尔哈特（David Rumelhart）、杰弗里·辛顿（Geoffrey Hinton） 和
-罗纳德·威廉姆斯（Ronald Williams） 在《Nature》上发表了一篇只有 4 页的论文：
-《通过反向传播误差来学习表示》。方法的名字叫反向传播（Backpropagation）：
-先算出输出的误差，再用微积分里的链式法则，把误差一层一层往回传，
-算出每个权重应该承担多少"责任"，然后各自调整一点点。
-公平地说，这个数学方法并不是他们第一个发明的。
-芬兰学生 Seppo Linnainmaa 在 1970 年的硕士论文里就提出了相关的自动求导方法，
-美国学者 Paul Werbos 在 1974 年的博士论文里也提出过用它训练神经网络。
-但 1986 年这篇论文清楚地展示了：隐藏层会自己学出有用的中间特征。神经网络由此复苏。
-辛顿本人的故事很有意思。他是逻辑学家乔治·布尔（George Boole）的玄孙，
-今天每台计算机都在用的"布尔逻辑"，就是以他的高祖父命名的。
-1987 年，他离开美国去了加拿大多伦多大学，原因之一是当时美国的 AI 研究大多由国防部资助，而他不想让自己的研究被用于战争。
-后来他和学生们在加拿大坚守了几十年冷门的神经网络，直到它们改变世界。
-2018 年，他与 Yoshua Bengio、Yann LeCun 共同获得图灵奖；2024 年，他与 John Hopfield 共同获得诺贝尔物理学奖。
-动手：运行 backprop_1986.py。只用 numpy 手写反向传播，
-看误差一点点降下来，最后打开黑箱，看看隐藏层自己发明了哪些中间概念。
-伏笔：误差往回传，每个权重往下坡走一小步。→ 损失函数与梯度下降、反向传播
-第七幕　1989–1997 年：读支票的网络，和不会学习的冠军
-1988 年，年轻的法国人 杨立昆（Yann LeCun） 加入了美国的贝尔实验室。
-1989 年，他用反向传播训练了一种特殊的神经网络，去识别美国邮政手写的邮政编码。
-这种网络的设计灵感来自视觉皮层：它不是一下子看整张图，而是用小小的"窗口"在图上滑动，
-寻找边缘、拐角这些局部图案。这就是卷积神经网络（CNN）。
-这项技术后来被用到了银行支票识别上。据 ACM 图灵奖的介绍，LeCun 参与开发的支票识别系统被 NCR 等公司广泛部署，
-在 1990 年代末到 2000 年代初，美国超过 10% 的支票是由它读取的。
-但在学术界，神经网络很快又失宠了。1995 年，Corinna Cortes 和 Vladimir Vapnik 发表了支持向量机（SVM），
-它有漂亮的数学理论，在当时的数据规模下效果也更稳定。整个 2000 年代，"统计学习"是主流。
-据 LeCun、Hinton 等人后来回忆，那些年神经网络的论文经常被会议拒收。这有时被称为神经网络的"第二次冷遇"。
-同一时期，另一个"AI 赢了人类"的新闻震动了世界：1997 年 5 月，IBM 的深蓝在纽约击败了国际象棋世界冠军卡斯帕罗夫。
-不过，深蓝几乎不会学习。它靠的是专用芯片每秒搜索上亿个局面，再加上象棋专家手工编写的评估规则。
-它很强，但它的强是人"写"进去的，不是自己"学"出来的。
-伏笔：→ 卷积神经网络
-第八幕　2006–2009 年：一座数据的大坝
-2006 年，年轻的助理教授 李飞飞（Fei-Fei Li） 开始琢磨一个问题：
-大家都在拼算法，可如果数据才是瓶颈呢？孩子能认识世界，是因为他们看过海量的东西。
-她决定建一个前所未有的图像数据库：按照英语词汇库 WordNet 的结构，给成千上万种物体各收集上千张照片。
-这个工作量大到不可能靠学生完成。2007 年，团队找到了亚马逊的众包平台 Mechanical Turk：
-来自 167 个国家的约 4.9 万名工人，从 1.6 亿多张候选图片里筛选、标注。
-2009 年，ImageNet 在计算机视觉顶会 CVPR 上第一次亮相时有 320 万张图片，
-但它只是会场角落里的一张海报。从 2010 年开始，团队每年举办 ImageNet 图像识别挑战赛（ILSVRC）：
-1000 个类别，约 120 万张训练图片。前两年，冠军都是传统方法，进步很慢。
-伏笔：数据越多，泛化越好。还记得实验 1 的第二幕吗？→ 泛化与过拟合
-第九幕　2012 年：卧室里的两块显卡，赌场里的拍卖
-2012 年，辛顿在多伦多的两个学生 亚历克斯·克里泽夫斯基（Alex Krizhevsky） 和
-伊利亚·苏茨克维（Ilya Sutskever） 决定参加 ImageNet 挑战赛。
-是苏茨克维说服了克里泽夫斯基，而克里泽夫斯基恰好特别擅长榨干 GPU 的性能。
-他们的网络后来被称为 AlexNet。网络太大，一块显卡的显存装不下，只好拆开放在两块 NVIDIA GTX 580 游戏显卡上，
-训练了五六天。据计算机历史博物馆的介绍，这台机器就放在克里泽夫斯基父母家里他的卧室。
-结果震惊了整个领域：AlexNet 的 top-5 错误率是 15.3%，第二名是 26.2%。
-在一个习惯于一年进步零点几个百分点的领域，一下子领先了将近 11 个点。深度学习的时代开始了。
-几个月后发生了更戏剧性的一幕。辛顿和两个学生成立了一家只有三个人的公司 DNNresearch，
-2012 年 12 月，趁着在太浩湖（Lake Tahoe）召开 NIPS 会议，他在会场所在的哈拉斯赌场酒店的房间里组织了一场拍卖。
-据 Cade Metz 的《深度学习革命》（Genius Makers）记载，竞拍者有谷歌、微软、百度和当时还很小的 DeepMind，
-通过电子邮件出价，价格一路涨到 4400 万美元。这时辛顿叫停了拍卖，把公司卖给了谷歌。
-在他看来，研究找到合适的归宿，比拿到最高的价格更重要。
-伏笔：→ 深度学习与 GPU
-第十幕　2014–2016 年：酒吧里的灵感，棋盘上的第 37 手
-2014 年，蒙特利尔。 博士生 伊恩·古德费洛（Ian Goodfellow） 去一家叫 Les 3 Brasseurs 的酒吧，
-庆祝一位同学博士毕业。朋友们在讨论一个难题：怎么让计算机自己"画"出逼真的照片？
-古德费洛想到一个点子：让两个神经网络互相对抗。一个负责造假图，一个负责鉴别真假，
-造假的越来越会造，鉴别的越来越会鉴别。
-据《MIT 科技评论》的报道，他回家后女朋友已经睡了，他一直写代码写到凌晨，然后测试了一下，第一次运行就成功了。
-这就是生成对抗网络（GAN）。
-2016 年 3 月，首尔。 DeepMind 的 AlphaGo 对阵世界顶尖棋手 李世石，五番棋。
-第二局第 37 手，AlphaGo 下出了一步"肩冲"，所有职业棋手都看不懂。
-李世石起身离开了对局室，回到棋盘前，他盯着这步棋想了将近 15 分钟才落子。
-欧洲围棋冠军樊麾在现场说："这不是人类会下的棋。我从没见过人类这么下。"然后又说："太美了。"
-AlphaGo 自己估计，人类棋手下出这一手的概率只有万分之一。
-第四局，轮到李世石下出了一手"神之一手"，第 78 手。AlphaGo 同样估计人类下出它的概率只有万分之一，
-随后它的判断陷入混乱，输掉了这一局。这是人类在整场比赛中唯一的胜局，最终比分 4:1。
-2019 年 11 月，李世石宣布退役。他说，AI 是"一个无法被打败的存在"。
-AlphaGo 和深蓝不一样：它先学习人类棋谱，再通过自己和自己下棋不断变强。没有人能"写"出第 37 手。
-伏笔：→ 生成模型与 GAN、三种学习方式（强化学习）
-第十一幕　2017–2022 年：八个人和一篇论文
-2017 年春天，谷歌的八位研究者写了一篇论文，题目叫 《Attention Is All You Need》（你只需要注意力）。
-据《连线》杂志 2024 年的报道：
-核心想法"自注意力"最早来自 Jakob Uszkoreit。"Transformer"这个名字也是他起的，理由是他喜欢这个词的发音；
-早期的设计文档里甚至配上了《变形金刚》（Transformers）角色的插图；
-论文标题是在致敬披头士的歌《All You Need Is Love》；
-八位作者决定打破署名排序的惯例，每个名字后面都加了星号，脚注写着"贡献相同，排名随机"；
-后来，八个人全都离开了谷歌，各自创业或加入其他 AI 公司。
-Transformer 抛弃了以前按顺序一个词一个词读句子的做法，让句子里的每个词同时"注意"所有其他的词。
-这样不但效果更好，而且非常适合 GPU 并行计算，模型终于可以越做越大。
-此后的故事你可能听说过：2018 年 OpenAI 发布了 GPT（"生成式预训练 Transformer"），谷歌发布了 BERT；
-2020 年，GPT-3 有 1750 亿个参数。
-2022 年 11 月 30 日，OpenAI 发布了 ChatGPT。据瑞银（UBS）援引 Similarweb 的数据，
-它在两个月后的 2023 年 1 月就达到约 1 亿月活跃用户，被称为史上增长最快的消费级应用。
-分析师写道："在关注互联网 20 年里，我们想不起有哪个消费级互联网应用增长得比这更快。"
-伏笔：→ 注意力与 Transformer、大语言模型
-第十二幕　2022–2026 年：从会说话，到会做事
-会聊天的模型有了，下一个问题是：它能不能自己去做事？
-2022 年 10 月，普林斯顿和谷歌的 Shunyu Yao 等人发表了 ReAct：让模型交替进行"思考"和"行动"。
-先想一步，再调用工具（比如查维基百科），看到结果后再想下一步。今天几乎所有 agent 都是这个循环。
-2023 年 3 月 30 日，Toran Bruce Richards 在 GitHub 上发布了 AutoGPT：给 GPT-4 一个目标，让它自己拆任务、自己执行。
-13 天里它收获了 3 万颗星，几周后突破 10 万，成为当时 GitHub 上增长最快的开源项目之一。
-它常常绕圈子、做不成事，但它让所有人看到了 agent 的可能性。
-2023 年 4 月，斯坦福和谷歌的 Joon Sung Park 等人发表了"生成式智能体"（Generative Agents）。
-他们在一个叫 Smallville 的像素小镇里放了 25 个由大模型驱动的居民。
-研究者只告诉咖啡馆老板 Isabella 一件事：她想办一场情人节派对。
-之后，她自己发出邀请，消息在小镇里传开，有人约了暗恋对象一起去，到了那天傍晚，好几个居民真的出现在了派对上。
-没有人编写"办派对"的剧本，这是多个 agent 互动"涌现"出来的。
-2024 年 11 月，Anthropic 发布了 MCP（模型上下文协议），用一个统一的标准把模型接到各种工具和数据源上。
-2025 年 4 月，谷歌发布了 A2A（Agent2Agent）协议，让不同厂商的 agent 能互相发现、对话、协作，
-同年 6 月捐给了 Linux 基金会。
-2025 年 6 月，Anthropic 公开了自家多 agent 研究系统的做法：一个"主 agent"负责规划，同时派出多个"子 agent"并行搜索，
-最后汇总。在他们的内部评测中，以 Claude Opus 4 为主 agent、Claude Sonnet 4 为子 agent 的系统，比单独使用 Claude Opus 4 的表现高出 90.2%；代价是多 agent 系统消耗的 token 约为普通聊天的 15 倍。
-2026 年 2 月，OpenAI 发表了《Harness engineering》：一个小团队用约五个月时间，
-做出一个约 100 万行代码的产品，没有一行是人手写的，全部由 AI agent 写成。
-工程师的工作变成了设计 agent 的工作环境：文档、规则、测试、检查工具，以及 agent 之间互相审查的回路。
-这套外围系统，就叫 harness。
-从 1958 年拧电位器的电机，到 2026 年互相审查代码的 agent，"边做边学"这件事从来没有停下。
-这个仓库后面的章节，就是要亲手把这些东西做一遍。
-伏笔：→ Agent、Harness、多 Agent 协同
-尾声：三条贯穿始终的线
-回头看这七十年，有三条线反复出现：
-1. 两种路线之争：一派认为智能来自规则和逻辑（符号主义：深蓝、早期 AI），
-另一派认为智能来自从数据中学习的连接（连接主义：感知机、反向传播、深度学习）。
-1969 年前者占上风，2012 年之后后者全面胜出。今天的 agent 又把两者结合起来：用学出来的模型，去调用写出来的工具。
-2. 数据：从 50 张卡片，到 ImageNet 的上百万张图片，再到大模型读过的大半个互联网。
-3. 算力：从 5 吨重的 IBM 704，到卧室里的两块游戏显卡，再到今天的 GPU 集群。
-很多想法其实早就有了，比如多层网络和反向传播；它们只是在等数据和算力追上来。
-以下概念按"故事里出现的顺序"排列，每一条都标注了它在哪一幕登场。
-1. 什么是机器学习
-一句话：不直接写规则，而是让程序从数据（经验）中自己总结规则。
-传统编程是：人写规则 + 数据 → 答案。
-机器学习是：数据 + 答案 → 程序自己找出规则。
-1997 年，Tom Mitchell 在教科书里给出了一个更精确的定义：
-对于某类任务 T 和性能度量 P，如果一个程序在 T 上的表现（用 P 衡量）随着经验 E 的增加而提高，
-就说这个程序从经验 E 中学习了。
-用实验 1 来套：T = 分辨卡片左右，P = 准确率，E = 看过的卡片。看得越多，准确率越高，它就是在"学习"。
-登场：第三幕（Samuel 的跳棋）
-2. 模型、参数、训练、推理
-模型：一个带着很多"旋钮"的函数，输入数据，输出预测。
-参数（权重）：就是那些旋钮。Mark I 感知机上，参数真的是旋钮：400 个由电机拧动的电位器。
-今天的大模型有几千亿个参数，原理一样，只是旋钮多得多。
-训练：根据数据，一点点调整旋钮，让预测越来越准。
-推理：训练完成后，旋钮固定，拿模型去处理新数据。你和聊天机器人对话时，它就在"推理"。
-登场：序幕、第四幕
-3. 三种学习方式
-大语言模型的预训练还用到一种变体：自监督学习。答案就藏在数据本身里，
-比如遮住一句话的下一个词，让模型去猜，猜完再揭开对答案。不需要人工标注，所以可以用海量文本来训练。
-登场：第三幕、第十幕
-一句话：用一个数字衡量"模型现在错得有多离谱"。
-实验 3 用的是均方误差：把每个样本"预测值减正确答案"的平方加起来取平均。
-完全猜对时损失为 0，错得越多损失越大。训练的目标，就是让这个数字越来越小。
-5. 梯度下降与学习率
-想象你在大雾中的山上，看不见山谷在哪，只能感觉到脚下哪个方向最陡。
-最简单的下山办法是：每次朝最陡的下坡方向走一小步，重复很多次。
-那个"最陡的方向"就是梯度（损失对每个参数的导数）；
-每一步迈多大，就是学习率。迈太小，下山很慢；迈太大，可能一步跨过山谷，在两边来回晃。
-实验 3 里的 W -= LR  d_W 就是这一步。
-6. 训练集、测试集、泛化与过拟合
-训练集：用来调参数的数据。测试集：从来没给模型看过、专门用来考试的数据。
-泛化：在没见过的数据上也表现好的能力。这才是我们真正想要的。
-过拟合：在训练集上表现很好，在新数据上却很差，相当于死记硬背了练习题。
-实验 1 是一个现成的例子：只看 50 张卡片时，训练集全对，新卡片却只有约 94%；
-多看 1000 张后，新卡片的准确率升到了约 99%。更多、更多样的数据，往往能带来更好的泛化。这就是 ImageNet 的意义。
-登场：第四幕、第八幕
-7. 神经元与感知机
-一个人工神经元做两件事：
-1. 加权求和：每个输入乘以一个权重再加起来，再加一个偏置：z = w1·x1 + w2·x2 + … + b；
-2. 激活：如果 z 大于 0，输出 1（放电），否则输出 0（或 -1）。
-McCulloch-Pitts 神经元（1943）：权重是人设定好的，不会学。
-感知机（1958）：权重从 0 开始，用一条简单规则自己学。猜错时，w ← w + y·x（y 是正确答案 ±1）。
-登场：第一幕、第四幕
-8. 线性可分与 XOR
-感知机的判断规则 w1·x1 + w2·x2 + b > 0，在平面上画出来就是一条直线：一边判 1，一边判 0。
-所以感知机只能解决"用一条直线就能分开"的问题，这叫线性可分。
-AND 和 OR 都是线性可分的。XOR 的两类点分别在正方形的两条对角线上，
-任何一条直线都分不开，所以单层感知机注定学不会它。Minsky 和 Papert 的书里还证明了比这更一般的限制。
-登场：第五幕　 xor_1969.py
-9. 多层网络与激活函数
-解决办法是在输入和输出之间加一层或多层隐藏层。
-每一层都可以把数据"换个角度"重新表示，多层叠在一起，就能画出弯曲的、复杂的分界线。
-但有个关键：每层之后必须有一个非线性的激活函数（比如实验 3 里的 sigmoid，或者今天常用的 ReLU）。
-如果没有它，多层线性计算叠在一起，结果还是线性的，等于一层，XOR 照样学不会。（这就是实验 3 的思考题 3。）
-多层网络带来一个新问题：输出错了，该怪哪一层的哪个权重？ 这叫"功劳分配问题"。
-反向传播的答案是：
-1. 前向：输入一层层算到输出；
-2. 算误差：和正确答案比较，得到损失；
-3. 反向：用链式法则，把"损失对输出的导数"一层层往回传，算出损失对每个权重的导数（梯度）；
-4. 更新：每个权重按梯度下降迈一小步。
-今天训练几千亿参数的大模型，用的仍然是这四步。PyTorch 之类的框架只是帮你自动完成了第 3 步。
-登场：第六幕　 backprop_1986.py
-11. 卷积神经网络（CNN）
-普通的网络把图片的每个像素都连到每个神经元上，参数太多，也不懂"图片"的结构。CNN 有两个巧妙的设计：
-局部感受野：每个神经元只看图片的一小块（比如 5×5），专门找边缘、拐角这样的局部图案；
-权重共享：同一个"图案探测器"在整张图上滑动使用。猫耳朵出现在左上角还是右下角，都用同一个探测器去找。
-浅层找线条，深层把线条组合成眼睛、轮子、人脸。
-登场：第七幕、第九幕
-12. 深度学习与 GPU
-深度学习就是"层数很多的神经网络"。"深"指的是层数。
-神经网络的计算绝大部分是矩阵乘法：成千上万次彼此独立的乘法和加法。
-GPU 本来是为游戏画面设计的，同时处理几百万个像素，天生擅长这种大规模并行计算。
-AlexNet 证明了：大网络 + 大数据 + GPU，三者凑齐，深度学习就能远远甩开传统方法。
-13. 生成模型与 GAN
-前面的模型大多是判别式的：给一张图，判断是猫还是狗。
-生成模型反过来：学会数据长什么样，然后造出新的、逼真的数据。
-GAN 让两个网络对抗：生成器负责造假，判别器负责鉴别真假。两者互相逼着对方进步，就像造假币的和验钞的。
-今天的图像生成更多用"扩散模型"，大语言模型本质上也是一种生成模型：生成下一个词。
-14. 注意力与 Transformer
-读到"它"这个字时，你会自动回头去找"它"指的是谁。注意力机制做的就是这件事：
-处理每个词时，模型给句子里其他所有词打一个"相关度"分数，再按分数把它们的信息加权汇总过来。
-Transformer 就是用注意力堆起来的网络。它有两个优点：
-句子里任意两个词都能直接"对话"，不怕距离远；
-所有词可以同时计算，非常适合 GPU，于是模型可以做得极大。
-今天几乎所有大语言模型（GPT、Claude、DeepSeek……）都是 Transformer。
-15. 大语言模型（LLM）
-Token：模型读写的最小单位，可能是一个字、一个词，或者词的一部分。
-预训练：读海量文本，反复练习"猜下一个 token"（自监督学习）。这一步学会了语言、知识和一定的推理能力。
-微调：在更小、更有针对性的数据上继续训练，比如教它按"对话"的格式回答。
-RLHF（基于人类反馈的强化学习）：让人给模型的多个回答排序，再用强化学习让模型更倾向于人喜欢的回答。
-上下文窗口：模型一次能"看到"的 token 数量上限。超出的部分它就看不到了。
-一个容易误解的点：大模型的 API 本身没有记忆。每次调用，你都要把完整的对话历史重新发给它。
-这一点是理解 agent 和多 agent 的钥匙，番外篇会专门讲。
-16. Agent（智能体）
-一句话：Agent = 大模型 + 工具 + 循环。
-聊天模型只会"说"，agent 能"做"。它的工作方式就是 ReAct 循环：
-关键在于：模型自己决定下一步，而不是人提前写死流程。
+# Corpus: the body text of the READMEs of Chapters 1–4 of this repo (tables, code, links and references removed), used for the labs in Chapter 5.
+Chapter 1 — Where Machine Learning Came From
+On July 8, 1958, The New York Times ran a story under the headline
+"New Navy Device Learns By Doing".
+More than sixty years later, we start this repo the same way.
+This chapter is about how machines learned, step by step, to "learn." It runs from the neuron equations a runaway teenager wrote down in 1943
+to a team of AI agents splitting up the work of writing code in 2026. Along the way there are geniuses, gambles and winters, and one person who changed history with two gaming graphics cards in his bedroom.
+How to read this chapter:
+1. Read the stories first (Acts 1–12). Every name, date, place and quote has a source, listed in the References at the end.
+For anecdotes that rest on a single source, I say so: "according to X's recollection" or "as X reported."
+2. Then run the three small labs and recreate three key moments, from 1958, 1969 and 1986, yourself.
+3. Save the Concepts for last. Every concept planted in the stories is explained in full there.
+Prologue — Jul 1958, Washington: A Machine That "Learns By Doing"
+On July 7, 1958, the US Office of Naval Research held a press conference at the US Weather Bureau in Washington.
+The star of the show was a 29-year-old psychologist from the Cornell Aeronautical Laboratory, Frank Rosenblatt.
+His prop was an IBM 704 computer that weighed 5 tons and filled a whole room.
+The demo sounded simple: show the machine one punched card after another, some marked on the left, some on the right.
+Nobody wrote rules telling it what "left" and "right" meant. After 50 cards, it had learned on its own to tell left from right.
+The next day, the headline in The New York Times read "New Navy Device Learns By Doing; Psychologist Shows Embryo of Computer
+Designed to Read and Grow Wiser."
+The article also said the Navy expected it would one day "be able to walk, talk, see, write, reproduce itself and be conscious of its existence."
+Rosenblatt himself called it the first machine capable of having an original idea. The New Yorker went even further:
+in its view, this was the first serious rival to the human brain ever devised.
+The machine was called the perceptron. To understand why it got people so excited, and why it later fell so hard,
+we first have to go back 15 years, to Chicago.
+Look ahead: The machine "learned," but what exactly did it learn? → Models and parameters
+Act 1 — 1943, Chicago: The Runaway Boy and the Logic of Neurons
+Walter Pitts was born in 1923 into a poor family in Detroit.
+According to his friend Jerome Lettvin's recollections (retold in a long 2015 article in Nautilus),
+at age 12 Pitts ducked into the public library to escape some street bullies, and there he found Russell and Whitehead's Principia Mathematica.
+He stayed in the library for three days, read the nearly 2,000-page work from cover to cover, found several mistakes in it, and wrote to Russell about them.
+Russell wrote back inviting him to come to Cambridge as a graduate student. But he was only 12.
+At 15, Pitts heard that Russell was coming to lecture at the University of Chicago, so he ran away from home to Chicago.
+He wasn't enrolled. He got by on odd jobs and snuck into classes, and that's where he met a medical student, Lettvin.
+Lettvin introduced him to the neurophysiologist Warren McCulloch.
+McCulloch had long wanted to explain the brain with logic. He was captivated by the boy's ideas, and simply invited him to live in his house in the suburbs.
+In 1943, the two published a paper, A Logical Calculus of the Ideas Immanent in Nervous Activity.
+Its core idea: a neuron can be thought of as a switch. It receives signals from other neurons.
+If the signals add up to more than some threshold, it "fires"; otherwise it stays silent. Connect such switches into a network, and you can compute any logical proposition.
+It was the first time anyone had written down an "artificial neuron" in mathematics. But it had one flaw: the connections in the network were designed by people. It couldn't learn.
+The rest of Pitts's life was a tragedy. He went to MIT, worked with Norbert Wiener, the father of cybernetics, and was seen as a genius.
+In 1952, Wiener abruptly cut off McCulloch and everyone connected with him, Pitts included. Pitts was devastated. He started drinking heavily and never got his PhD. According to Nautilus, he burned his doctoral dissertation and years of notes.
+He died in May 1969, at 46. McCulloch died that September.
+Look ahead: Neuron = weighted sum + threshold. → Neurons and the perceptron
+Act 2 — 1949–1950: A Rule for Learning, a Machine That Thinks
+So now there was a neuron. But how does the brain learn things?
+In 1949, the Canadian psychologist Donald Hebb proposed in his book The Organization of Behavior
+that if neuron A repeatedly takes part in making neuron B fire, the connection from A to B grows stronger.
+Later generations boiled it down to a catchy rhyme: "cells that fire together, wire together."
+It was the first time anyone had clearly proposed that learning means changing the strength of connections.
+A year later, in 1950, Alan Turing published Computing Machinery and Intelligence in the philosophy journal Mind.
+Its very first sentence: "I propose to consider the question, 'Can machines think?'"
+He introduced the famous "imitation game," later known as the Turing test.
+The last section of the paper is titled "Learning Machines," and in it Turing wrote that
+instead of writing a program to simulate an adult's mind, why not write one that simulates a child's, and then educate it?
+A psychologist said learning is adjusting connections; a mathematician said we might as well build a machine that learns.
+It would take Rosenblatt to truly bring these two ideas together.
+Look ahead: Adjusting connection strengths = adjusting parameters. → Models and parameters
+Act 3 — 1956–1959: One Summer, and a Game of Checkers
+In 1955, four young scholars co-signed a funding proposal:
+John McCarthy, Marvin Minsky,
+Nathaniel Rochester, and Claude Shannon, the father of information theory.
+They proposed a two-month, ten-person workshop at Dartmouth College in the summer of 1956.
+The term "artificial intelligence" first appeared in this very proposal.
+The proposal was wildly optimistic: "We think that a significant advance can be made in one or more of these problems
+if a carefully selected group of scientists work on it together for a summer." The problems included getting machines to use language, form abstract concepts, and improve themselves.
+(Spoiler: one summer was nowhere near enough. Seventy years later, some of these problems are still unsolved.)
+Around the same time, IBM engineer Arthur Samuel was working on something more down-to-earth: teaching a computer to play checkers.
+His program remembered the positions it had played and whether they eventually led to a loss or a win. The more it played, the better it got.
+On February 24, 1956, the program made its public debut on television. According to historical material compiled by the University of Alberta's checkers AI team,
+IBM president Thomas Watson arranged for the program to be shown to shareholders and predicted it would push IBM's stock up 15 points. It did.
+In 1959, Samuel published his paper Some Studies in Machine Learning Using the Game of Checkers.
+That's how the term "machine learning" caught on.
+In 1962, his program beat Robert Nealey, a self-described checkers master.
+One sentence is often cited as Samuel's definition of machine learning: "Field of study that gives computers the ability to learn without being explicitly programmed."
+But you won't find that sentence in his 1959 paper. It's a later paraphrase. What the paper actually says is:
+"Programming computers to learn from experience should eventually eliminate the need for much of this detailed programming effort."
+Look ahead: Learning from experience, getting better the more it plays. → What is machine learning, Three ways to learn
+Act 4 — 1958–1960: Rosenblatt and His "Electronic Brain"
+Now back to the press conference from the Prologue.
+Rosenblatt pieced the earlier ideas together: take the McCulloch–Pitts neuron (weighted sum + threshold),
+add a Hebb-like rule (adjust connection strengths based on experience), and you get a machine that learns.
+His learning rule fits in one sentence: if it guesses right, do nothing; if it guesses wrong, adjust the weights.
+The 1958 demo actually simulated the perceptron on the IBM 704. Two years later, on June 23, 1960,
+purpose-built hardware, the Mark I Perceptron, was unveiled to the public:
+Its "eye" was an array of 20×20 = 400 photocells, in effect a 400-pixel retina;
+Each connection's weight was stored in a potentiometer;
+During learning, electric motors turned those potentiometers. Every wrong guess set a motor turning.
+Today the Mark I Perceptron is on display at the National Museum of American History (part of the Smithsonian Institution).
+Rosenblatt was a man of many talents: he played the piano well and even helped build an observatory.
+On July 11, 1971, he died in a boating accident on Chesapeake Bay. It was his 43rd birthday.
+Try it: run perceptron_1958.py and recreate the demo yourself:
+20×20 cards, 50 trials, learning to tell left from right. Then show it 1,000 more cards and see what happens.
+Look ahead: Getting every training card right doesn't mean getting every new card right. → Generalization and overfitting
+Act 5 — 1969–1973: A Book, a Wall, a Winter
+Marvin Minsky, one of the organizers of the Dartmouth conference, had known Rosenblatt for a long time:
+both went to the Bronx High School of Science in New York, with Minsky one year behind Rosenblatt.
+The two held opposite views on neural networks and debated them publicly at academic conferences, but in private they reportedly stayed on friendly terms.
+In 1969, Minsky and the MIT mathematician Seymour Papert published Perceptrons.
+The book proved with rigorous math that a single-layer perceptron can do very little.
+The most famous example is "exclusive or" (XOR): output 1 when the two inputs are "different," 0 when they're "the same."
+A rule this simple, and the perceptron can never learn it.
+The book's impact went far beyond the math itself. Funding and enthusiasm for neural network research drained away, and many researchers moved on to other things.
+Two years later, Rosenblatt died in an accident, and the field lost its most powerful champion.
+Winter didn't fall on neural networks alone. In 1973, the British mathematician James Lighthill,
+commissioned by the UK's Science Research Council, wrote a report assessing artificial intelligence research. His verdict was harsh:
+"In no part of the field have the discoveries made so far produced the major impact that was then promised."
+The British government went on to cut AI research funding at most of its universities. That June, the BBC also recorded a televised debate at the Royal Institution:
+Lighthill on one side, and three AI researchers, including John McCarthy, on the other.
+This period came to be known as the first AI winter.
+Try it: run xor_1969.py. The same perceptron learns AND and OR quickly,
+but on XOR it never stops. You'll also see a little chart showing why no straight line can separate XOR.
+Look ahead: Can one straight line separate them? → Linear separability and XOR
+Act 6 — 1986: Sending the Error Backward
+People had actually long known the answer to the problem: add another layer. Put a "hidden layer" between the input and the output, and XOR can be solved.
+The real puzzle was: how do you adjust the hidden layer's weights? When the output is wrong, which hidden neuron is to blame?
+In 1986, David Rumelhart, Geoffrey Hinton, and
+Ronald Williams published a paper just 4 pages long in Nature:
+Learning representations by back-propagating errors. The method is called backpropagation:
+first compute the error at the output, then use the chain rule from calculus to pass the error backward, layer by layer,
+working out how much "blame" each weight should take, and then nudge each one a little.
+To be fair, they weren't the first to invent the math.
+The Finnish student Seppo Linnainmaa described a related automatic differentiation method in his 1970 master's thesis,
+and the American researcher Paul Werbos proposed using it to train neural networks in his 1974 PhD thesis.
+But the 1986 paper showed clearly that the hidden layer learns useful intermediate features on its own. With that, neural networks came back to life.
+Hinton's own story is a fascinating one. He is the great-great-grandson of the logician George Boole:
+the "Boolean logic" every computer uses today is named after his great-great-grandfather.
+In 1987, he left the US for the University of Toronto in Canada. One reason: most American AI research at the time was funded by the Department of Defense, and he didn't want his research used for war.
+He and his students then spent decades in Canada sticking with unfashionable neural networks, until they changed the world.
+In 2018, he shared the Turing Award with Yoshua Bengio and Yann LeCun; in 2024, he shared the Nobel Prize in Physics with John Hopfield.
+Try it: run backprop_1986.py. It writes backpropagation by hand with nothing but numpy.
+Watch the error come down bit by bit, then open the black box and see which intermediate concepts the hidden layer invented on its own.
+Look ahead: The error flows backward, and each weight takes a small step downhill. → Loss functions and gradient descent, Backpropagation
+Act 7 — 1989–1997: The Network That Read Checks, and the Champion That Couldn't Learn
+In 1988, a young Frenchman, Yann LeCun, joined Bell Labs in the US.
+In 1989, he used backpropagation to train a special kind of neural network to recognize handwritten ZIP codes from the US Postal Service.
+Its design was inspired by the visual cortex: instead of looking at the whole image at once, it slides small "windows" across the image,
+looking for local patterns like edges and corners. This is the convolutional neural network (CNN).
+The technology was later used to read bank checks. According to the ACM's Turing Award announcement, a check-reading system LeCun helped develop was widely deployed by NCR and other companies,
+and in the late 1990s and early 2000s, it read more than 10% of all checks in the US.
+But in academia, neural networks soon fell out of favor again. In 1995, Corinna Cortes and Vladimir Vapnik published the support vector machine (SVM).
+It had elegant mathematical theory behind it, and at the data sizes of the time, its results were also more reliable. Throughout the 2000s, "statistical learning" was the mainstream.
+As LeCun, Hinton and others later recalled, neural network papers in those years were often rejected by conferences. This is sometimes called neural networks' "second cold spell."
+Around the same time, another "AI beats human" story shook the world: in May 1997, IBM's Deep Blue defeated world chess champion Garry Kasparov in New York.
+But Deep Blue could hardly learn at all. It relied on custom chips that searched more than a hundred million positions per second, plus evaluation rules hand-written by chess experts.
+It was strong, but its strength had been "written in" by people, not "learned" on its own.
+Look ahead: → Convolutional neural networks
+Act 8 — 2006–2009: A Dam Made of Data
+In 2006, a young assistant professor, Fei-Fei Li, began turning over a question:
+everyone was competing on algorithms, but what if data was the real bottleneck? Children come to understand the world because they've seen an enormous number of things.
+She decided to build an image database unlike anything before it: following the structure of WordNet, a database of English words, collect upwards of a thousand photos for each of thousands of kinds of objects.
+That was far too much work for students to do. In 2007, the team turned to Amazon's crowdsourcing platform, Mechanical Turk:
+about 49,000 workers from 167 countries sifted through and labeled more than 160 million candidate images.
+When ImageNet made its debut in 2009 at CVPR, the top computer vision conference, it had 3.2 million images,
+but it was just a poster in a corner of the venue. Starting in 2010, the team ran the ImageNet Large Scale Visual Recognition Challenge (ILSVRC) every year:
+1,000 categories and about 1.2 million training images. For the first two years, the winners all used traditional methods, and progress was slow.
+Look ahead: More data, better generalization. Remember Act 2 of Lab 1? → Generalization and overfitting
+Act 9 — 2012: Two Graphics Cards in a Bedroom, an Auction in a Casino
+In 2012, two of Hinton's students in Toronto, Alex Krizhevsky and
+Ilya Sutskever, decided to enter the ImageNet challenge.
+It was Sutskever who talked Krizhevsky into it, and Krizhevsky happened to be exceptionally good at squeezing every last drop of performance out of GPUs.
+Their network came to be known as AlexNet. It was too big to fit in one graphics card's memory, so they split it across two NVIDIA GTX 580 gaming cards
+and trained it for five or six days. According to the Computer History Museum, the machine sat in Krizhevsky's bedroom at his parents' house.
+The results stunned the field: AlexNet's top-5 error rate was 15.3%, while the runner-up's was 26.2%.
+In a field used to improving by a fraction of a percentage point a year, it had jumped ahead by almost 11 points in one go. The era of deep learning had begun.
+A few months later came an even more dramatic scene. Hinton and the two students had set up a three-person company, DNNresearch.
+In December 2012, while the NIPS conference was being held at Lake Tahoe, he ran an auction from his room at Harrah's, the casino hotel where the conference took place.
+According to Cade Metz's Genius Makers, the bidders were Google, Microsoft, Baidu and DeepMind, then still a small company,
+all bidding by email. The price climbed all the way to $44 million. At that point Hinton stopped the auction and sold the company to Google.
+In his view, finding the right home for the research mattered more than getting the highest price.
+Look ahead: → Deep learning and GPUs
+Act 10 — 2014–2016: An Idea in a Bar, Move 37 on the Board
+2014, Montreal. PhD student Ian Goodfellow went to a bar called Les 3 Brasseurs
+to celebrate a fellow student who had just finished a PhD. His friends were discussing a hard problem: how do you get a computer to "draw" realistic photos on its own?
+Goodfellow had an idea: pit two neural networks against each other. One makes fakes, the other tells real from fake.
+The forger keeps getting better at forging, and the detector keeps getting better at detecting.
+According to MIT Technology Review, when he got home his girlfriend was already asleep. He coded into the early hours of the morning, then gave it a test, and it worked on the very first run.
+This was the generative adversarial network (GAN).
+March 2016, Seoul. DeepMind's AlphaGo faced one of the world's top players, Lee Sedol, in a five-game match.
+On move 37 of Game 2, AlphaGo played a "shoulder hit" that none of the professional players could make sense of.
+Lee Sedol got up and left the playing room. When he came back to the board, he stared at the move for nearly 15 minutes before he played.
+European Go champion Fan Hui, who was there, said: "It's not a human move. I've never seen a human play this move." Then he added: "So beautiful."
+AlphaGo itself estimated that the odds of a human player making this move were just 1 in 10,000.
+In Game 4, it was Lee Sedol's turn to play a "divine move": move 78. AlphaGo likewise estimated the odds of a human playing it at just 1 in 10,000,
+and its judgment then fell into confusion, and it lost the game. It was humanity's only win of the match; the final score was 4–1.
+In November 2019, Lee Sedol announced his retirement. AI, he said, is "an entity that cannot be defeated."
+AlphaGo was different from Deep Blue: it first learned from records of human games, then kept getting stronger by playing against itself. Nobody could have "written" move 37.
+Look ahead: → Generative models and GANs, Three ways to learn (reinforcement learning)
+Act 11 — 2017–2022: Eight People and One Paper
+In spring 2017, eight Google researchers wrote a paper titled Attention Is All You Need.
+According to a 2024 story in Wired:
+The core idea, "self-attention," came first from Jakob Uszkoreit. He also came up with the name "Transformer," because he liked the sound of the word;
+an early design document was even illustrated with pictures of characters from Transformers;
+The paper's title is a nod to the Beatles song "All You Need Is Love";
+The eight authors decided to break with the usual convention for ordering names. They put an asterisk after every name, with a footnote reading "Equal contribution. Listing order is random.";
+Later, all eight left Google, to start their own companies or join other AI companies.
+The Transformer threw out the old approach of reading a sentence in order, one word at a time. Instead, every word in the sentence "attends" to every other word at the same time.
+This not only works better, it's also a great fit for parallel computing on GPUs, so models could finally keep getting bigger.
+You may have heard the rest: in 2018, OpenAI released GPT ("Generative Pre-trained Transformer") and Google released BERT;
+in 2020, GPT-3 had 175 billion parameters.
+On November 30, 2022, OpenAI released ChatGPT. According to UBS, citing data from Similarweb,
+it reached about 100 million monthly active users two months later, in January 2023, and was called the fastest-growing consumer app in history.
+The analysts wrote: "In 20 years following the internet space, we cannot recall a faster ramp in a consumer internet app."
+Look ahead: → Attention and the Transformer, Large language models
+Act 12 — 2022–2026: From Talking to Doing
+Now there were models that could chat. The next question: could they go and do things on their own?
+October 2022: Shunyu Yao and colleagues at Princeton and Google published ReAct: have the model alternate between "thinking" and "acting."
+Think one step, call a tool (say, look something up on Wikipedia), see the result, then think about the next step. Almost every agent today runs this loop.
+March 30, 2023: Toran Bruce Richards released AutoGPT on GitHub: give GPT-4 a goal and let it break the goal into tasks and carry them out itself.
+It collected 30,000 stars in 13 days and passed 100,000 a few weeks later, becoming one of the fastest-growing open-source projects on GitHub at the time.
+It often went in circles and failed to get things done, but it showed everyone what agents could be.
+April 2023: Joon Sung Park and colleagues at Stanford and Google published "Generative Agents."
+They placed 25 residents, each driven by a large language model, in a pixel-art town called Smallville.
+The researchers told the café owner, Isabella, just one thing: she wanted to throw a Valentine's Day party.
+After that, she sent out the invitations herself, word spread through the town, someone asked their crush to go with them, and that evening several residents actually showed up at the party.
+Nobody wrote a "throw a party" script. It "emerged" from the interactions of multiple agents.
+November 2024: Anthropic released MCP (Model Context Protocol), a single standard for connecting models to all kinds of tools and data sources.
+April 2025: Google released the A2A (Agent2Agent) protocol, which lets agents from different vendors discover each other, talk and work together;
+that June, it was donated to the Linux Foundation.
+June 2025: Anthropic described how its own multi-agent research system works: a "lead agent" does the planning and sends out several "subagents" to search in parallel,
+then pulls the results together. In their internal evaluation, a system with Claude Opus 4 as the lead agent and Claude Sonnet 4 as subagents outperformed Claude Opus 4 working alone by 90.2%; the price was that the multi-agent system used about 15 times as many tokens as an ordinary chat.
+February 2026: OpenAI published "Harness engineering": over about five months, a small team
+built a product of about 1 million lines of code, without a single line written by a human. AI agents wrote all of it.
+The engineers' job became designing the agents' working environment: documentation, rules, tests, checking tools, and loops in which agents review each other's work.
+This surrounding system is called the harness.
+From the motors turning potentiometers in 1958 to the agents reviewing each other's code in 2026, "learning by doing" has never stopped.
+The rest of the chapters in this repo are about building these things yourself, by hand.
+Look ahead: → Agents, Harness, Multi-agent collaboration
+Epilogue — Three Threads That Run Through It All
+Looking back over these seventy years, three threads keep coming up:
+1. A battle between two approaches: one camp believed intelligence comes from rules and logic (symbolism: Deep Blue, early AI);
+the other believed it comes from connections learned from data (connectionism: the perceptron, backpropagation, deep learning).
+In 1969 the first camp had the upper hand; after 2012 the second won across the board. Today's agents combine the two: a model that was learned, calling tools that were written by hand.
+2. Data: from 50 cards, to ImageNet's more than a million images, to the better part of the internet that large language models have read.
+3. Compute: from the 5-ton IBM 704, to two gaming graphics cards in a bedroom, to today's GPU clusters.
+Many of the ideas, like multilayer networks and backpropagation, had been around for a long time; they were just waiting for data and compute to catch up.
+The concepts below are listed in the order they appear in the stories, and each one notes the act where it first appears.
+1. What Is Machine Learning
+In one sentence: instead of writing the rules directly, let the program work out the rules from data (experience) on its own.
+Traditional programming: rules written by people + data → answers.
+Machine learning: data + answers → the program finds the rules itself.
+In 1997, Tom Mitchell gave a more precise definition in his textbook:
+A computer program is said to learn from experience E with respect to some class of tasks T and performance measure P,
+if its performance at tasks in T, as measured by P, improves with experience E.
+Applied to Lab 1: T = telling whether a card is marked on the left or the right, P = accuracy, E = the cards it has seen. The more it sees, the higher its accuracy, so it is "learning."
+First appears in: Act 3 (Samuel's checkers)
+2. Models, Parameters, Training, Inference
+Model: a function with lots of "knobs." Data goes in, predictions come out.
+Parameters (weights): those knobs. On the Mark I Perceptron, the parameters really were knobs: 400 potentiometers turned by electric motors.
+Today's large models have hundreds of billions of parameters. The principle is the same; there are just far more knobs.
+Training: adjusting the knobs bit by bit, based on data, so the predictions get more and more accurate.
+Inference: once training is done, the knobs are fixed and the model is used on new data. When you chat with a chatbot, it is doing "inference."
+First appears in: Prologue, Act 4
+3. Three Ways to Learn
+Pre-training large language models also uses a variant: self-supervised learning. The answers are hidden in the data itself:
+for example, cover up the next word of a sentence, have the model guess it, then uncover it to check. No human labeling is needed, so you can train on huge amounts of text.
+First appears in: Act 3, Act 10
+4. Loss Functions
+In one sentence: a single number that measures how badly the model is wrong right now.
+Lab 3 uses mean squared error: for each example, take "prediction minus correct answer," square it, add them all up, and take the average.
+A perfect guess gives a loss of 0, and the more wrong it is, the bigger the loss. The goal of training is to make this number smaller and smaller.
+5. Gradient Descent and the Learning Rate
+Imagine you're on a mountain in thick fog. You can't see where the valley is; you can only feel which direction is steepest under your feet.
+The simplest way down: take a small step in the steepest downhill direction, and repeat many times.
+That "steepest direction" is the gradient (the derivative of the loss with respect to each parameter);
+How big each step is, is the learning rate. Too small, and the descent is slow; too big, and you might step right over the valley and bounce back and forth between the two sides.
+In Lab 3, W -= LR * d_W is that step.
+First appears in: Act 6
+6. Training Set, Test Set, Generalization and Overfitting
+Training set: the data used to tune the parameters. Test set: data the model has never seen, kept just for the exam.
+Generalization: the ability to do well on data it hasn't seen. This is what we really want.
+Overfitting: doing well on the training set but poorly on new data, like memorizing the answers to the practice problems.
+Lab 1 is a ready-made example: after seeing only 50 cards, it gets the whole training set right, but only about 94% of new cards;
+after 1,000 more cards, its accuracy on new cards rises to about 99%. More data, and more varied data, usually leads to better generalization. That's what ImageNet was all about.
+First appears in: Act 4, Act 8
+7. Neurons and the Perceptron
+An artificial neuron does two things:
+1. Weighted sum: multiply each input by a weight, add them up, then add a bias: z = w1·x1 + w2·x2 + … + b;
+2. Activation: if z is greater than 0, output 1 (fire); otherwise output 0 (or -1).
+McCulloch–Pitts neuron (1943): the weights are set by people; it doesn't learn.
+Perceptron (1958): the weights start at 0 and are learned with one simple rule. When it guesses wrong, w ← w + y·x (y is the correct answer, ±1).
+First appears in: Act 1, Act 4
+8. Linear Separability and XOR
+The perceptron's decision rule, w1·x1 + w2·x2 + b > 0, draws a straight line on the plane: one side says 1, the other side says 0.
+So a perceptron can only solve problems that one straight line can separate. This is called being linearly separable.
+AND and OR are both linearly separable. XOR's two classes sit on the two diagonals of a square,
+so no straight line can separate them, and a single-layer perceptron is doomed never to learn it. Minsky and Papert's book also proved limits more general than this.
+First appears in: Act 5 xor_1969.py
+9. Multilayer Networks and Activation Functions
+The fix is to add one or more hidden layers between the input and the output.
+Each layer can re-represent the data "from a new angle," and stacking several layers lets you draw curved, complicated boundaries.
+But here's the key: every layer must be followed by a nonlinear activation function (like the sigmoid in Lab 3, or the ReLU that's common today).
+Without it, stacked linear computations are still linear, no different from a single layer, and XOR still can't be learned. (That's Think about it question 3 in Lab 3.)
+10. Backpropagation
+Multilayer networks bring a new problem: when the output is wrong, which weight in which layer is to blame? This is called the "credit assignment problem."
+Backpropagation's answer:
+1. Forward: compute from the input, layer by layer, to the output;
+2. Compute the error: compare with the correct answer to get the loss;
+3. Backward: use the chain rule to pass "the derivative of the loss with respect to the output" back, layer by layer, getting the derivative of the loss with respect to every weight (the gradient);
+4. Update: each weight takes a small gradient descent step.
+Training today's large models with hundreds of billions of parameters still uses these four steps. Frameworks like PyTorch just do step 3 for you automatically.
+First appears in: Act 6 backprop_1986.py
+11. Convolutional Neural Networks (CNNs)
+An ordinary network connects every pixel of an image to every neuron. That's too many parameters, and it knows nothing about the structure of an "image." CNNs have two clever design choices:
+Local receptive fields: each neuron looks at only a small patch of the image (say 5×5), hunting for local patterns like edges and corners;
+Weight sharing: the same "pattern detector" slides across the whole image. Whether a cat's ear shows up in the top-left or the bottom-right corner, the same detector looks for it.
+Shallow layers find lines; deeper layers combine lines into eyes, wheels and faces.
+First appears in: Act 7, Act 9
+12. Deep Learning and GPUs
+Deep learning just means "neural networks with many layers." The "deep" refers to the number of layers.
+Most of a neural network's computation is matrix multiplication: thousands upon thousands of independent multiplications and additions.
+GPUs were originally designed for game graphics, processing millions of pixels at once, so they're naturally good at this kind of massively parallel computation.
+AlexNet proved that when you bring together a big network + big data + GPUs, deep learning can leave traditional methods far behind.
+First appears in: Act 9
+13. Generative Models and GANs
+Most of the models so far are discriminative: given an image, decide whether it's a cat or a dog.
+A generative model works the other way around: it learns what the data looks like, then creates new, realistic data.
+A GAN pits two networks against each other: the generator makes fakes, and the discriminator tells real from fake. Each pushes the other to improve, like a counterfeiter and the person checking for fake bills.
+Today's image generation mostly uses "diffusion models," and large language models are essentially generative models too: they generate the next word.
+First appears in: Act 10
+14. Attention and the Transformer
+When you read the word "it," you automatically look back to find what "it" refers to. That's exactly what the attention mechanism does:
+as it processes each word, the model gives every other word in the sentence a "relevance" score, then pulls in their information, weighted by those scores.
+The Transformer is a network built by stacking attention. It has two advantages:
+any two words in a sentence can "talk" directly, no matter how far apart they are;
+all the words can be computed at the same time, which suits GPUs perfectly, so models can be made enormous.
+Almost every large language model today (GPT, Claude, DeepSeek…) is a Transformer.
+First appears in: Act 11
+15. Large Language Models (LLMs)
+Token: the smallest unit a model reads and writes. It might be a single character, a word, or part of a word.
+Pre-training: reading huge amounts of text and practicing "guess the next token" over and over (self-supervised learning). This step is where the model picks up language, knowledge, and some ability to reason.
+Fine-tuning: continuing training on smaller, more targeted data, for example to teach it to answer in a "conversation" format.
+RLHF (reinforcement learning from human feedback): people rank several of the model's answers, and reinforcement learning then makes the model lean toward the answers people prefer.
+Context window: the maximum number of tokens the model can "see" at once. Anything beyond that, it can't see.
+A common misunderstanding: a large model's API itself has no memory. On every call, you have to send it the full conversation history again.
+This is the key to understanding agents and multi-agent systems, and the side quest covers it in detail.
+First appears in: Act 11
+16. Agents
+In one sentence: Agent = large model + tools + a loop.
+A chat model can only "talk"; an agent can "do." It works through the ReAct loop:
+The key: the model decides the next step itself, instead of people hard-coding the process in advance.
+First appears in: Act 12
 17. Harness
-"Harness"的原意是马具：缰绳、挽具这一套，让马的力气能被引导到正确的方向上。
-在 AI 里，模型是那匹马，harness 是包在模型外面、让它可靠干活的所有东西：
-那个 while 循环本身；
-有哪些工具可用，工具结果怎么喂回给模型；
-上下文怎么管理：放进什么、删掉什么、太长了怎么压缩；
-权限和安全边界：哪些操作要人批准，在什么沙箱里运行；
-反馈回路：测试、代码检查、另一个 agent 来审查，让错误能被及时发现和纠正。
-OpenAI 的经验是：同一个模型，harness 做得好不好，结果天差地别。
-你现在用的 Claude Code、Codex 这类工具，本质上都是一个 harness。
-18. 多 Agent 协同
-一个 agent 不够用时，就让多个 agent 分工：
-编排者-工作者（orchestrator-worker）：一个主 agent 拆任务、派活、汇总，多个子 agent 并行干活；
-写-审：一个负责写，一个负责挑毛病；
-路由：按任务类型，交给最擅长的模型；
-辩论：让几个模型各自给出观点，互相反驳，再得出结论。
-为什么要分工？因为每个 agent 的上下文窗口有限，任务太大一个装不下；而且独立的子任务可以并行完成。
-代价是 token 消耗会成倍增加，比如 Anthropic 报告的约 15 倍。所以只有任务足够有价值时才值得。
-两个 AI 之间具体是怎么"说上话"的？请看番外篇：两个 AI 是怎么聊天的。
-第二章　线性模型与梯度下降：从找回一颗行星说起
-第一章讲的是神经网络怎么来的。但神经网络学习时用的那台"发动机"，
-也就是定义误差，再把误差降到最小，比神经网络古老得多。
-它的故事要从 1801 年的元旦，一颗丢失的行星说起。
-怎么读这一章： 和第一章一样，先看故事，再跑实验，最后看概念解释。
-序幕　1801 年元旦，巴勒莫：一颗会动的"星星"
-1801 年 1 月 1 日，19 世纪的第一个夜晚，意大利天文学家朱塞佩·皮亚齐（Giuseppe Piazzi）
-在西西里岛巴勒莫的天文台里，注意到一个暗淡的光点。第二天晚上再看，它的位置变了一点。
-它不是恒星，而是一个在火星和木星之间绕太阳运行的天体，后来被命名为谷神星（Ceres）。
-皮亚齐追踪了它 41 天，记下了大约两打观测数据。然后它靠近了太阳，消失在太阳的光芒里。
-等它重新从太阳背后出来时，天空那么大，该去哪里找？几十个观测只覆盖了它轨道上很短的一段弧，
-当时没有可靠的方法能从这么少的数据里算出完整的轨道。欧洲的天文学家们找了好几个月，一无所获。
-这时，一位 24 岁的德国年轻人 卡尔·弗里德里希·高斯（Carl Friedrich Gauss） 接下了这个问题。
-他花了大约三个月计算，给出了谷神星在 12 月应该出现的位置。
-1801 年 12 月 31 日，天文学家冯·扎克（Franz Xaver von Zach） 在哥达按照高斯的预测去找，
-在离预测位置不到半度的地方，重新找到了谷神星。第二天，奥伯斯（Heinrich Olbers）在不来梅也看到了它。
-元旦发现，跨年夜重逢。高斯一夜之间名满欧洲。
-他的秘密武器之一，是一个处理"有误差的观测"的方法：后来所说的最小二乘法。
-动手：运行 ceres_1801.py。用 24 个带误差的观测，预测一年后的位置，
-比一比"只用两个点"和"最小二乘"谁更准。
-第一幕　1805–1820 年：最小二乘法到底是谁发明的？
-1805 年，法国数学家阿德里安-马里·勒让德（Adrien-Marie Legendre） 出版了一本计算彗星轨道的书。
-书的附录（落款日期是 1805 年 3 月 6 日）清楚地介绍了一个方法：
-当方程比未知数多、而且每个观测都有误差时，就选那组让所有误差的平方和最小的解。
-他给这个方法起了名字：最小二乘法（méthode des moindres quarrés）。
-四年后的 1809 年，高斯出版了天体力学巨著《天体运动论》。书里也讲了最小二乘法，
-提到了勒让德，但同时说：我从 1795 年起就一直在用这个方法了。
-勒让德非常生气。1809 年 5 月 31 日，他写信给高斯，说优先权应该由发表来确定。
-1820 年，他又在自己著作的增补版里公开反驳高斯。高斯后来想证明自己确实更早，
-但据他说，当年的计算笔记已经丢了，同事们也想不起或者不愿卷入这场争论。
-今天，教科书通常同时提到两人：勒让德最先发表并命名，高斯则把它和误差的概率理论（后来的"正态分布"）联系起来，
-解释了为什么应该用平方。
-伏笔：为什么偏偏是"平方"？→ 残差、最小二乘与均方误差
-第二幕　1847 年：柯西的"下山法"
-最小二乘对直线这样的简单模型有现成的公式。但真实的轨道问题是非线性的：
-一个天体的轨道有 6 个未知数，方程里全是三角函数，根本解不出公式。
-1847 年，法国数学家奥古斯丁-路易·柯西（Augustin-Louis Cauchy） 在《法国科学院通报》上发表了一篇只有三页的短文，
-题目是《求解联立方程组的一般方法》。他的出发点正是天文学里的轨道计算。
-他的想法朴素得惊人：
-1. 把"所有方程的误差"合成一个总误差，它是未知数的函数；
-2. 看看在当前位置，往哪个方向走，总误差下降得最快；
-3. 朝那个方向走一小步，然后重复。
-这就是梯度下降。一百七十多年后，训练 ChatGPT、Claude 这样的模型，用的仍然是它的后代。
-动手：运行 gradient_descent_1847.py。用高尔顿的真实数据下山，
-看看学习率太小、刚好、太大会怎样，以及为什么"先把数据中心化"能让速度快几百倍。
-伏笔：→ 梯度、梯度下降与学习率、特征缩放
-第三幕　1875–1886 年：甜豌豆、身高，和"回归"这个怪名字
-弗朗西斯·高尔顿（Francis Galton） 是达尔文的表弟，一个对什么都想测量一下的维多利亚时代学者。
-他想知道：父母的特征，会怎样传给孩子？
-1875 年，他做了一个很有创意的实验：把甜豌豆种子按重量分成 7 档，从特别大到特别小，
-每档装 10 粒，分成一包包寄给 7 位朋友，请他们种下，再把收获的下一代种子寄回来。
-结果他发现：大种子的后代也偏大，但没有父辈那么大；小种子的后代也偏小，但没有父辈那么小。
-后代都朝着平均值"退回"了一些。
-1886 年，他用人的身高验证了同样的现象。他收集了 205 个家庭、928 个成年子女的身高，
-发表了论文《遗传身高中向平庸的回归》（Regression towards Mediocrity in Hereditary Stature）。
-父母比平均值高一些，孩子平均只高出大约这个差距的三分之二。
-他把这个现象叫作 regression（回归、退回）。后来，"用一条直线描述两个量之间的关系"这整套方法，
-都沿用了这个名字，一直叫到今天，哪怕大多数问题和"退回"毫无关系。
-（高尔顿的历史也有沉重的一面：他创造了"优生学"一词，这种思想后来造成了严重的伤害。）
-动手：运行 galton_1886.py。这里用的是高尔顿当年的真实数据，
-你会亲手算出那个"约三分之二"，还会发现回归平均值其实是一个纯粹的统计现象。
-伏笔：→ 回归平均值
-第四幕　1951 年：带着噪声也能走到终点
-梯度下降每走一步，都要算出"准确的"下坡方向。可如果每次测量都有噪声，只能得到一个大概的方向呢？
-1951 年，统计学家赫伯特·罗宾斯（Herbert Robbins） 和萨顿·门罗（Sutton Monro）
-发表了《一种随机逼近方法》。他们证明：即使每一步的方向都有噪声，只要步长按合适的方式逐渐变小，
-最后仍然能走到正确答案。
-这篇看起来很"理论"的论文，后来成了随机梯度下降（SGD） 的理论根基。
-伏笔：→ 批量、随机与小批量、学习率衰减
-第五幕　1959–1960 年：斯坦福的 ADALINE
-就在罗森布拉特在康奈尔造感知机的同时（见第一章），斯坦福大学的年轻教授伯纳德·维德罗（Bernard Widrow）
-和他的第一个博士生马辛·"泰德"·霍夫（Marcian "Ted" Hoff），在 1959 年秋天想出了另一种学习规则。
-感知机只在猜错时调整，而且每次调整的幅度是固定的。维德罗和霍夫的规则是：
-每来一个样本，都按"错了多少"成比例地调整权重。错得多就多调，错得少就少调。
-这个规则叫 LMS（最小均方），也叫维德罗-霍夫规则或 delta 规则。它本质上就是一次只看一个样本的梯度下降。
-他们用它造了一个叫 ADALINE（自适应线性神经元）的设备。
-LMS 后来在信号处理领域大放异彩，大量用于电话线路的回声消除等自适应滤波中。
-而那位博士生泰德·霍夫，后来成了英特尔的第 12 号员工，
-主导设计了 1971 年 11 月发布的 Intel 4004：世界上第一款商用微处理器。
-动手：运行 lms_1960.py。比一比"每步看全部数据"和"每次只看一个样本"，
-在看了同样多的数据之后，谁离答案更近。
-伏笔：→ LMS 与感知机
-第六幕　1958–2014 年：从回归到分类，从 SGD 到 Adam
-线性回归预测的是一个数（身高、位置）。可很多问题要回答的是是或否：这封邮件是不是垃圾邮件？这张卡片的标记在左边还是右边？
-1958 年，英国统计学家大卫·考克斯（David Cox） 系统地提出了逻辑回归：
-先算出线性模型的结果，再用一条 S 形曲线（logistic 函数，也就是第一章实验 3 里的 sigmoid）把它压到 0 到 1 之间，当成"是"的概率。
-它至今仍是最常用的分类方法之一，也是神经网络里一个神经元的标准形态。
-梯度下降本身也在不断进化。2014 年 12 月，迪德里克·金马（Diederik Kingma） 和吉米·巴（Jimmy Ba） 发表了 Adam 优化器：
-它为每个参数自动调整步长，还会参考之前几步的方向，不容易被噪声带偏。
-Adam 很快成了深度学习里最常用的优化器之一，今天训练大语言模型，用的大多是 Adam 家族的变体。
-从柯西 1847 年的三页短文，到今天训练几千亿个参数，核心的一步始终没变：算梯度，往下走一小步。
-伏笔：→ 从回归到分类、优化器
-尾声：两种求答案的思路
-这一章出现了两种"求最优参数"的思路：
-1. 直接解公式（勒让德、高斯）：对线性模型，最小二乘有精确的公式解，一步到位。
-2. 一步步走过去（柯西、罗宾斯-门罗、维德罗-霍夫）：不需要公式，只需要会算梯度。
-为什么今天的深度学习只用第二种？因为神经网络是非线性的，根本没有公式解；
-而且当参数有几千亿个、数据有几万亿个 token 时，哪怕有公式也算不动。
-只有梯度下降，特别是随机梯度下降，能扛得住这样的规模。
-数据说明：data/galton_1886.csv 是高尔顿 1886 年论文中的原始数据（928 行），
-转录自统计学家 Michael Friendly 维护的 R 包 HistData。
-1. 回归与线性模型
-一句话：回归就是根据输入预测一个数；线性模型就是"每个输入乘一个权重，再加起来"。
-x（特征）：输入的信息，比如父母的身高；
-w（权重）：每个特征有多重要，比如 0.65；
-b（偏置/截距）：所有特征都为 0 时的基准值。
-第一章的感知机也是线性模型，只是最后多了一步"大于 0 输出 1，否则输出 0"。
-2. "线性"到底是对谁线性？
-线性模型里的"线性"，指的是对参数（w、b）是线性的，而不是对输入。
-所以 y = w1·x + w2·x² + b 也是线性模型：把 x² 当成一个新特征就行了。
-这让线性模型能拟合曲线，同时保留最小二乘的公式解。
-神经网络的厉害之处，就在于它能自己学出该用什么样的特征（第一章实验 3 的隐藏层），不需要人去设计 x²。
-3. 残差、最小二乘与均方误差
-残差：真实值 − 预测值，也就是每个点"差了多少"。
-最小二乘：选择让残差平方和最小的参数。
-均方误差（MSE）：残差平方的平均值，是最常用的回归损失函数。
-1. 正负误差不会互相抵消；
-2. 大的误差被放大惩罚，模型会尽量避免离谱的错误；
-3. 平方函数处处可导，能直接求导解出公式（正规方程），也方便梯度下降；
-4. 高斯证明了：如果观测误差服从正态分布，最小二乘给出的就是"最可能"的答案。
-缺点是对离群点很敏感：一个特别离谱的数据点，会把整条直线拽过去。这时可以改用绝对值误差等其他损失函数。
-登场：序幕、第一幕　 ceres_1801.py
-4. 正规方程（解析解）
-对线性模型，把均方误差对每个参数求导、令导数等于 0，就得到一组方程，叫正规方程：
-解出来就是最小二乘的答案。实验 1 里手算的那个 2×2 方程组，就是它最简单的样子。
-它的缺点是：特征有 d 个时，解这个方程的计算量大约和 d³ 成正比，特征一多就算不动了；而且非线性模型根本没有这样的公式。
-梯度是一个向量，它指向"函数值上升最快的方向"，长度表示有多陡。
-它的每个分量，就是损失对某一个参数的偏导数：这个参数增加一点点，损失会变多少。
-往梯度的反方向走，损失下降得最快。
-6. 梯度下降与学习率
-学习率太小：每步都很稳，但要走很久；
-学习率刚好：很快到达谷底；
-学习率太大：一步迈过谷底，跳到对面更高的地方，越跳越远，最后"爆炸"。
-学习率的上限由损失函数"最陡的方向有多陡"决定：越陡，步子就得越小。
-实验 2 里，学习率从"偏大"到"太大"只差了一点点，结果一个收敛、一个发散，就是因为跨过了这个上限。
-登场：第二幕　 gradient_descent_1847.py
-如果一个方向很陡、另一个方向很平，损失函数就像一条又窄又长的峡谷。
-学习率只能按陡的方向来定（否则会发散），结果在平的方向上几乎走不动。
-中心化（减去平均值）和标准化（再除以标准差）能把峡谷变成一个圆圆的碗，梯度下降就快得多。
-实验 2 里，原始数据的峡谷两个方向的陡峭程度差了几百万倍，中心化后只差 3 倍。
-这也是为什么几乎所有机器学习流程的第一步，都是把数据缩放到相近的范围。
-8. 批量、随机与小批量梯度下降
-epoch（轮）：把全部训练数据完整地看一遍，叫一个 epoch。
-登场：第四幕、第五幕　 lms_1960.py
-SGD 的方向有噪声，到了终点附近会一直在周围抖动。
-如果让学习率逐渐变小，抖动也会越来越小，最后稳稳停在答案上。
-罗宾斯和门罗 1951 年证明的，正是步长应该怎样变小才能保证收敛。
-今天训练大模型时，学习率通常先"预热"（从小慢慢升高），再逐渐衰减。
-10. 回归平均值
-两个量不完全相关时，一方很极端，另一方往往没那么极端，更靠近平均值。
-这不是什么神秘力量，而是统计规律：极端值里通常有一部分是"运气"，而运气不会遗传，也不会持续。
-生活中很多"效果"其实是回归平均值造成的错觉：考得特别差之后的进步，表现特别好之后的下滑（"封面诅咒"）。
-判断一个方法到底有没有效，需要对照组，而不能只看前后对比。
-登场：第三幕　 galton_1886.py
-11. 外推的风险
-在数据覆盖的范围内部做预测叫内插，比较可靠；在范围外面做预测叫外推，很危险。
-实验 1 用 41 天的数据预测第 364 天，能成功，是因为我们用的模型形式（匀速运动）恰好是对的。
-高斯能找回谷神星，也是因为他用了正确的物理模型（开普勒的椭圆轨道）。
-如果模型形式本身就错了，数据拟合得再好，外推也会错得离谱。
-12. 从回归到分类：逻辑回归
-逻辑回归 = 线性模型 + sigmoid 函数：
-sigmoid 把任意实数压到 0～1 之间，当作"是"的概率。训练时通常不用均方误差，
-而是用交叉熵损失：如果真实答案是"是"，模型给"是"的概率越低，惩罚就越重。
-一个逻辑回归，其实就是一个"会输出概率的神经元"。把很多个这样的神经元连成多层，就是第一章的神经网络。
-13. 优化器：动量与 Adam
-普通梯度下降只看"当前这一步"的梯度。改进的方法主要有两类：
-动量：像一个滚下山的球，会保留之前的速度。在峡谷里不容易来回撞，在平地上也能继续往前滚。
-自适应学习率：给每个参数配一个自己的步长。经常剧烈变化的参数步子小一点，很少更新的参数步子大一点。
-Adam 把两者结合了起来，几乎不用怎么调参就能用，所以成了深度学习的默认选择。
-14. LMS 与感知机
-LMS 告诉我们：学习规则可以从"最小化一个损失函数"推导出来，而不是靠直觉设计。
-1986 年的反向传播，就是把这个思路推广到了多层网络。
-第三章　神经网络与自动求导：让机器自己算导数
-第一章里，我们手写了 XOR 网络的反向传播，每一个导数都要自己推。
-网络有三层的时候还行，有一百层、几千亿个参数的时候呢？
-这一章讲的是：人类怎么把"求导"这件事彻底交给了机器，以及为什么网络一深就很难训练。
-怎么读这一章： 先看故事，再跑实验，最后看概念解释。
-序幕　1970 年，哥本哈根的一个下午
-1970 年，芬兰赫尔辛基大学的学生塞波·林纳因马（Seppo Linnainmaa） 正在写硕士论文。
-他研究的问题和神经网络毫无关系：计算机做浮点运算时，每一步都会产生一点点舍入误差，
-这些小误差一路累积下来，最后的结果会偏离多少？
-要回答这个问题，就得知道最终结果对每一个中间步骤有多敏感，也就是一大堆导数。
-据数学家安德烈亚斯·格里万克（Andreas Griewank）后来的记述，林纳因马说，
-解决办法是 1970 年在哥本哈根一个阳光明媚的下午，在公园里想到的：
-把计算过程记下来，然后从最终结果出发，倒着走一遍，用链式法则把敏感度一步步传回去。
-这样只需倒着走一遍，就能得到结果对所有中间量的导数。他还用 FORTRAN 把它实现了出来。
-这就是反向模式自动微分。十几年后人们用它来训练神经网络，给它起了另一个名字：反向传播。
-动手：运行 autograd.py。用不到 100 行代码实现一个自动求导引擎，
-画出计算图，并用"数值梯度"检查它算得对不对。
-伏笔：→ 计算图、前向模式与反向模式
-第一幕　1989 年：一层就够了？
-第一章讲到，1986 年反向传播让多层网络重新热了起来。但一个根本问题还没人回答：
-多层网络到底能表示多复杂的东西？
-1989 年，两篇论文几乎同时给出了答案。数学家乔治·西本科（George Cybenko）
-在《控制、信号与系统数学》上证明：只要有一个隐藏层、用 sigmoid 这样的 S 形激活函数，
-网络就能以任意精度逼近任何连续函数。同一年，霍尼克（Kurt Hornik）、斯廷奇科姆和怀特
-在《Neural Networks》上发表了题目很响亮的论文《多层前馈网络是万能逼近器》。
-这就是万能逼近定理。它让人安心：神经网络在原理上没有"画不出来"的形状。
-但它没说的两件事，后来成了几十年的难题：需要多少个神经元？以及怎么才能真的把权重训练出来？
-动手：运行 mlp_moons.py。用你自己写的引擎训练一个网络，
-去分开两个交错的"月亮"。没有隐藏层的网络只能画直线；加上隐藏层，边界就弯了起来。
-伏笔：→ 万能逼近定理
-第二幕　1991 年，慕尼黑：越深越学不动
-1991 年 6 月 15 日，慕尼黑工业大学的学生塞普·霍赫赖特（Sepp Hochreiter） 交上了他的毕业论文（Diplom），
-题目是《动态神经网络研究》，用德语写成，指导老师是于尔根·施密德胡伯（Jürgen Schmidhuber）。
-论文里分析了一个让所有人头疼的现象：误差信号沿着网络往回传的时候，每经过一层都要乘上一些系数。
-如果这些系数普遍小于 1，传几十层之后信号就小到几乎为零，靠近输入的那些层根本学不到东西，这叫梯度消失；
-如果普遍大于 1，信号就会越传越大，这叫梯度爆炸。
-施密德胡伯后来称这篇论文是"机器学习史上最重要的文献之一"。
-六年后，霍赫赖特和施密德胡伯正是为了绕开这个问题，发明了 LSTM（第四章会讲）。
-动手：运行 vanishing_gradient.py。搭一个 30 层的网络，
-看误差信号传回第 1 层时还剩多少：sigmoid 网络只剩 10⁻²⁰ 倍，初始化太大的网络则被放大了上万倍。
-伏笔：→ 梯度消失与梯度爆炸
-第三幕　2010–2015 年：换个激活函数，选对初始值
-整个 2000 年代，深层网络都以"难训练"著称。2010 年前后，几项看起来很朴素的改进，让局面彻底改观：
-2010 年，蒙特利尔大学的泽维尔·格洛罗（Xavier Glorot） 和约书亚·本吉奥（Yoshua Bengio）
-发表《理解训练深度前馈网络的困难》，仔细分析了信号在各层之间如何变大变小，
-提出了一种按"输入和输出个数"来缩放初始权重的方法，后来被称为 Xavier 初始化。
-2010 年，多伦多大学的奈尔（Vinod Nair） 和辛顿在 ICML 上提出用修正线性单元（ReLU） 改进模型：
-它的规则简单到极点，大于 0 就原样输出，小于 0 就输出 0。
-2011 年，格洛罗、博尔德斯和本吉奥的《深度稀疏修正神经网络》显示，用 ReLU 的深层网络
-不需要复杂的预训练技巧也能训练得很好。
-2012 年，AlexNet 的论文报告：在 CIFAR-10 数据集上，用 ReLU 的网络达到 25% 训练错误率的速度，
-是用 tanh 的六倍。ReLU 从此成了默认选择。
-2015 年，微软亚洲研究院的何恺明等人发表《深入研究修正函数》，提出了专门为 ReLU 设计的初始化方法
-（何恺明初始化），让非常深的网络可以直接从零训练。这篇论文的模型在 ImageNet 上达到 4.94% 的 top-5 错误率，
-是第一个在这项挑战上超过人类水平（5.1%）的结果。
-在实验 2 里，你会亲眼看到初始化有多重要：同样的网络、同样的数据，初始权重的尺度选小了，
-准确率会卡在九成左右；换成何恺明初始化，80 步就能达到 100%。
-伏笔：→ 激活函数、初始化
-第四幕　2012 年：银行柜员的启发
-网络越大，越容易过拟合：把训练数据背下来，遇到新数据就不灵。
-据辛顿自己在一次网上问答（Reddit）中回忆，有一次他去银行，发现柜员总是在换人。他问其中一位为什么，
-对方说不知道，只知道大家经常被调来调去。辛顿想：这大概是因为，要骗银行的钱，需要几个员工互相配合；
-经常轮岗，他们就串通不起来。他由此想到：每次训练时随机"关掉"一部分神经元，
-它们就没法形成脆弱的"小团伙"，网络就不容易过拟合。
-2012 年 7 月，辛顿和学生们在 arXiv 上发表了《通过防止特征检测器的共同适应来改进神经网络》，
-这个方法叫 Dropout。同年的 AlexNet 也用上了它。
-伏笔：→ 过拟合、正则化与 Dropout
-第五幕　2007–2017 年：再也不用手推导数了
-第一章的实验 3 里，反向传播的每一行公式都要自己推。只要网络结构改一点，就得重新推一遍，非常容易出错。
-深度学习框架改变了这一切。它们的核心正是林纳因马的反向模式自动微分：
-你只需要写出前向计算，框架会自动记录计算图，再自动算出所有梯度。
-2007 年，蒙特利尔大学的研究团队（后来的 MILA）发布了 Theano，最早一批支持自动求导和 GPU 的 Python 框架之一；
-2015 年 11 月 9 日，谷歌开源了 TensorFlow；
-2017 年 1 月，Facebook 的研究团队公开发布了 PyTorch。它"边运行边建图"的方式和我们的 Value 类一样直观，
-很快成为研究者最喜欢的工具。
-从此，研究者可以把精力放在设计新的网络结构上，而不是推导公式。
-伏笔：→ 深度学习框架
-第六幕　2020–2022 年：一百行代码讲清楚
-框架越来越强大，内部也越来越复杂，初学者很难看清它到底做了什么。
-2020 年，曾任特斯拉 AI 负责人、也是 OpenAI 创始成员之一的安德烈·卡帕西（Andrej Karpathy）
-在 GitHub 上发布了 micrograd：一个大约 100 行的自动求导引擎，加上大约 50 行的神经网络库，
-API 和 PyTorch 很像。2022 年 8 月，他又录了一个两个多小时的视频，从零开始一行行写出它。
-这一章的实验 1 和 2 走的就是同一条路：自己写引擎，再用它训练网络。
-等你下次用 PyTorch 调用 loss.backward() 时，就会知道它背后发生了什么。
-这一章的三个故事，对应训练神经网络的三个关键问题：
-1. 怎么求导：反向模式自动微分，一次反向就得到所有梯度；
-2. 能不能表示：万能逼近定理说可以，但要靠足够的神经元和正确的训练；
-3. 能不能训练：梯度消失和爆炸曾让深层网络寸步难行，ReLU 和合适的初始化（后来还有残差连接）把路打通了。
-下一章，我们看研究者如何为图像和语言设计专门的网络结构：从卷积网络，一直到 Transformer。
-任何计算都可以拆成一步步的小运算：加、乘、tanh……把它们画成一张图，每个节点是一个值，
-边表示"谁由谁算出来"，这就是计算图。实验 1 里，Value 对象的 _prev 就是它的入边。
-框架做的第一件事，就是在你写前向计算时，悄悄把这张图记下来。
-登场：序幕　 autograd.py
-如果 L 依赖 d，d 又依赖 e，那么 dL/de = dL/dd × dd/de。
-反向传播就是在计算图上反复使用链式法则：每个节点只需要知道"自己的局部导数"，
-再乘上从后面传来的梯度，然后传给前面。每种运算的局部导数都很简单：
-加法：原样分给两边；
-乘法：乘以对方的值；
-tanh：乘以 1 - tanh²。
-3. 前向模式与反向模式
-自动微分有两个方向：
-前向模式：从某一个输入出发，算出所有结果对这一个输入的导数。有 n 个输入，就要算 n 遍。
-反向模式：从某一个结果出发，倒着走一遍，算出这一个结果对所有输入的导数。
-神经网络的情况是：输入（参数）几百万到几千亿个，结果（损失）只有 1 个。所以反向模式完胜，这就是反向传播。
-数值梯度用最笨的办法求导：把某个参数挪一点点（比如 10⁻⁶），看损失变了多少。
-它很慢（每个参数都要单独算两遍），但几乎不会出错，所以专门用来检查自动求导写得对不对。
-实验 1 里，两种方法的差别在 10⁻¹⁰ 量级，说明引擎是对的。
-5. 万能逼近定理
-只要隐藏层的神经元足够多，一个隐藏层的网络就能以任意精度逼近任何连续函数。
-它说明了神经网络的表达能力，但没说需要多少神经元，也没说训练算法能不能找到这组权重。
-实践中，"更深"往往比"更宽"高效得多：多层网络可以逐层组合出越来越复杂的特征。
-登场：第一幕　 mlp_moons.py
-没有激活函数（或者只用线性函数），多层网络就等于一层。激活函数提供了非线性，网络才能画出弯曲的边界。
-今天的大模型多用 ReLU 的平滑版本，比如 GELU、SwiGLU。
-7. 梯度消失与梯度爆炸
-反向传播时，梯度每经过一层，都要乘以"这一层的权重"和"激活函数的导数"。
-这些因子普遍小于 1 → 连乘几十次趋近于 0 → 梯度消失，前面的层学不动；
-普遍大于 1 → 连乘几十次趋向无穷 → 梯度爆炸，训练直接发散。
-解决办法有：ReLU 类激活函数、合适的初始化、归一化层、残差连接（第四章），以及专门为序列设计的 LSTM（第四章）。
-对付爆炸，还有一个简单粗暴的办法：梯度裁剪，梯度太大时直接把它缩小到上限以内。
-登场：第二幕　 vanishing_gradient.py
-训练开始前，权重不能全是 0：那样每个神经元都一模一样，永远学不出区别。所以要随机初始化。
-但随机数的尺度很关键：
-太小 → 信号一层层变弱 → 梯度消失；
-太大 → 信号一层层变强 → 梯度爆炸。
-常用规则是按"输入个数 n"缩放：
-Xavier 初始化（标准差约 √(1/n)）：适合 tanh、sigmoid；
-何恺明初始化（标准差 √(2/n)）：适合 ReLU。ReLU 会把一半的信号置零，所以要大一点来补偿。
-登场：第三幕　 mlp_moons.py、vanishing_gradient.py
-9. 过拟合、正则化与 Dropout
-过拟合是把训练数据背得太熟，在新数据上反而表现差（第一章概念 6）。对抗它的方法统称正则化：
-L2 正则（权重衰减）：在损失里加上"权重的平方和"，鼓励权重小一点、模型简单一点；
-Dropout：训练时每一步随机关掉一部分神经元（比如一半），迫使网络不依赖任何特定的"小团伙"；
-测试时全部打开。可以把它看成同时训练了很多个子网络，再取平均；
-早停：在验证集上的表现开始变差时，就停止训练；
-更多数据：最根本的办法。
-10. 深度学习框架
-PyTorch、TensorFlow、JAX 这些框架，核心功能和实验 1 的 Value 类一样：记录计算图，自动反向传播。
-它们操作的是张量（多维数组），不是一个个标量。一次矩阵乘法能代替成千上万次标量运算；
-计算可以放在 GPU 上并行执行；
-它们提供现成的层、优化器（第二章讲过的 Adam）、数据加载工具。
-实验 2 用纯 Python 标量训练 151 个参数要半分钟。同样的事，PyTorch 在 GPU 上只要一眨眼。这就是向量化和硬件加速的威力。
-登场：第五幕、第六幕
-第四章　从 CNN 到 Transformer：给网络装上眼睛和注意力
-第三章的网络是"万能"的，但对图片和句子，它并不知道该怎么看。
-这一章讲研究者怎么从猫的大脑里得到灵感，设计出专门看图的卷积网络；
-又怎么一步步解决"读长句子会忘事"的问题，最后得到今天所有大模型共用的结构：Transformer。
-怎么读这一章： 先看故事，再跑实验，最后看概念解释。
-序幕　1959 年，一张幻灯片的边缘
-1950 年代末，在约翰斯·霍普金斯大学的实验室里，两位年轻的神经生理学家
-大卫·休伯尔（David Hubel） 和托斯坦·维泽尔（Torsten Wiesel） 想弄清楚：猫的视觉皮层里，一个个神经元到底在"看"什么？
-他们把电极插进麻醉的猫的视觉皮层，用投影仪往屏幕上打各种图案：亮点、暗点……神经元毫无反应。
-据休伯尔在诺贝尔奖演讲中的回忆，他们试了好几个小时都没有结果。就在往投影仪里插玻璃幻灯片的时候，
-扬声器里突然传来神经元密集的放电声，"像机关枪一样"。
-让它兴奋的不是幻灯片上的图案，而是幻灯片的边缘在屏幕上投下的一条线。
-他们由此发现：视觉皮层里有些神经元（"简单细胞"）只对特定方向的边缘有反应。
-把线条转一个角度，反应就变弱。还有些神经元（"复杂细胞"）对同样方向的边缘有反应，但不在乎它具体出现在哪个位置。
-视觉是分层处理的：先找边缘，再把边缘组合成更复杂的形状。
-1981 年，两人因为这些发现获得了诺贝尔生理学或医学奖。
-动手：运行 convolution.py。手写一个 3×3 的"边缘探测器"，
-再复现休伯尔和维泽尔的实验：给它看不同角度的线条，画出它的"方向调谐曲线"。
-第一幕　1980 年，东京：Neocognitron
-日本 NHK 放送技术研究所的研究员福岛邦彦，把休伯尔和维泽尔的发现直接搬进了神经网络。
-1980 年，他在《生物控制论》期刊上发表了 Neocognitron，论文标题里写着它的目标：
-"一种不受位置移动影响的模式识别机制"。
-他的网络由两种层交替组成：
-S 层模仿简单细胞，用局部的小探测器寻找特定的图案；
-C 层模仿复杂细胞，把附近的反应合并起来，让识别不在乎图案的精确位置。
-这就是今天卷积网络里"卷积层 + 池化层"的雏形。不过 Neocognitron 不是用反向传播训练的。
-第一章讲过，1989 年杨立昆在贝尔实验室把类似的结构和反向传播结合起来，这才有了真正意义上的卷积神经网络（CNN）。
-伏笔：→ 池化与平移不变性
-第二幕　1989–2015 年：越来越深的卷积网络
-卷积网络后来的故事，前几章已经讲过一部分：LeCun 的网络读支票，2012 年 AlexNet 在 ImageNet 上一鸣惊人。
-之后，网络越做越深，同时也越来越难训练（第三章的梯度消失）。
-2015 年，微软亚洲研究院的何恺明、张祥雨、任少卿、孙剑提出了残差网络（ResNet）。
-想法出奇地简单：每一层不再直接输出新结果，而是输出"在输入基础上的修改量"，再把输入原样加回来：
-输出 = 输入 + f(输入)。这条"捷径"让信号和梯度可以畅通无阻地穿过很多层。
-他们训练出了 152 层的网络，以 3.57% 的错误率赢得了 2015 年 ImageNet 挑战赛（ILSVRC）分类任务的冠军。
-残差连接后来成了几乎所有深度网络的标配，包括 Transformer。
-动手：transformer_block.py 的第 3 部分。堆 48 层，比较有残差连接和没有残差连接的区别。
-伏笔：→ 残差连接
-第三幕　1997 年：会遗忘的循环网络，和一条传送带
-图片是二维的，语言却是一个接一个的序列。处理序列，最自然的办法是循环神经网络（RNN）：
-像人读书一样，一个词一个词往下读，把"读到现在的理解"存在一个隐藏状态里，每读一个新词就更新一次。
-问题正是第三章那篇 1991 年的毕业论文发现的：第 1 个词的信息要传到第 100 个词，要经过 99 次更新，
-每次都打一点折扣，最后几乎什么都不剩。RNN 很难记住长距离的关系。
-1997 年，霍赫赖特和施密德胡伯在《神经计算》上发表了长短期记忆网络（LSTM）。
-它在 RNN 里加了一条"传送带"（论文里叫"恒定误差传送带"），再用几个"门"控制往传送带上写什么、擦什么、读什么。
-只要"遗忘门"保持打开，信息就能沿着传送带几乎无损地传很远。论文显示，LSTM 能跨越超过 1000 个时间步学到依赖关系。
-此后近二十年，LSTM 一直是处理语音、文字等序列数据的主力。
-动手：运行 rnn_vs_attention.py。比较第 1 个词对第 100 个词的影响：
-普通 RNN 只剩 10⁻⁴⁸，LSTM 还剩 0.37，注意力则永远只隔一步。
-伏笔：→ RNN 与 LSTM
-第四幕　2014 年：瓶颈，和"回头看"
-2014 年，谷歌的苏茨克维、维尼亚尔斯（Oriol Vinyals） 和 Quoc V. Le 发表了 seq2seq（序列到序列）模型：
-用一个 LSTM 把整句英语"读"成一个固定长度的向量，再用另一个 LSTM 把这个向量"写"成法语。
-它在英法翻译任务上取得了 34.8 的 BLEU 分数，显示了神经网络做翻译的潜力。
-但这个设计有一个明显的瓶颈：不管句子多长，都得压缩进同一个长度的向量里。句子一长，翻译质量就明显下降。
-同一年，在蒙特利尔大学本吉奥实验室实习的白俄罗斯学生德米特里·巴达瑙（Dzmitry Bahdanau），
-和 Kyunghyun Cho、本吉奥一起发表了《通过联合学习对齐与翻译来做神经机器翻译》。
-他们的办法是：不再把整句话压成一个向量，而是保留原句每个词的表示；每生成一个译文词，都回头"看"一遍原句，
-按相关程度给每个原文词分配权重，再把它们加权平均。
-这就是注意力机制。据巴达瑙 2024 年在给卡帕西的邮件中回忆，"attention"这个名字是本吉奥起的。
-两年后，这些技术走进了几亿人的生活。2016 年 9 月，谷歌发布了基于 LSTM 和注意力的神经机器翻译系统 GNMT，
-最先上线的语言对就是公认很难的中译英：谷歌翻译网页版和手机版的中译英全部改用了 GNMT，每天大约 1800 万次翻译。
-动手：运行 attention.py。把注意力看成"模糊查字典"，再让句子里的"它"自己找到"小猫"。
-伏笔：→ seq2seq 与瓶颈、注意力
-第五幕　2017 年：只要注意力
-第一章讲过 Transformer 论文的八位作者和它名字的由来。这里讲它在技术上做了什么。
-巴达瑙的注意力还是搭在 RNN 上的：RNN 一个词一个词地读，注意力只是辅助。
-2017 年的 Transformer 走了最激进的一步：彻底扔掉循环，整个网络只用注意力。
-自注意力：句子里的每个词同时去看其他所有词，一步就能建立任意两个词之间的联系；
-多头：同时用好几组注意力，各自关注不同的关系；
-位置编码：注意力本身不知道词的顺序，所以要给每个位置加上一个独特的"编号"；
-残差连接 + 层归一化：让网络能堆得很深（来自 ResNet 等前人的工作）。
-因为不再需要一步步按顺序计算，整句话可以一次性交给 GPU 并行处理。论文里的基础模型在 8 块 P100 显卡上只训练了 12 小时，
-大模型训练了 3.5 天，就在英德翻译上取得了 28.4 的 BLEU 分数，超过了当时所有的模型，包括多个模型的集成。
-动手：运行 transformer_block.py。把零件组装成一个完整的 Transformer，
-看一句话流过每一层时的形状，以及参数都花在了哪里。
-伏笔：→ 自注意力与多头、位置编码、Transformer 块
-第六幕　2020 年：一张图值 16×16 个词
-Transformer 本来是为语言设计的。2020 年 10 月，谷歌的阿列克谢·多索维茨基（Alexey Dosovitskiy） 等人
-发表了一篇标题很有趣的论文：《一张图值 16×16 个词》。
-他们把图片切成一个个 16×16 像素的小方块，把每个小方块当成一个"词"，直接交给 Transformer。
-没有卷积，没有专门为图片设计的结构。结果发现：只要预训练的数据足够多，这个 Vision Transformer（ViT）
-就能达到甚至超过最好的卷积网络，而且训练所需的计算资源更少。
-从此，Transformer 成了一种"通用结构"：文字、图片、语音、蛋白质，都可以切成一串"词"交给它。
-今天的 GPT、Claude、DeepSeek 都建立在它之上。
-尾声：两种"看"的方式
-这背后有一条贯穿整个 AI 历史的教训：内置的人类知识在数据少时很有用，但在海量数据和算力面前，
-更通用的方法往往笑到最后。 强化学习先驱理查德·萨顿（Richard Sutton）2019 年把它写成了一篇短文，标题就叫《苦涩的教训》（The Bitter Lesson）。 下一章，我们看把 Transformer 做到极大规模之后发生了什么：大语言模型。
-用一个小窗口（卷积核，比如 3×3）在整张图上滑动，每到一个位置，就把窗口里的像素和卷积核对应相乘再相加。
-结果是一张新的"特征图"，表示"这种图案在每个位置出现得有多强"。
-卷积有两个关键性质：
-局部连接：每个输出只看输入的一小块；
-权重共享：同一个卷积核在所有位置重复使用。
-这两点让参数量减少了几个数量级，也让网络天生就知道"同一个图案出现在不同位置，是同一种东西"。
-CNN 里的卷积核是训练出来的。训练好之后，第一层的卷积核往往真的很像边缘探测器，和猫的简单细胞一样。
-登场：序幕　 convolution.py
-一个神经元能"看到"的输入区域，叫它的感受野。一个 3×3 卷积看 3×3 的区域；两层叠起来就是 5×5；层数越多，看得越大。
-所以 CNN 是由局部到整体逐层构建理解的：浅层看边缘，中层看纹理和零件，深层看整个物体。
-3. 池化与平移不变性
-最大池化把一小块区域（比如 2×2）里的值只保留最大的那个。
-它只关心"这一片里有没有出现这个特征"，不关心精确在哪个像素。图像平移一点点，池化后的结果几乎不变，这叫平移不变性。
-这正是福岛邦彦"C 层"的作用，对应休伯尔和维泽尔的"复杂细胞"。
-登场：第一幕　 convolution.py
-4. RNN 与 LSTM
-RNN：h_t = tanh(W·h_{t-1} + U·x_t)。每读一个词，就用"旧状态 + 新词"算出新状态。
-它天然适合序列，但信息每传一步都要被矩阵乘一次，传远了就消失（或爆炸）。
-LSTM 多了一个单独的记忆单元 c，以及三个门：
-遗忘门：旧记忆保留多少；
-输入门：新信息写入多少；
-输出门：对外输出多少。
-记忆单元的更新主要是"乘遗忘门 + 加新内容"。遗忘门接近 1 时，信息和梯度都能几乎无损地传很远。
-登场：第三幕　 rnn_vs_attention.py
-5. seq2seq 与瓶颈
-seq2seq = 编码器 + 解码器：编码器把输入序列读成一个向量，解码器根据这个向量生成输出序列。
-翻译、摘要、对话都可以看成 seq2seq 问题。
-它的瓶颈是：整句话的信息被压缩进一个固定长度的向量，句子越长，丢得越多。注意力正是为了解决这个问题而诞生的。
-6. 注意力（Q、K、V）
-注意力可以理解成一次"模糊查字典"：
-Query（查询）：我想找什么；
-Key（键）：每个候选项的"标签"；
-Value（值）：每个候选项真正的内容。
-1. 用查询和每个键做点积，得到"匹配分数"；
-2. 除以 √d（d 是向量维度），防止分数太大；
-3. 用 softmax 把分数变成加起来等于 1 的权重；
-4. 用权重对所有的值做加权平均。
-和普通字典不同，注意力不是"只取一个"，而是"按相关程度各取一点"。这让它处处可导，可以用反向传播训练。
-登场：第四幕　 attention.py
-7. 自注意力与多头注意力
-自注意力：Q、K、V 都来自同一句话。每个词都用自己的查询，去匹配句子里所有词的键。
-这样，"它"可以直接找到"小猫"，不管中间隔了多少个词。
-多头注意力：同时用好几套 Q/K/V 投影（几个"头"），每个头可以学会关注不同的关系：
-指代、语法、前后相邻……最后把各个头的结果拼起来。
-因果掩码：生成文字时，每个词只允许看它前面的词（把注意力矩阵的右上角遮住），
-否则模型在训练时就能"偷看答案"。GPT 这类模型都用因果掩码。
-登场：第五幕　 attention.py
-注意力本身是"无序"的：把句子里的词打乱，每个词得到的注意力结果不会变。但"猫追狗"和"狗追猫"意思完全不同。
-所以要给每个位置加上一个独特的向量（位置编码）。2017 年的论文用不同频率的正弦和余弦波来组合；
-今天的大模型多用"旋转位置编码"（RoPE）等改进方法。
-登场：第五幕　 attention.py、transformer_block.py
-9. 残差连接与层归一化
-残差连接：输出 = 输入 + f(输入)。每一层只学"修改量"，原始信息有一条直通的捷径。
-它解决了深层网络的梯度消失问题，也防止了实验 4 里看到的"所有词的向量变得一模一样"（研究者称之为秩崩塌）。
-层归一化：把每个词的向量调整成均值 0、方差 1，让各层的数值保持在稳定的范围内，训练更顺利。
-登场：第二幕　 transformer_block.py
-10. Transformer 块
-一个 Transformer 块 = 多头自注意力（词与词交流信息）+ 前馈网络（每个词各自做一次两层的变换），
-每一部分都包着残差连接和层归一化。把几十到上百个这样的块叠起来，就是一个大模型的主体。
-参数主要分布在三个地方：词嵌入和输出层、注意力的 Q/K/V/O 矩阵、前馈网络。其中前馈网络通常占大头。
-登场：第五幕　 transformer_block.py
-把图片切成固定大小的小块（比如 16×16 像素），每块拉平后当作一个"词"，加上位置编码，交给标准的 Transformer。
-它说明 Transformer 是一种通用的序列处理器：任何东西只要能切成"一串词"，就能用它来学。
+A "harness" originally means the gear for a horse: the reins, straps and all the rest, which let the horse's strength be guided in the right direction.
+In AI, the model is the horse, and the harness is everything wrapped around the model that makes it work reliably:
+the while loop itself;
+which tools are available, and how tool results are fed back to the model;
+how the context is managed: what goes in, what gets deleted, how to compress it when it gets too long;
+permissions and safety boundaries: which actions need human approval, and what sandbox it runs in;
+feedback loops: tests, code checks, another agent reviewing the work, so mistakes get caught and fixed in time.
+OpenAI's experience: with the same model, how good the harness is makes a world of difference.
+Tools you may be using right now, like Claude Code and Codex, are essentially harnesses.
+First appears in: Act 12
+18. Multi-Agent Collaboration
+When one agent isn't enough, have several agents split up the work:
+Orchestrator–worker: a lead agent breaks down the task, hands out the work and pulls the results together, while several subagents work in parallel;
+Writer–reviewer: one writes, the other finds fault;
+Routing: hand each type of task to the model that's best at it;
+Debate: several models each give their view and argue against each other, then reach a conclusion.
+Why split up the work? Because each agent's context window is limited, so a task that's too big won't fit in one agent; and independent subtasks can be done in parallel.
+The price is that token use multiplies, for example the roughly 15x that Anthropic reported. So it's only worth it when the task is valuable enough.
+How exactly do two AIs "talk" to each other? See the side quest: How Do Two AIs "Talk"?.
+First appears in: Act 12
+Chapter 2 — Linear Models and Gradient Descent: Starting with a Lost Planet
+Chapter 1 was about where neural networks came from. But the "engine" neural networks use to learn,
+namely define an error, then drive that error as low as it will go, is far older than neural networks.
+Its story begins on New Year's Day 1801, with a lost planet.
+How to read this chapter: As in Chapter 1, read the stories first, then run the labs, and save the Concepts for last.
+Prologue — New Year's Day 1801, Palermo: A "Star" That Moved
+On January 1, 1801, the first night of the 19th century, the Italian astronomer Giuseppe Piazzi,
+at the observatory in Palermo, Sicily, noticed a faint point of light. When he looked again the next night, it had moved a little.
+It wasn't a star. It was a body orbiting the Sun between Mars and Jupiter, later named Ceres.
+Piazzi tracked it for 41 days and recorded about two dozen observations. Then it drew close to the Sun and vanished into the Sun's glare.
+When it came back out from behind the Sun, where in that vast sky should anyone look? A few dozen observations covered only a short arc of its orbit,
+and at the time there was no reliable way to compute a full orbit from so little data. Europe's astronomers searched for months and found nothing.
+That's when a 24-year-old German, Carl Friedrich Gauss, took on the problem.
+He spent about three months on the calculations and worked out where Ceres should appear in December.
+On December 31, 1801, the astronomer Franz Xaver von Zach, searching from Gotha where Gauss had predicted,
+found Ceres again less than half a degree from the predicted position. The next day, Heinrich Olbers saw it too, in Bremen.
+Discovered on New Year's Day, found again on New Year's Eve. Overnight, Gauss was famous all over Europe.
+One of his secret weapons was a method for handling "observations with errors": what came to be called the method of least squares.
+Try it: run ceres_1801.py. Use 24 noisy observations to predict the position a year later,
+and compare which is more accurate: "just two points" or "least squares."
+Act 1 — 1805–1820: Who Really Invented Least Squares?
+In 1805, the French mathematician Adrien-Marie Legendre published a book on computing the orbits of comets.
+Its appendix (dated March 6, 1805) clearly laid out a method:
+when there are more equations than unknowns, and every observation has some error, choose the solution that makes the sum of the squares of all the errors as small as possible.
+He gave the method a name: the method of least squares (méthode des moindres quarrés).
+Four years later, in 1809, Gauss published his great work on celestial mechanics, Theoria Motus. It also covered least squares
+and mentioned Legendre, but it also said that he had been using this method since 1795.
+Legendre was furious. On May 31, 1809, he wrote to Gauss, saying that priority should be settled by publication.
+In 1820, he publicly rebutted Gauss again in a supplement to one of his works. Gauss later tried to prove that he really had been first,
+but by his own account, his old calculation notes had been lost, and his colleagues either couldn't remember or didn't want to be drawn into the dispute.
+Today, textbooks usually credit both: Legendre was the first to publish and name it, while Gauss connected it to a probability theory of errors (what became the "normal distribution")
+and explained why you should use squares.
+Look ahead: Why "squares," of all things? → Residuals, least squares and mean squared error
+Act 2 — 1847: Cauchy's "Downhill Method"
+For simple models like a straight line, least squares has a ready-made formula. But real orbit problems are nonlinear:
+a celestial body's orbit has 6 unknowns, the equations are full of trigonometric functions, and there's simply no formula that solves them.
+In 1847, the French mathematician Augustin-Louis Cauchy published a short note, just three pages long, in the Comptes Rendus of the French Academy of Sciences,
+titled Méthode générale pour la résolution des systèmes d'équations simultanées ("General method for solving systems of simultaneous equations"). His starting point was exactly the orbit calculations of astronomy.
+His idea was astonishingly simple:
+1. Combine "the errors of all the equations" into one total error, which is a function of the unknowns;
+2. From where you are now, see which direction makes the total error drop fastest;
+3. Take a small step in that direction, then repeat.
+This is gradient descent. More than 170 years later, models like ChatGPT and Claude are still trained with its descendants.
+Try it: run gradient_descent_1847.py. Walk downhill on Galton's real data,
+and see what happens when the learning rate is too small, just right, or too big, and why "centering the data first" can make it hundreds of times faster.
+Look ahead: → The gradient, Gradient descent and the learning rate, Feature scaling
+Act 3 — 1875–1886: Sweet Peas, Heights, and the Odd Name "Regression"
+Francis Galton was Darwin's cousin, a Victorian scholar who wanted to measure just about everything.
+He wanted to know: how are parents' traits passed on to their children?
+In 1875, he ran a very creative experiment. He sorted sweet pea seeds by weight into 7 grades, from very large to very small,
+put 10 seeds of each grade into packets, and mailed them to 7 friends, asking them to plant the seeds and send back the next generation of seeds they harvested.
+What he found: the offspring of large seeds were also on the large side, but not as large as their parents; the offspring of small seeds were also on the small side, but not as small as their parents.
+The offspring had all "gone back" some of the way toward the average.
+In 1886, he confirmed the same phenomenon with human height. He collected the heights of 928 adult children from 205 families
+and published the paper Regression towards Mediocrity in Hereditary Stature.
+When parents were somewhat taller than average, their children were, on average, taller by only about two-thirds of that gap.
+He called this phenomenon regression (literally, "going back"). Later, the whole set of methods for "describing the relationship between two quantities with a straight line"
+took over the name, and we still use it today, even though most problems have nothing to do with "going back."
+(Galton's history also has a dark side: he coined the word "eugenics," an idea that later caused serious harm.)
+Try it: run galton_1886.py. It uses Galton's real data from back then.
+You'll compute that "about two-thirds" yourself, and you'll discover that regression to the mean is a purely statistical phenomenon.
+Look ahead: → Regression to the mean
+Act 4 — 1951: Reaching the Finish Line, Noise and All
+Every step of gradient descent requires computing the "exact" downhill direction. But what if every measurement is noisy, and all you can get is a rough direction?
+In 1951, the statisticians Herbert Robbins and Sutton Monro
+published A Stochastic Approximation Method. They proved that even if the direction of every step is noisy, as long as the step size shrinks gradually in the right way,
+you'll still reach the right answer in the end.
+This very "theoretical"-looking paper later became the theoretical foundation of stochastic gradient descent (SGD).
+Look ahead: → Batch, stochastic and mini-batch, Learning rate decay
+Act 5 — 1959–1960: Stanford's ADALINE
+At the same time Rosenblatt was building the perceptron at Cornell (see Chapter 1), a young Stanford professor, Bernard Widrow,
+and his first PhD student, Marcian "Ted" Hoff, came up with a different learning rule in the fall of 1959.
+The perceptron adjusts only when it guesses wrong, and each adjustment is a fixed size. Widrow and Hoff's rule:
+for every example that comes in, adjust the weights in proportion to "how wrong" it was. Very wrong, big adjustment; slightly wrong, small adjustment.
+This rule is called LMS (least mean squares), also known as the Widrow–Hoff rule or the delta rule. At heart, it's just gradient descent that looks at one example at a time.
+They used it to build a device called ADALINE (adaptive linear neuron).
+LMS later became a huge success in signal processing, widely used in adaptive filtering such as echo cancellation on telephone lines.
+And that PhD student, Ted Hoff, later became Intel's employee number 12
+and led the design of the Intel 4004, released in November 1971: the world's first commercial microprocessor.
+Try it: run lms_1960.py. Compare "looking at all the data every step" with "looking at one example at a time":
+after seeing the same amount of data, which one is closer to the answer?
+Look ahead: → LMS and the perceptron
+Act 6 — 1958–2014: From Regression to Classification, from SGD to Adam
+Linear regression predicts a number (a height, a position). But many problems need a yes or no: Is this email spam? Is the mark on this card on the left or the right?
+In 1958, the British statistician David Cox systematically laid out logistic regression:
+first compute the linear model's output, then use an S-shaped curve (the logistic function, which is the sigmoid from Chapter 1's Lab 3) to squash it into the range 0 to 1, and treat that as the probability of "yes."
+It is still one of the most widely used classification methods, and it's also the standard form of a single neuron in a neural network.
+Gradient descent itself kept evolving too. In December 2014, Diederik Kingma and Jimmy Ba published the Adam optimizer:
+it automatically adjusts the step size for each parameter and also takes the directions of the previous few steps into account, so noise is less likely to throw it off course.
+Adam quickly became one of the most widely used optimizers in deep learning, and today most large language models are trained with variants from the Adam family.
+From Cauchy's three-page note in 1847 to training hundreds of billions of parameters today, the core step has never changed: compute the gradient, take a small step downhill.
+Look ahead: → From regression to classification, Optimizers
+Epilogue — Two Ways to Find the Answer
+This chapter showed two ways of "finding the best parameters":
+1. Solve the formula directly (Legendre, Gauss): for linear models, least squares has an exact closed-form solution that gets there in one step.
+2. Walk there step by step (Cauchy, Robbins–Monro, Widrow–Hoff): no formula needed, just the ability to compute gradients.
+Why does deep learning today use only the second? Because neural networks are nonlinear and simply have no closed-form solution;
+and when there are hundreds of billions of parameters and trillions of tokens of data, you couldn't compute it even if there were a formula.
+Only gradient descent, especially stochastic gradient descent, can handle that kind of scale.
+About the data: data/galton_1886.csv is the original data from Galton's 1886 paper (928 rows),
+transcribed from the R package HistData, maintained by the statistician Michael Friendly.
+1. Regression and Linear Models
+In one sentence: regression means predicting a number from inputs; a linear model means "multiply each input by a weight, then add them up."
+x (features): the input information, like the parents' heights;
+w (weights): how much each feature matters, like 0.65;
+b (bias/intercept): the baseline value when all the features are 0.
+Chapter 1's perceptron is a linear model too; it just adds one final step: "greater than 0, output 1; otherwise output 0."
+First appears in: Act 3
+2. What Exactly Is "Linear" About a Linear Model?
+The "linear" in linear model means linear in the parameters (w, b), not in the inputs.
+So y = w1·x + w2·x² + b is a linear model too: just treat x² as a new feature.
+This lets linear models fit curves while keeping least squares' closed-form solution.
+The power of neural networks is that they can learn on their own which features to use (the hidden layer in Chapter 1's Lab 3), so no one has to design x² by hand.
+3. Residuals, Least Squares and Mean Squared Error
+Residual: actual value − predicted value, that is, how far off each point is.
+Least squares: choose the parameters that make the sum of squared residuals as small as possible.
+Mean squared error (MSE): the average of the squared residuals, the most common loss function for regression.
+Why squares?
+1. Positive and negative errors don't cancel each other out;
+2. Big errors get an extra-heavy penalty, so the model works hard to avoid wild mistakes;
+3. The square function is differentiable everywhere, so you can take derivatives and solve for a formula directly (the normal equations), and it also makes gradient descent easy;
+4. Gauss proved that if the observation errors follow a normal distribution, least squares gives the "most likely" answer.
+The downside is that it's very sensitive to outliers: one wildly off data point can drag the whole line toward it. In that case you can switch to other loss functions, such as absolute error.
+First appears in: Prologue, Act 1 ceres_1801.py
+4. The Normal Equations (Closed-Form Solution)
+For a linear model, take the derivative of the mean squared error with respect to each parameter and set it to 0, and you get a set of equations called the normal equations:
+Solving them gives the least squares answer. The 2×2 system solved by hand in Lab 1 is their simplest form.
+The downsides: with d features, the work needed to solve them grows roughly in proportion to d³, so with many features it becomes too much to compute; and nonlinear models have no such formula at all.
+5. The Gradient
+The gradient is a vector that points in "the direction in which the function rises fastest," and its length tells you how steep it is.
+Each of its components is the partial derivative of the loss with respect to one parameter: how much the loss changes if that parameter goes up a tiny bit.
+Walk in the opposite direction of the gradient, and the loss drops fastest.
+6. Gradient Descent and the Learning Rate
+Learning rate too small: every step is steady, but it takes forever;
+Learning rate just right: it reaches the bottom of the valley quickly;
+Learning rate too big: one step overshoots the bottom of the valley and lands higher up on the other side, it jumps farther and farther, and finally it "blows up."
+The upper limit on the learning rate is set by how steep the loss function is in its steepest direction: the steeper it is, the smaller the steps have to be.
+In Lab 2, going from "a bit big" to "too big" changes the learning rate only a tiny bit, yet one converges and the other diverges. That's because it crosses this limit.
+First appears in: Act 2 gradient_descent_1847.py
+7. Feature Scaling
+If one direction is very steep and another is very flat, the loss function looks like a long, narrow canyon.
+The learning rate has to be set for the steep direction (otherwise it diverges), and as a result it can barely move along the flat direction.
+Centering (subtracting the mean) and standardizing (then also dividing by the standard deviation) turn the canyon into a nice round bowl, and gradient descent gets much faster.
+In Lab 2, the raw data's canyon is millions of times steeper in one direction than in the other; after centering, the difference is only 3 times.
+That's also why the first step of almost every machine learning pipeline is to scale the data to similar ranges.
+8. Batch, Stochastic and Mini-Batch Gradient Descent
+Epoch: one complete pass through all the training data is called an epoch.
+First appears in: Act 4, Act 5 lms_1960.py
+9. Learning Rate Decay
+SGD's direction is noisy, so near the finish line it keeps jittering around.
+If you make the learning rate shrink gradually, the jitter shrinks too, and in the end it settles firmly on the answer.
+What Robbins and Monro proved in 1951 was exactly how the step size should shrink to guarantee convergence.
+When large models are trained today, the learning rate is usually "warmed up" first (slowly raised from a small value), then gradually decayed.
+10. Regression to the Mean
+When two quantities aren't perfectly correlated and one of them is extreme, the other tends to be less extreme, closer to the average.
+This isn't some mysterious force; it's a statistical regularity: an extreme value usually includes a share of "luck," and luck isn't inherited and doesn't last.
+Many "effects" in everyday life are really illusions caused by regression to the mean: the improvement after an especially bad exam, the slump after an especially good performance (the "cover jinx").
+To judge whether a method really works, you need a control group; a before-and-after comparison isn't enough.
+First appears in: Act 3 galton_1886.py
+11. The Danger of Extrapolation
+Predicting inside the range your data covers is called interpolation, and it's fairly reliable; predicting outside that range is called extrapolation, and it's dangerous.
+Lab 1 uses 41 days of data to predict day 364. It works because the form of model we used (motion at a constant speed) happens to be right.
+Gauss could find Ceres again because he, too, used the right physical model (Kepler's elliptical orbits).
+If the form of the model itself is wrong, then no matter how well it fits the data, extrapolation can go wildly wrong.
+12. From Regression to Classification: Logistic Regression
+Logistic regression = linear model + sigmoid function:
+The sigmoid squashes any real number into the range 0–1, which is treated as the probability of "yes." Training usually doesn't use mean squared error,
+but cross-entropy loss instead: if the true answer is "yes," the lower the probability the model gives to "yes," the heavier the penalty.
+A logistic regression is really just "a neuron that outputs a probability." Connect lots of these neurons in layers, and you get the neural networks of Chapter 1.
+First appears in: Act 6
+13. Optimizers: Momentum and Adam
+Plain gradient descent looks only at the gradient of "the current step." There are two main kinds of improvements:
+Momentum: like a ball rolling downhill, it keeps some of its earlier speed. In a canyon it's less likely to bang back and forth, and on flat ground it can keep rolling forward.
+Adaptive learning rates: give each parameter its own step size. Parameters that often swing wildly take smaller steps; parameters that rarely get updated take bigger ones.
+Adam combines the two and works with hardly any tuning, so it became the default choice in deep learning.
+First appears in: Act 6
+14. LMS and the Perceptron
+LMS shows us that a learning rule can be derived from "minimizing a loss function," instead of being designed by intuition.
+Backpropagation in 1986 extended this idea to multilayer networks.
+First appears in: Act 5
+Chapter 3 — Neural Networks and Autodiff: Teaching Machines to Take Their Own Derivatives
+In Chapter 1 we wrote backpropagation for the XOR network by hand, and we had to work out every derivative ourselves.
+That's fine for a three-layer network. But what about a hundred layers and hundreds of billions of parameters?
+This chapter is about how people handed the job of "taking derivatives" over to the machine completely, and why deep networks are so hard to train.
+How to read this chapter: Read the stories first, then run the labs, and save the Concepts for last. These labs need only Python and NumPy, so no API key is needed.
+Prologue — 1970, Copenhagen: An Afternoon in the Park
+In 1970, Seppo Linnainmaa, a student at the University of Helsinki in Finland, was writing his master's thesis.
+His problem had nothing to do with neural networks. Every time a computer does a floating-point operation, it makes a tiny rounding error.
+As those little errors pile up step after step, how far off does the final result end up?
+To answer that, you need to know how sensitive the final result is to every intermediate step. In other words, a whole pile of derivatives.
+According to a later account by the mathematician Andreas Griewank, Linnainmaa said
+the solution came to him on a sunny afternoon in 1970, in a park in Copenhagen:
+record the computation, then start from the final result and walk through it backward, using the chain rule to pass the sensitivities back one step at a time.
+A single backward pass gives you the derivative of the result with respect to every intermediate quantity. He even implemented it in FORTRAN.
+This is reverse-mode automatic differentiation. More than a decade later, people used it to train neural networks and gave it another name: backpropagation.
+Try it: run autograd.py. It implements an autodiff engine in under 100 lines of code,
+draws the computational graph, and uses "numerical gradients" to check that it computes correctly.
+Look ahead: → Computational graphs, Forward mode and reverse mode
+Act 1 — 1989: Is One Layer Enough?
+As Chapter 1 told it, in 1986 backpropagation made multi-layer networks hot again. But one basic question was still unanswered:
+how complicated a thing can a multi-layer network actually represent?
+In 1989, two papers gave the answer almost at the same time. The mathematician George Cybenko
+proved in Mathematics of Control, Signals and Systems that with just one hidden layer and an S-shaped activation function like the sigmoid,
+a network can approximate any continuous function to any accuracy you like. The same year, Kurt Hornik, Stinchcombe and White
+published a paper with a resounding title in Neural Networks: Multilayer Feedforward Networks are Universal Approximators.
+This is the universal approximation theorem. It is reassuring: in principle, there is no shape a neural network "can't draw."
+But two things it doesn't say went on to become problems for decades: how many neurons do you need? And how do you actually train the weights?
+Try it: run mlp_moons.py. Use the engine you wrote yourself to train a network
+that separates two interlocking "moons." A network with no hidden layer can only draw a straight line; add hidden layers, and the boundary starts to bend.
+Look ahead: → The universal approximation theorem
+Act 2 — 1991, Munich: The Deeper, the Harder to Learn
+On June 15, 1991, Sepp Hochreiter, a student at the Technical University of Munich, turned in his diploma thesis (Diplom).
+It was titled Untersuchungen zu dynamischen neuronalen Netzen ("Studies of Dynamic Neural Networks"), it was written in German, and his advisor was Jürgen Schmidhuber.
+The thesis analyzed a phenomenon that gave everyone headaches. As the error signal travels backward through the network, it gets multiplied by some factors at every layer.
+If those factors are mostly smaller than 1, after a few dozen layers the signal is almost zero, and the layers near the input learn nothing at all. This is called vanishing gradients.
+If they are mostly larger than 1, the signal grows bigger and bigger as it travels. This is called exploding gradients.
+Schmidhuber later called this thesis one of the most important documents in the history of machine learning.
+Six years later, Hochreiter and Schmidhuber invented the LSTM precisely to get around this problem (more on that in Chapter 4).
+Try it: run vanishing_gradient.py. Build a 30-layer network
+and see how much of the error signal is left when it gets back to layer 1: the sigmoid network keeps only 10⁻²⁰ of it, while a network with too large an initialization amplifies it more than ten thousand times.
+Look ahead: → Vanishing and exploding gradients
+Act 3 — 2010–2015: A New Activation Function and the Right Starting Weights
+All through the 2000s, deep networks were known for being "hard to train." Around 2010, a few improvements that looked very plain turned the situation around completely:
+In 2010, Xavier Glorot and Yoshua Bengio of the University of Montreal
+published Understanding the Difficulty of Training Deep Feedforward Neural Networks. They carefully analyzed how the signal grows and shrinks from layer to layer,
+and proposed scaling the initial weights by "the number of inputs and outputs." This later became known as Xavier initialization.
+In 2010, Vinod Nair and Hinton at the University of Toronto proposed at ICML improving models with rectified linear units (ReLU).
+The rule could hardly be simpler: if the input is above 0, pass it through unchanged; if it is below 0, output 0.
+In 2011, Deep Sparse Rectifier Neural Networks by Glorot, Bordes and Bengio showed that deep networks using ReLU
+can train very well even without complicated pre-training tricks.
+In 2012, the AlexNet paper reported that on the CIFAR-10 dataset, a network with ReLU reached a 25% training error rate
+six times faster than one with tanh. From then on, ReLU became the default choice.
+In 2015, Kaiming He and colleagues at Microsoft Research Asia published Delving Deep into Rectifiers. It proposed an initialization method designed specifically for ReLU
+(He initialization), which made it possible to train very deep networks from scratch. The paper's model reached a 4.94% top-5 error rate on ImageNet,
+the first result to beat human-level performance (5.1%) on this challenge.
+In Lab 2 you'll see for yourself how much initialization matters: same network, same data, but if you pick too small a scale for the initial weights,
+accuracy gets stuck at around 90%; switch to He initialization, and it reaches 100% in 80 steps.
+Look ahead: → Activation functions, Initialization
+Act 4 — 2012: A Lesson from the Bank Tellers
+The bigger the network, the easier it is to overfit: it memorizes the training data and then falls apart on new data.
+As Hinton himself recalled in an online Q&A (on Reddit), he once went to the bank and noticed that the tellers kept changing. He asked one of them why.
+The teller didn't know, only that they got moved around a lot. Hinton figured it was probably because defrauding the bank would take several employees working together;
+if they were rotated often, they couldn't conspire. That gave him an idea: at every training step, randomly "switch off" some of the neurons.
+Then they can't form fragile little "cliques," and the network is less likely to overfit.
+In July 2012, Hinton and his students posted Improving Neural Networks by Preventing Co-adaptation of Feature Detectors on arXiv.
+The method is called Dropout. AlexNet used it the same year.
+Look ahead: → Overfitting, regularization and Dropout
+Act 5 — 2007–2017: No More Derivatives by Hand
+In Chapter 1's Lab 3, we had to work out every backpropagation formula ourselves. Change the network structure even a little, and you have to derive it all over again. It is very easy to make mistakes.
+Deep learning frameworks changed all that. At their core is exactly Linnainmaa's reverse-mode automatic differentiation:
+you just write the forward computation, and the framework records the computational graph automatically and then computes all the gradients for you.
+In 2007, a research team at the University of Montreal (later MILA) released Theano, one of the first Python frameworks to support automatic differentiation and GPUs;
+On November 9, 2015, Google open-sourced TensorFlow;
+In January 2017, Facebook's research team publicly released PyTorch. Its "build the graph as the code runs" approach is just as intuitive as our Value class,
+and it quickly became researchers' favorite tool.
+From then on, researchers could spend their energy designing new network architectures instead of deriving formulas.
+Look ahead: → Deep learning frameworks
+Act 6 — 2020–2022: The Whole Idea in a Hundred Lines of Code
+As frameworks grew more powerful, their insides grew more complicated too, and it became hard for beginners to see what they were actually doing.
+In 2020, Andrej Karpathy, former head of AI at Tesla and one of the founding members of OpenAI,
+released micrograd on GitHub: an autodiff engine of about 100 lines, plus a neural network library of about 50 lines,
+with an API a lot like PyTorch's. In August 2022 he also recorded a video, more than two hours long, writing it line by line from scratch.
+Labs 1 and 2 in this chapter follow the same path: write the engine yourself, then use it to train a network.
+The next time you call loss.backward() in PyTorch, you'll know what is happening behind it.
+Epilogue — Three Questions
+The three stories in this chapter match three key questions in training neural networks:
+1. How do we take derivatives? Reverse-mode automatic differentiation: one backward pass gives you all the gradients;
+2. Can a network represent the answer? The universal approximation theorem says yes, but it takes enough neurons and the right training;
+3. Can it be trained? Vanishing and exploding gradients once stopped deep networks in their tracks; ReLU and good initialization (and later residual connections) cleared the way.
+In the next chapter, we'll see how researchers designed network architectures specifically for images and language: from convolutional networks all the way to the Transformer.
+1. Computational graphs
+Any computation can be broken down into small steps: add, multiply, tanh... Draw them as a graph, with each node a value
+and each edge saying "who was computed from whom," and you have a computational graph. In Lab 1, a Value object's _prev holds its incoming edges.
+The first thing a framework does is quietly record this graph while you write the forward computation.
+First appears in: Prologue autograd.py
+2. The chain rule
+If L depends on d, and d depends on e, then dL/de = dL/dd × dd/de.
+Backpropagation is just the chain rule applied over and over on the computational graph: each node only needs to know "its own local derivative,"
+multiply that by the gradient arriving from the nodes after it, and pass the result on to the nodes before it. The local derivative of each operation is simple:
+Addition: pass it unchanged to both sides;
+Multiplication: multiply by the other side's value;
+tanh: multiply by 1 - tanh².
+3. Forward mode and reverse mode
+Automatic differentiation can run in two directions:
+Forward mode: start from one input and compute the derivatives of all the results with respect to that one input. With n inputs, you need n passes.
+Reverse mode: start from one result, walk backward once, and get the derivatives of that one result with respect to all the inputs.
+Here is the situation in a neural network: millions to hundreds of billions of inputs (parameters), and only 1 result (the loss). So reverse mode wins hands down. That is backpropagation.
+First appears in: Prologue
+4. Gradient checking
+A numerical gradient takes the derivative the dumbest way possible: nudge one parameter a tiny bit (say, 10⁻⁶) and see how much the loss changes.
+It is slow (every parameter needs two separate evaluations), but it almost never goes wrong, so it is used specifically to check whether your autodiff is correct.
+In Lab 1, the two methods differ on the order of 10⁻¹⁰, which shows the engine is right.
+5. The universal approximation theorem
+With enough neurons in the hidden layer, a network with one hidden layer can approximate any continuous function to any accuracy.
+It describes a neural network's expressive power, but it doesn't say how many neurons you need, or whether a training algorithm can find those weights.
+In practice, "deeper" is often far more efficient than "wider": a multi-layer network can combine features layer by layer into more and more complex ones.
+First appears in: Act 1 mlp_moons.py
+6. Activation functions
+Without an activation function (or with only linear ones), a multi-layer network is no better than a single layer. The activation function supplies the nonlinearity that lets the network draw curved boundaries.
+Today's large models mostly use smooth versions of ReLU, such as GELU and SwiGLU.
+First appears in: Act 3
+7. Vanishing and exploding gradients
+During backpropagation, every time the gradient passes through a layer, it is multiplied by "this layer's weights" and "the derivative of the activation function."
+If these factors are mostly smaller than 1 → multiplied dozens of times, they head toward 0 → vanishing gradients, and the early layers can't learn;
+If they are mostly larger than 1 → multiplied dozens of times, they head toward infinity → exploding gradients, and training simply diverges.
+The fixes include ReLU-style activation functions, good initialization, normalization layers, residual connections (Chapter 4), and the LSTM, designed specifically for sequences (Chapter 4).
+For exploding gradients there is also a quick and blunt fix: gradient clipping, which just shrinks the gradient back under a cap when it gets too big.
+First appears in: Act 2 vanishing_gradient.py
+8. Initialization
+Before training starts, the weights can't all be 0: then every neuron would be identical and could never learn to be different. So we initialize them randomly.
+But the scale of the random numbers is crucial:
+Too small → the signal gets weaker layer by layer → vanishing gradients;
+Too large → the signal gets stronger layer by layer → exploding gradients.
+The usual rule is to scale by "the number of inputs, n":
+Xavier initialization (standard deviation about √(1/n)): suits tanh and sigmoid;
+He initialization (standard deviation √(2/n)): suits ReLU. ReLU zeroes out half of the signal, so the scale is a bit bigger to make up for it.
+First appears in: Act 3 mlp_moons.py, vanishing_gradient.py
+9. Overfitting, regularization and Dropout
+Overfitting means learning the training data too well and then doing worse on new data (Chapter 1, concept 6). The methods for fighting it are collectively called regularization:
+L2 regularization (weight decay): add "the sum of the squared weights" to the loss, which nudges the weights to stay small and the model to stay simple;
+Dropout: at every training step, randomly switch off some of the neurons (say, half), forcing the network not to rely on any particular "clique";
+at test time, switch them all back on. You can think of it as training many sub-networks at once and then averaging them;
+Early stopping: stop training once performance on the validation set starts getting worse;
+More data: the most fundamental fix of all.
+First appears in: Act 4
+10. Deep learning frameworks
+Frameworks like PyTorch, TensorFlow and JAX do the same core job as Lab 1's Value class: record the computational graph and backpropagate automatically.
+The differences:
+They work on tensors (multi-dimensional arrays), not individual scalars. One matrix multiplication can replace thousands upon thousands of scalar operations;
+The computation can run in parallel on a GPU;
+They come with ready-made layers, optimizers (like Adam from Chapter 2) and data-loading tools.
+In Lab 2, training 151 parameters with pure-Python scalars takes half a minute. PyTorch on a GPU does the same thing in the blink of an eye. That is the power of vectorization and hardware acceleration.
+First appears in: Act 5, Act 6
+Chapter 4 — From CNNs to Transformers: Giving Networks Eyes and Attention
+The networks of Chapter 3 are "universal," but faced with pictures and sentences, they don't know how to look.
+This chapter is about how researchers took inspiration from a cat's brain to design convolutional networks made for seeing images;
+and how, step by step, they solved the problem of "forgetting things while reading a long sentence," arriving at the architecture every large model shares today: the Transformer.
+How to read this chapter: Read the stories first, then run the labs, and save the Concepts for last. These labs need only Python and NumPy, so no API key is needed.
+Prologue — 1959: The Edge of a Slide
+In the late 1950s, in a lab at Johns Hopkins University, two young neurophysiologists,
+David Hubel and Torsten Wiesel, wanted to find out what the individual neurons in a cat's visual cortex were actually "looking at."
+They put electrodes into the visual cortex of an anesthetized cat and used a projector to throw all kinds of patterns onto a screen: bright spots, dark spots... The neurons didn't respond at all.
+As Hubel recalled in his Nobel lecture, they tried for hours with no result. Then, just as they were sliding a glass slide into the projector,
+the loudspeaker suddenly burst into the dense crackle of a neuron firing like a machine gun.
+What excited it wasn't the pattern on the slide but the line cast on the screen by the edge of the slide.
+From this they discovered that some neurons in the visual cortex ("simple cells") respond only to edges at a particular orientation.
+Turn the line to a different angle, and the response gets weaker. Other neurons ("complex cells") respond to edges at the same orientation but don't care exactly where they appear.
+Vision is processed in layers: first find the edges, then combine edges into more complex shapes.
+In 1981, the two of them won the Nobel Prize in Physiology or Medicine for these discoveries.
+Try it: run convolution.py. Write a 3×3 "edge detector" by hand,
+then recreate Hubel and Wiesel's experiment: show it lines at different angles and plot its "orientation tuning curve."
+Look ahead: → Convolution
+Act 1 — 1980, Tokyo: The Neocognitron
+Kunihiko Fukushima, a researcher at NHK's broadcasting technology research laboratories in Japan, carried Hubel and Wiesel's findings straight into neural networks.
+In 1980 he published the Neocognitron in the journal Biological Cybernetics, and its goal was written right into the paper's title:
+"a Mechanism of Pattern Recognition Unaffected by Shift in Position."
+His network alternated between two kinds of layers:
+S layers imitate simple cells, using small local detectors to look for particular patterns;
+C layers imitate complex cells, merging nearby responses so that recognition doesn't care about a pattern's exact position.
+This is the early form of the "convolution layer + pooling layer" in today's convolutional networks. But the Neocognitron wasn't trained with backpropagation.
+As Chapter 1 told it, it was in 1989 that Yann LeCun at Bell Labs combined a similar structure with backpropagation, and that gave us the convolutional neural network (CNN) in the full sense.
+Look ahead: → Pooling and translation invariance
+Act 2 — 1989–2015: Deeper and Deeper Convolutional Networks
+Earlier chapters have already told part of what happened to convolutional networks next: LeCun's networks reading checks, and AlexNet stunning everyone on ImageNet in 2012.
+After that, networks kept getting deeper, and also harder and harder to train (the vanishing gradients of Chapter 3).
+In 2015, Kaiming He, Xiangyu Zhang, Shaoqing Ren and Jian Sun at Microsoft Research Asia introduced the residual network (ResNet).
+The idea is surprisingly simple: instead of outputting a new result directly, each layer outputs "a change to its input," and then the input is added back unchanged:
+output = input + f(input). This "shortcut" lets signals and gradients pass through many layers without obstruction.
+They trained a network with 152 layers and won the classification task of the 2015 ImageNet challenge (ILSVRC) with a 3.57% error rate.
+Residual connections later became standard equipment in almost every deep network, the Transformer included.
+Try it: run transformer_block.py and look at part 3. Stack 48 layers and compare having residual connections with not having them.
+Look ahead: → Residual connections
+Act 3 — 1997: The Forgetful Recurrent Network, and a Conveyor Belt
+Images are two-dimensional, but language is a sequence, one thing after another. The most natural way to handle a sequence is a recurrent neural network (RNN):
+like a person reading a book, it reads one word after another, keeps "what it has understood so far" in a hidden state, and updates it with every new word.
+The problem is exactly what that 1991 diploma thesis from Chapter 3 found: for information from word 1 to reach word 100, it has to go through 99 updates,
+each one discounting it a little, until almost nothing is left. RNNs have a hard time remembering long-range relationships.
+In 1997, Hochreiter and Schmidhuber published long short-term memory (LSTM) in Neural Computation.
+It added a "conveyor belt" to the RNN (the paper calls it the "constant error carousel"), and used a few "gates" to control what gets written onto the belt, what gets erased, and what gets read.
+As long as the "forget gate" stays open, information can travel a long way along the belt almost without loss. The paper showed that an LSTM can learn dependencies spanning more than 1,000 time steps.
+For nearly twenty years after that, the LSTM was the workhorse for sequence data such as speech and text.
+Try it: run rnn_vs_attention.py. Compare how much word 1 influences word 100:
+a plain RNN keeps only 10⁻⁴⁸, an LSTM still keeps 0.37, and with attention it is always just one step away.
+Look ahead: → RNNs and LSTMs
+Act 4 — 2014: The Bottleneck, and "Looking Back"
+In 2014, Sutskever, Oriol Vinyals and Quoc V. Le at Google published the seq2seq (sequence-to-sequence) model:
+one LSTM "reads" a whole English sentence into a fixed-length vector, and another LSTM "writes" that vector out as French.
+It reached a BLEU score of 34.8 on English-to-French translation, showing the promise of neural networks for translation.
+But the design has an obvious bottleneck: however long the sentence, it has to be squeezed into a vector of the same length. Once sentences get long, translation quality drops noticeably.
+The same year, Dzmitry Bahdanau, a Belarusian student interning in Bengio's lab at the University of Montreal,
+published Neural Machine Translation by Jointly Learning to Align and Translate together with Kyunghyun Cho and Bengio.
+Their approach: instead of squeezing the whole sentence into one vector, keep a representation of every word in the source sentence; every time the model produces a word of the translation, it "looks back" over the source sentence,
+gives each source word a weight according to how relevant it is, and takes the weighted average.
+This is the attention mechanism. According to Bahdanau's own recollection in a 2024 email to Karpathy, the name "attention" came from Bengio.
+Two years later, these techniques entered the lives of hundreds of millions of people. In September 2016, Google released GNMT, a neural machine translation system built on LSTMs and attention.
+The first language pair to go live was the notoriously hard Chinese to English: all Chinese-to-English translation on the Google Translate website and mobile app switched to GNMT, about 18 million translations a day.
+Try it: run attention.py. Think of attention as a "fuzzy dictionary lookup," then let the word "it" in a sentence find "kitten" on its own.
+Look ahead: → seq2seq and the bottleneck, Attention
+Act 5 — 2017: Attention Is All You Need
+Chapter 1 told the story of the Transformer paper's eight authors and where its name came from. Here we look at what it did technically.
+Bahdanau's attention was still built on top of an RNN: the RNN read one word at a time, and attention was only a helper.
+The 2017 Transformer took the most radical step: throw out recurrence completely, and build the whole network from attention alone.
+Self-attention: every word in the sentence looks at all the other words at the same time, so a connection between any two words takes a single step;
+Multiple heads: several sets of attention run at once, each watching a different relationship;
+Positional encoding: attention itself doesn't know the order of the words, so each position gets its own unique "number tag" added on;
+Residual connections + layer normalization: these let the network be stacked very deep (from earlier work such as ResNet).
+Since nothing has to be computed step by step in order anymore, a whole sentence can be handed to the GPU at once and processed in parallel. The paper's base model trained for only 12 hours on 8 P100 GPUs,
+and the big model trained for 3.5 days, reaching a BLEU score of 28.4 on English-to-German translation, better than every model at the time, including ensembles of several models.
+Try it: run transformer_block.py. Assemble the parts into a complete Transformer,
+and see the shape of a sentence as it flows through each layer, and where all the parameters go.
+Look ahead: → Self-attention and multi-head attention, Positional encoding, The Transformer block
+Act 6 — 2020: An Image Is Worth 16×16 Words
+The Transformer was originally designed for language. In October 2020, Alexey Dosovitskiy and colleagues at Google
+published a paper with a fun title: An Image is Worth 16x16 Words.
+They cut an image into small 16×16-pixel squares, treated each square as a "word," and handed them straight to a Transformer.
+No convolutions, no structure designed especially for images. The result: given enough pre-training data, this Vision Transformer (ViT)
+matched or even beat the best convolutional networks, while needing less compute to train.
+From then on, the Transformer became a "general-purpose architecture": text, images, speech, proteins can all be cut into a string of "words" and handed to it.
+Today's GPT, Claude and DeepSeek are all built on it.
+Epilogue — Two Ways of "Seeing"
+Behind this lies a lesson that runs through the whole history of AI: built-in human knowledge is very useful when data is scarce, but in the face of massive data and compute,
+more general methods usually have the last laugh. In 2019, the reinforcement-learning pioneer Richard Sutton wrote this up in a short essay titled The Bitter Lesson. In the next chapter, we'll see what happened once Transformers were scaled up enormously: large language models.
+1. Convolution
+Slide a small window (the kernel, say 3×3) across the whole image. At each position, multiply the pixels in the window by the matching kernel entries and add them up.
+The result is a new "feature map" that says "how strongly this pattern shows up at each position."
+Convolution has two key properties:
+Local connections: each output looks at only a small patch of the input;
+Weight sharing: the same kernel is reused at every position.
+Together, these cut the number of parameters by several orders of magnitude, and they also give the network a built-in sense that "the same pattern in a different place is the same thing."
+In a CNN the kernels are learned. After training, the first layer's kernels often really do look like edge detectors, just like the cat's simple cells.
+First appears in: Prologue convolution.py
+2. Receptive fields
+The region of the input a neuron can "see" is called its receptive field. A 3×3 convolution sees a 3×3 region; stack two and it's 5×5; the more layers, the bigger the view.
+That is why a CNN builds its understanding from local to global, layer by layer: shallow layers see edges, middle layers see textures and parts, deep layers see whole objects.
+3. Pooling and translation invariance
+Max pooling keeps only the largest value in a small region (say, 2×2).
+It only cares whether "this feature shows up somewhere in this patch," not exactly which pixel it's on. Shift the image a little, and the pooled result barely changes. This is called translation invariance.
+It is exactly what Fukushima's "C layers" do, corresponding to Hubel and Wiesel's "complex cells."
+First appears in: Act 1 convolution.py
+4. RNNs and LSTMs
+RNN: h_t = tanh(W·h_{t-1} + U·x_t). For each word it reads, it computes a new state from "the old state + the new word."
+It is a natural fit for sequences, but at every step the information gets multiplied by a matrix once more, so over long distances it vanishes (or explodes).
+An LSTM adds a separate memory cell c, plus three gates:
+Forget gate: how much of the old memory to keep;
+Input gate: how much new information to write in;
+Output gate: how much to output.
+Updating the memory cell is mainly "multiply by the forget gate + add new content." When the forget gate is close to 1, information and gradients can both travel a long way almost without loss.
+First appears in: Act 3 rnn_vs_attention.py
+5. seq2seq and the bottleneck
+seq2seq = encoder + decoder: the encoder reads the input sequence into a vector, and the decoder generates the output sequence from that vector.
+Translation, summarization and dialogue can all be seen as seq2seq problems.
+Its bottleneck: the information of the whole sentence is squeezed into one fixed-length vector, and the longer the sentence, the more gets lost. Attention was born precisely to solve this problem.
+First appears in: Act 4
+6. Attention (Q, K, V)
+You can think of attention as a "fuzzy dictionary lookup":
+Query: what I'm looking for;
+Key: each candidate's "label";
+Value: each candidate's actual content.
+How it's computed:
+1. Take the dot product of the query with each key to get a "match score";
+2. Divide by √d (d is the vector dimension) to keep the scores from getting too big;
+3. Use softmax to turn the scores into weights that add up to 1;
+4. Use the weights to take a weighted average of all the values.
+Unlike a normal dictionary, attention doesn't "take just one"; it "takes a little of each, according to relevance." This makes it differentiable everywhere, so it can be trained with backpropagation.
+First appears in: Act 4 attention.py
+7. Self-attention and multi-head attention
+Self-attention: Q, K and V all come from the same sentence. Every word uses its own query to match against the keys of all the words in the sentence.
+That way, "it" can find "kitten" directly, no matter how many words lie in between.
+Multi-head attention: use several sets of Q/K/V projections at once (several "heads"). Each head can learn to watch a different relationship:
+what a word refers to, grammar, which words sit next to each other... Finally, the heads' results are concatenated.
+Causal mask: when generating text, each word may only look at the words before it (the upper-right corner of the attention matrix is masked out);
+otherwise the model could "peek at the answer" during training. Models like GPT all use a causal mask.
+First appears in: Act 5 attention.py
+8. Positional encoding
+Attention by itself is "orderless": shuffle the words in a sentence, and the attention result each word gets doesn't change. But "the cat chases the dog" and "the dog chases the cat" mean completely different things.
+So each position gets a unique vector added to it (the positional encoding). The 2017 paper combined sine and cosine waves of different frequencies;
+today's large models mostly use improved methods such as rotary positional embeddings (RoPE).
+First appears in: Act 5 attention.py, transformer_block.py
+9. Residual connections and layer normalization
+Residual connections: output = input + f(input). Each layer only learns "a change," and the original information has a direct shortcut through.
+This solved the vanishing-gradient problem of deep networks, and it also prevents what you saw in Lab 4, where "every word's vector becomes identical" (researchers call this rank collapse).
+Layer normalization: adjust each word's vector to mean 0 and variance 1, so the numbers at every layer stay in a stable range and training goes more smoothly.
+First appears in: Act 2 transformer_block.py
+10. The Transformer block
+One Transformer block = multi-head self-attention (words exchange information with each other) + a feed-forward network (each word goes through a two-layer transformation on its own),
+with each part wrapped in a residual connection and layer normalization. Stack dozens to a hundred or more of these blocks, and you have the body of a large model.
+The parameters live mainly in three places: the word embeddings and output layer, the Q/K/V/O matrices of attention, and the feed-forward networks. The feed-forward networks usually take the largest share.
+First appears in: Act 5 transformer_block.py
+Cut an image into small patches of a fixed size (say, 16×16 pixels), flatten each patch and treat it as a "word," add positional encoding, and hand it to a standard Transformer.
+It shows that the Transformer is a general-purpose sequence processor: anything that can be cut into "a string of words" can be learned with it.
+First appears in: Act 6
