@@ -1,81 +1,84 @@
 """
-实验 3：为什么注意力打败了循环网络
-====================================
+Lab 3: Why attention beat recurrent networks
+============================================
 
-循环神经网络（RNN）读句子像人读书一样，一个词一个词往下读，把记忆存在一个"隐藏状态"里。
-问题是：第 1 个词的信息要传到第 100 个词，得经过 99 次传递，每传一次都会打折扣（第三章的梯度消失）。
+A recurrent neural network (RNN) reads a sentence the way a person reads a book: one word after
+another, keeping its memory in a "hidden state." The problem: for information from word 1 to reach
+word 100, it has to be passed along 99 times, and every pass discounts it a little (the vanishing
+gradients of Chapter 3).
 
-1997 年的 LSTM 加了一条"传送带"，让信息可以几乎无损地往后传；
-2017 年的 Transformer 干脆让每个词**直接**看到其他所有词，距离再远也只隔一步。
+The 1997 LSTM added a "conveyor belt" that lets information travel forward almost without loss;
+the 2017 Transformer simply lets every word see all the other words **directly**, so no matter how
+far apart they are, they are only one step away.
 
-这里比较三者：
-  1. 第 1 个词对第 t 个词的影响，随距离怎么变化
-  2. 一句话要按顺序算多少步（能不能并行）
+Here we compare the three:
+  1. How word 1's influence on word t changes with distance
+  2. How many steps a sentence takes when computed in order (can it run in parallel?)
 
-运行：python rnn_vs_attention.py
+Run: python rnn_vs_attention.py
 """
 
 import numpy as np
 
 rng = np.random.default_rng(1997)
-H = 32                                   # 隐藏状态的维度
+H = 32                                   # dimension of the hidden state
 
-# ---------------------------------------------------------------- 1. 影响随距离衰减
-# 普通 RNN：h_t = tanh(W·h_{t-1} + U·x_t)
+# ---------------------------------------------------------------- 1. influence decays with distance
+# plain RNN: h_t = tanh(W·h_{t-1} + U·x_t)
 W = rng.normal(0, 1, (H, H))
-W *= 0.9 / np.max(np.abs(np.linalg.eigvals(W)))   # 把 W 的"放大倍数"调到 0.9，避免一开始就爆炸
+W *= 0.9 / np.max(np.abs(np.linalg.eigvals(W)))   # set W's "amplification factor" to 0.9 so it doesn't explode right away
 U = rng.normal(0, 0.5, (H, H))
 
 
 def rnn_influence(T, trials=20):
-    """第 T 步的隐藏状态，对第 1 步隐藏状态有多敏感（雅可比矩阵的范数）。"""
+    """How sensitive the hidden state at step T is to the hidden state at step 1 (the norm of the Jacobian)."""
     total = 0.0
     for _ in range(trials):
         h = np.zeros(H)
-        J = np.eye(H)                               # dh_t / dh_1，从单位矩阵开始累乘
+        J = np.eye(H)                               # dh_t / dh_1, accumulated starting from the identity matrix
         for t in range(T):
             h = np.tanh(W @ h + U @ rng.normal(size=H))
             if t > 0:
-                J = (np.diag(1 - h ** 2) @ W) @ J   # 链式法则：每一步乘一次"这一步的导数"
+                J = (np.diag(1 - h ** 2) @ W) @ J   # chain rule: multiply by "this step's derivative" at every step
         total += np.linalg.norm(J, 2)
     return total / trials
 
 
 def lstm_influence(T, forget=0.99):
-    """LSTM 的记忆单元 c_t = f·c_{t-1} + …；沿着这条传送带，影响只乘上遗忘门 f。"""
+    """The LSTM memory cell is c_t = f·c_{t-1} + …; along this conveyor belt, the influence is only multiplied by the forget gate f."""
     return forget ** (T - 1)
 
 
-print("【1】第 1 个词，对第 t 个词还有多大影响？（1.0 = 完全保留）")
-print("   距离 t |    普通 RNN    | LSTM（遗忘门≈0.99）| 注意力（路径长度）")
+print("[1] How much influence does word 1 still have on word t? (1.0 = fully preserved)")
+print("   dist t |    plain RNN   | LSTM (forget≈0.99) | attention (path length)")
 for T in (2, 5, 10, 20, 50, 100):
     r = rnn_influence(T)
     l = lstm_influence(T)
-    print(f"   {T:5d}  | {r:12.2e}   |    {l:10.3f}      |  永远只隔 1 步")
+    print(f"   {T:5d}  | {r:12.2e}   |    {l:10.3f}      |  always just 1 step")
 print("""
-   普通 RNN 每传一步都要乘一个"小于 1"的矩阵，几十步之后影响就小到可以忽略：它会"忘记"句子的开头。
-   LSTM 的记忆传送带上只乘遗忘门：遗忘门学会接近 1 时，信息就能传上百步（霍赫赖特说的"恒定误差传送带"）。
-   注意力里，任意两个词之间都有一条直接的连线。能拿到多少信息取决于注意力权重，而不是距离。
+   A plain RNN multiplies by a matrix "smaller than 1" at every step, so after a few dozen steps the influence is negligible: it "forgets" the start of the sentence.
+   On the LSTM's memory conveyor belt, there is only the forget gate to multiply by: once the forget gate learns to stay close to 1, information can travel hundreds of steps (Hochreiter's "constant error carousel").
+   In attention, every pair of words has a direct connection. How much information gets through depends on the attention weights, not on distance.
 """)
 
-# ---------------------------------------------------------------- 2. 顺序计算 vs 并行计算
-print("【2】处理一句 n 个词的话：要按顺序等多少步？总共要做多少次乘法？（每个词向量 64 维）")
-print("      n    | RNN：顺序步数 | 注意力：顺序步数 | RNN 乘法次数 | 注意力乘法次数")
+# ---------------------------------------------------------------- 2. sequential vs. parallel computation
+print("[2] Processing a sentence of n words: how many steps must run one after another? How many multiplications in total? (64-dimensional word vectors)")
+print("      n    | RNN steps | attention steps | RNN multiplications | attention multiplications")
 D = 64
 for n in (128, 512, 2048):
-    rnn_mults = n * 2 * D * D                 # 每一步：h·Wh 和 x·Wx 两次矩阵-向量乘法
-    attn_mults = 3 * n * D * D + 2 * n * n * D   # 算 Q/K/V，加上 n×n 的分数和加权求和
-    print(f"   {n:6d}  |   {n:6d} 步   |        1 步       | {rnn_mults:12,} | {attn_mults:14,}")
+    rnn_mults = n * 2 * D * D                 # each step: two matrix-vector products, h·Wh and x·Wx
+    attn_mults = 3 * n * D * D + 2 * n * n * D   # computing Q/K/V, plus the n×n scores and the weighted sums
+    print(f"   {n:6d}  |  {n:6d}   |        1        | {rnn_mults:19,} | {attn_mults:25,}")
 print("""
-   RNN 第 t 步必须等第 t-1 步算完，只能排队一步步来；
-   注意力的总计算量其实更大（随 n² 增长），但所有位置可以同时算，几次大的矩阵乘法就完成了。
-   GPU 最擅长的正是一次做海量的并行计算，所以在 GPU 上，注意力反而快得多。
-   这正是 Transformer 能把模型和数据规模做大几个数量级的关键原因。
+   An RNN's step t has to wait for step t-1 to finish, so the steps can only queue up and go one at a time;
+   attention actually does more computation in total (it grows with n²), but all positions can be computed at once, in a few big matrix multiplications.
+   What GPUs do best is exactly this: huge amounts of parallel computation at once. So on a GPU, attention ends up much faster.
+   This is the key reason the Transformer could scale models and data up by several orders of magnitude.
 
-   代价是 n²：句子长度翻倍，注意力的计算量接近变成 4 倍。
-   这也是为什么"上下文窗口"一直是大模型的一个重要限制（第五章会讲）。
+   The price is n²: double the sentence length, and attention's computation becomes nearly 4 times as large.
+   That is also why the "context window" has always been an important limit of large models (more in Chapter 5).
 
-想一想：
-  1. 把 W 的放大倍数从 0.9 改成 1.1，普通 RNN 那一列会变成什么样？
-  2. 遗忘门如果是 0.9 而不是 0.99，LSTM 传 100 步后还剩多少？
-  3. 既然注意力这么好，为什么 2014 年的巴达瑙注意力还是搭在 RNN 上面的？""")
+Think about it:
+  1. Change W's amplification factor from 0.9 to 1.1. What happens to the plain RNN column?
+  2. If the forget gate were 0.9 instead of 0.99, how much would the LSTM have left after 100 steps?
+  3. If attention is so good, why was Bahdanau's 2014 attention still built on top of an RNN?""")

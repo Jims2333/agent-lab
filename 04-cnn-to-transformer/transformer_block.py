@@ -1,16 +1,17 @@
 """
-实验 4：拼出一个完整的 Transformer
-====================================
+Lab 4: Putting together a complete Transformer
+==============================================
 
-前面三个实验是零件，这里把它们组装成 2017 年论文里的结构：
-  词嵌入 + 位置编码 → [多头自注意力 → 前馈网络]×N（每一块都有残差连接和层归一化）→ 预测下一个词
+The first three labs were the parts. Here we assemble them into the architecture from the 2017 paper:
+  word embeddings + positional encoding → [multi-head self-attention → feed-forward network]×N
+  (every block has residual connections and layer normalization) → predict the next word
 
-权重是随机的、没有训练，所以预测毫无意义。这个实验的目的是看清：
-  1. 数据在每一层的形状
-  2. 参数都花在了哪里
-  3. 为什么残差连接能让网络堆得很深（呼应第三章的梯度消失）
+The weights are random and untrained, so the predictions mean nothing. The point of this lab is to see clearly:
+  1. The shape of the data at every layer
+  2. Where all the parameters go
+  3. Why residual connections let a network be stacked very deep (echoing Chapter 3's vanishing gradients)
 
-运行：python transformer_block.py
+Run: python transformer_block.py
 """
 
 import numpy as np
@@ -27,12 +28,12 @@ def softmax(x):
 
 
 def layer_norm(x, eps=1e-5):
-    """层归一化：把每个词的向量调整成平均 0、方差 1，让数值保持在稳定的范围里。"""
+    """Layer normalization: adjust each word's vector to mean 0 and variance 1, so the numbers stay in a stable range."""
     return (x - x.mean(-1, keepdims=True)) / np.sqrt(x.var(-1, keepdims=True) + eps)
 
 
 def positional_encoding(n, d):
-    """2017 年论文里的正弦位置编码：不同维度用不同频率的波，组合起来唯一地标记每个位置。"""
+    """The sinusoidal positional encoding from the 2017 paper: each dimension uses a wave of a different frequency, and together they mark every position uniquely."""
     pos = np.arange(n)[:, None]
     i = np.arange(d // 2)[None, :]
     angle = pos / (10000 ** (2 * i / d))
@@ -53,89 +54,89 @@ def make_block():
 
 def multi_head_attention(x, p, verbose=False):
     n = x.shape[0]
-    q = (x @ p["Wq"]).reshape(n, N_HEADS, D_HEAD).transpose(1, 0, 2)   # (头, 词, 每头维度)
+    q = (x @ p["Wq"]).reshape(n, N_HEADS, D_HEAD).transpose(1, 0, 2)   # (head, word, dim per head)
     k = (x @ p["Wk"]).reshape(n, N_HEADS, D_HEAD).transpose(1, 0, 2)
     v = (x @ p["Wv"]).reshape(n, N_HEADS, D_HEAD).transpose(1, 0, 2)
-    scores = q @ k.transpose(0, 2, 1) / np.sqrt(D_HEAD)                 # (头, 词, 词)
-    scores = np.where(np.tril(np.ones((n, n), bool)), scores, -1e9)      # 因果掩码
-    out = softmax(scores) @ v                                            # (头, 词, 每头维度)
-    out = out.transpose(1, 0, 2).reshape(n, D_MODEL)                     # 把各个头拼回去
+    scores = q @ k.transpose(0, 2, 1) / np.sqrt(D_HEAD)                 # (head, word, word)
+    scores = np.where(np.tril(np.ones((n, n), bool)), scores, -1e9)      # causal mask
+    out = softmax(scores) @ v                                            # (head, word, dim per head)
+    out = out.transpose(1, 0, 2).reshape(n, D_MODEL)                     # concatenate the heads back together
     if verbose:
-        print(f"      拆成 {N_HEADS} 个头：Q/K/V 形状 {q.shape}，注意力分数 {scores.shape}")
+        print(f"      split into {N_HEADS} heads: Q/K/V shape {q.shape}, attention scores {scores.shape}")
     return out @ p["Wo"]
 
 
 def block(x, p, residual=True, verbose=False):
-    a = multi_head_attention(layer_norm(x), p, verbose)                  # 1. 自注意力：词与词交流
+    a = multi_head_attention(layer_norm(x), p, verbose)                  # 1. self-attention: words exchange information
     x = x + a if residual else a
-    f = np.maximum(layer_norm(x) @ p["W1"], 0) @ p["W2"]                 # 2. 前馈网络：每个词自己"想一想"
+    f = np.maximum(layer_norm(x) @ p["W1"], 0) @ p["W2"]                 # 2. feed-forward network: each word "thinks it over" on its own
     x = x + f if residual else f
     return x
 
 
-# ---------------------------------------------------------------- 1. 走一遍前向计算
+# ---------------------------------------------------------------- 1. one forward pass
 embed = init(VOCAB, D_MODEL) * np.sqrt(VOCAB) / np.sqrt(D_MODEL)
 unembed = init(D_MODEL, VOCAB)
 blocks = [make_block() for _ in range(N_LAYERS)]
 tokens = rng.integers(0, VOCAB, SEQ)
 
-print("【1】一句话（10 个词）流过 Transformer，每一步的形状：")
-print(f"   输入：10 个词的编号 {tokens.tolist()}")
+print("[1] A sentence (10 words) flows through the Transformer; the shape at every step:")
+print(f"   Input: the IDs of 10 words {tokens.tolist()}")
 x = embed[tokens]
-print(f"   词嵌入：查表得到每个词的向量         → {x.shape}（词数 × 模型维度）")
+print(f"   Word embedding: look up each word's vector               → {x.shape} (words × model dimension)")
 x = x + positional_encoding(SEQ, D_MODEL)
-print(f"   加上位置编码：告诉模型词的顺序       → {x.shape}")
+print(f"   Add positional encoding: tells the model the word order  → {x.shape}")
 for i, p in enumerate(blocks):
-    print(f"   第 {i + 1} 个 Transformer 块：")
+    print(f"   Transformer block {i + 1}:")
     x = block(x, p, verbose=True)
-    print(f"      注意力 + 前馈网络 + 残差连接之后  → {x.shape}（形状不变，内容被更新）")
+    print(f"      after attention + feed-forward + residual connections → {x.shape} (same shape, updated content)")
 logits = layer_norm(x) @ unembed
 probs = softmax(logits[-1])
-print(f"   输出层：每个位置对 {VOCAB} 个词打分     → {logits.shape}")
-print(f"   最后一个位置预测'下一个词'：最可能是第 {probs.argmax()} 号词，概率 {probs.max():.4f}")
-print(f"   （没训练过，所以概率接近平均的 1/{VOCAB} = {1 / VOCAB:.4f}；训练就是要让正确的下一个词概率变大。）\n")
+print(f"   Output layer: scores {VOCAB} words at each position         → {logits.shape}")
+print(f"   The last position predicts the 'next word': most likely word #{probs.argmax()}, probability {probs.max():.4f}")
+print(f"   (It is untrained, so the probability is close to the uniform 1/{VOCAB} = {1 / VOCAB:.4f}; training is about making the correct next word more likely.)\n")
 
-# ---------------------------------------------------------------- 2. 参数都在哪里
-print("【2】参数都花在哪里？")
+# ---------------------------------------------------------------- 2. where the parameters are
+print("[2] Where do all the parameters go?")
 n_embed = VOCAB * D_MODEL * 2
 n_attn = 4 * D_MODEL * D_MODEL
 n_ffn = 2 * D_MODEL * D_FF
-print(f"   词嵌入 + 输出层：           {n_embed:>9,}")
-print(f"   每块的注意力（Q、K、V、O）：  {n_attn:>9,}  × {N_LAYERS} 块")
-print(f"   每块的前馈网络：             {n_ffn:>9,}  × {N_LAYERS} 块")
-print(f"   合计：                      {n_embed + N_LAYERS * (n_attn + n_ffn):>9,}")
-print("   前馈网络的参数是注意力的 2 倍：大模型里，大部分'知识'存在前馈网络里。")
-print("   把维度从 64 放大到 1 万多、层数从 2 堆到 100 层左右，参数量就到了千亿级别。\n")
+print(f"   Embeddings + output layer:         {n_embed:>9,}")
+print(f"   Attention per block (Q, K, V, O):  {n_attn:>9,}  × {N_LAYERS} blocks")
+print(f"   Feed-forward network per block:    {n_ffn:>9,}  × {N_LAYERS} blocks")
+print(f"   Total:                             {n_embed + N_LAYERS * (n_attn + n_ffn):>9,}")
+print("   The feed-forward networks have 2 times the parameters of attention: in large models, most of the 'knowledge' lives in the feed-forward networks.")
+print("   Grow the dimension from 64 to over 10,000 and stack the layers from 2 to around 100, and the parameter count reaches the hundreds of billions.\n")
 
-# ---------------------------------------------------------------- 3. 残差连接
+# ---------------------------------------------------------------- 3. residual connections
 def similarity(x):
-    """不同位置的词向量之间，平均的余弦相似度。1.0 表示所有词变得一模一样。"""
+    """The average cosine similarity between word vectors at different positions. 1.0 means every word has become identical."""
     xn = x / np.linalg.norm(x, axis=1, keepdims=True)
     S = xn @ xn.T
     return (S.sum() - len(x)) / (len(x) * (len(x) - 1))
 
 
-print("【3】堆 48 层：有残差连接 vs 没有残差连接")
-print("   看各层输出里，不同词的向量有多像（1.00 = 所有词都变成了同一个向量，信息全丢了）：")
+print("[3] Stacking 48 layers: with residual connections vs. without")
+print("   How similar the different words' vectors are in each layer's output (1.00 = every word has become the same vector and all information is lost):")
 deep = [make_block() for _ in range(48)]
-for p in deep:                     # GPT-2 的做法：残差分支的输出权重按 1/√(2×层数) 缩小
+for p in deep:                     # GPT-2's trick: scale down the residual branches' output weights by 1/√(2×number of layers)
     p["Wo"] *= 1 / np.sqrt(2 * 48)
     p["W2"] *= 1 / np.sqrt(2 * 48)
 x0 = rng.normal(0, 1, (VOCAB, D_MODEL))[tokens] + positional_encoding(SEQ, D_MODEL)
 for residual in (True, False):
     x = x0.copy()
-    marks = [f"输入 {similarity(x):.2f}"]
+    marks = [f"input: {similarity(x):.2f}"]
     for i, p in enumerate(deep, 1):
         x = block(x, p, residual)
         if i in (1, 6, 24, 48):
-            marks.append(f"第{i:2d}层 {similarity(x):.2f}")
-    print(f"   {'有残差连接' if residual else '没有残差  '}：" + "  ".join(marks))
-print("""   没有残差连接时，几层之后所有词的向量就变得一模一样（研究者称之为"秩崩塌"），
-   模型再也分不清哪个词是哪个词，梯度也传不回去。
-   有了残差连接（x = x + f(x)），每一层只是在原来的基础上"加一点修改"，输入的信息有一条直通的高速公路。
-   这正是 2015 年何恺明等人用残差网络（ResNet）训练出 152 层网络的秘诀，Transformer 也继承了它。
+            marks.append(f"layer {i:2d}: {similarity(x):.2f}")
+    print(f"   {'with residuals   ' if residual else 'without residuals'} | " + "  ".join(marks))
+print("""   Without residual connections, after a few layers every word's vector becomes identical (researchers call this "rank collapse"),
+   so the model can no longer tell which word is which, and the gradient can't flow back either.
+   With residual connections (x = x + f(x)), each layer only "adds a small edit" on top of what was there, and the input's information has a direct highway through.
+   This is exactly the secret that let Kaiming He and colleagues train a 152-layer residual network (ResNet) in 2015, and the Transformer inherited it.
 
-想一想：
-  1. 把 N_HEADS 从 4 改成 8，参数量会变吗？为什么？
-  2. 去掉位置编码，模型还能区分"猫追狗"和"狗追猫"吗？
-  3. 为什么输出层只需要用最后一个位置的结果来预测下一个词？""")
+Think about it:
+  1. Change N_HEADS from 4 to 8. Does the parameter count change? Why?
+  2. Without positional encoding, can the model still tell "the cat chases the dog" from "the dog chases the cat"?
+  3. Why does the output layer only need the result at the last position to predict the next word?""")

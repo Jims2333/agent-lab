@@ -1,330 +1,330 @@
-# 第四章　从 CNN 到 Transformer：给网络装上眼睛和注意力
+# Chapter 4 — From CNNs to Transformers: Giving Networks Eyes and Attention
 
-> 第三章的网络是"万能"的，但对图片和句子，它并不知道该怎么看。
-> 这一章讲研究者怎么从**猫的大脑**里得到灵感，设计出专门看图的卷积网络；
-> 又怎么一步步解决"读长句子会忘事"的问题，最后得到今天所有大模型共用的结构：**Transformer**。
+> The networks of Chapter 3 are "universal," but faced with pictures and sentences, they don't know how to look.
+> This chapter is about how researchers took inspiration from **a cat's brain** to design convolutional networks made for seeing images;
+> and how, step by step, they solved the problem of "forgetting things while reading a long sentence," arriving at the architecture every large model shares today: **the Transformer**.
 
-**怎么读这一章：** 先看故事，再跑实验，最后看[概念解释](#概念解释)。
+**How to read this chapter:** Read the stories first, then run the labs, and save the [Concepts](#concepts) for last. These labs need only Python and NumPy, so no API key is needed.
 
-| 年份 | 发生了什么 | 对应实验 / 概念 |
+| When | What happened | Lab / concept |
 |---|---|---|
-| 1959 | 休伯尔和维泽尔发现猫视觉皮层里的"边缘探测器" | 🧪 `convolution.py` |
-| 1980 | 福岛邦彦的 Neocognitron | 卷积、池化 |
-| 1989–2015 | 卷积网络：从 LeNet 到 ResNet | 🧪 `transformer_block.py`（残差连接） |
+| 1959 | Hubel and Wiesel discover "edge detectors" in the cat's visual cortex | 🧪 `convolution.py` |
+| 1980 | Kunihiko Fukushima's Neocognitron | Convolution, pooling |
+| 1989–2015 | Convolutional networks: from LeNet to ResNet | 🧪 `transformer_block.py` (residual connections) |
 | 1997 | LSTM | 🧪 `rnn_vs_attention.py` |
-| 2014 | seq2seq 和巴达瑙注意力 | 🧪 `attention.py` |
-| 2016 | 谷歌翻译换成神经网络 | — |
-| 2017 | Transformer | 🧪 `attention.py`、`transformer_block.py` |
-| 2020 | ViT：一张图值 16×16 个词 | — |
+| 2014 | seq2seq and Bahdanau attention | 🧪 `attention.py` |
+| 2016 | Google Translate switches to neural networks | — |
+| 2017 | Transformer | 🧪 `attention.py`, `transformer_block.py` |
+| 2020 | ViT: an image is worth 16×16 words | — |
 
 ---
 
-## 序幕　1959 年，一张幻灯片的边缘
+## Prologue — 1959: The Edge of a Slide
 
-1950 年代末，在约翰斯·霍普金斯大学的实验室里，两位年轻的神经生理学家
-**大卫·休伯尔（David Hubel）** 和**托斯坦·维泽尔（Torsten Wiesel）** 想弄清楚：猫的视觉皮层里，一个个神经元到底在"看"什么？
+In the late 1950s, in a lab at Johns Hopkins University, two young neurophysiologists,
+**David Hubel** and **Torsten Wiesel**, wanted to find out what the individual neurons in a cat's visual cortex were actually "looking at."
 
-他们把电极插进麻醉的猫的视觉皮层，用投影仪往屏幕上打各种图案：亮点、暗点……神经元毫无反应。
-据休伯尔在诺贝尔奖演讲中的回忆，他们试了好几个小时都没有结果。就在往投影仪里插玻璃幻灯片的时候，
-扬声器里突然传来神经元密集的放电声，"像机关枪一样"。
-让它兴奋的不是幻灯片上的图案，而是**幻灯片的边缘**在屏幕上投下的一条线。
+They put electrodes into the visual cortex of an anesthetized cat and used a projector to throw all kinds of patterns onto a screen: bright spots, dark spots... The neurons didn't respond at all.
+As Hubel recalled in his Nobel lecture, they tried for hours with no result. Then, just as they were sliding a glass slide into the projector,
+the loudspeaker suddenly burst into the dense crackle of a neuron firing like a machine gun.
+What excited it wasn't the pattern on the slide but the line cast on the screen by **the edge of the slide**.
 
-他们由此发现：视觉皮层里有些神经元（"简单细胞"）只对**特定方向的边缘**有反应。
-把线条转一个角度，反应就变弱。还有些神经元（"复杂细胞"）对同样方向的边缘有反应，但不在乎它具体出现在哪个位置。
-视觉是**分层**处理的：先找边缘，再把边缘组合成更复杂的形状。
+From this they discovered that some neurons in the visual cortex ("simple cells") respond only to **edges at a particular orientation**.
+Turn the line to a different angle, and the response gets weaker. Other neurons ("complex cells") respond to edges at the same orientation but don't care exactly where they appear.
+Vision is processed **in layers**: first find the edges, then combine edges into more complex shapes.
 
-1981 年，两人因为这些发现获得了诺贝尔生理学或医学奖。
+In 1981, the two of them won the Nobel Prize in Physiology or Medicine for these discoveries.
 
-> 🧪 **动手**：运行 [`convolution.py`](./convolution.py)。手写一个 3×3 的"边缘探测器"，
-> 再复现休伯尔和维泽尔的实验：给它看不同角度的线条，画出它的"方向调谐曲线"。
+> 🧪 **Try it**: run [`convolution.py`](./convolution.py). Write a 3×3 "edge detector" by hand,
+> then recreate Hubel and Wiesel's experiment: show it lines at different angles and plot its "orientation tuning curve."
 
-> 💡 伏笔：→ [卷积](#1-卷积)
-
----
-
-## 第一幕　1980 年，东京：Neocognitron
-
-日本 NHK 放送技术研究所的研究员**福岛邦彦**，把休伯尔和维泽尔的发现直接搬进了神经网络。
-1980 年，他在《生物控制论》期刊上发表了 **Neocognitron**，论文标题里写着它的目标：
-"一种**不受位置移动影响**的模式识别机制"。
-
-他的网络由两种层交替组成：
-- **S 层**模仿简单细胞，用局部的小探测器寻找特定的图案；
-- **C 层**模仿复杂细胞，把附近的反应合并起来，让识别不在乎图案的精确位置。
-
-这就是今天卷积网络里"卷积层 + 池化层"的雏形。不过 Neocognitron 不是用反向传播训练的。
-第一章讲过，1989 年杨立昆在贝尔实验室把类似的结构和反向传播结合起来，这才有了真正意义上的**卷积神经网络（CNN）**。
-
-> 💡 伏笔：→ [池化与平移不变性](#3-池化与平移不变性)
+> 💡 Look ahead: → [Convolution](#1-convolution)
 
 ---
 
-## 第二幕　1989–2015 年：越来越深的卷积网络
+## Act 1 — 1980, Tokyo: The Neocognitron
 
-卷积网络后来的故事，前几章已经讲过一部分：LeCun 的网络读支票，2012 年 AlexNet 在 ImageNet 上一鸣惊人。
-之后，网络越做越深，同时也越来越难训练（第三章的梯度消失）。
+**Kunihiko Fukushima**, a researcher at NHK's broadcasting technology research laboratories in Japan, carried Hubel and Wiesel's findings straight into neural networks.
+In 1980 he published the **Neocognitron** in the journal *Biological Cybernetics*, and its goal was written right into the paper's title:
+"a Mechanism of Pattern Recognition **Unaffected by Shift in Position**."
 
-2015 年，微软亚洲研究院的**何恺明**、张祥雨、任少卿、孙剑提出了**残差网络（ResNet）**。
-想法出奇地简单：每一层不再直接输出新结果，而是输出"在输入基础上的修改量"，再把输入原样加回来：
-`输出 = 输入 + f(输入)`。这条"捷径"让信号和梯度可以畅通无阻地穿过很多层。
+His network alternated between two kinds of layers:
+- **S layers** imitate simple cells, using small local detectors to look for particular patterns;
+- **C layers** imitate complex cells, merging nearby responses so that recognition doesn't care about a pattern's exact position.
 
-他们训练出了 **152 层**的网络，以 3.57% 的错误率赢得了 2015 年 ImageNet 挑战赛（ILSVRC）分类任务的冠军。
-残差连接后来成了几乎所有深度网络的标配，包括 Transformer。
+This is the early form of the "convolution layer + pooling layer" in today's convolutional networks. But the Neocognitron wasn't trained with backpropagation.
+As Chapter 1 told it, it was in 1989 that Yann LeCun at Bell Labs combined a similar structure with backpropagation, and that gave us the **convolutional neural network (CNN)** in the full sense.
 
-> 🧪 **动手**：[`transformer_block.py`](./transformer_block.py) 的第 3 部分。堆 48 层，比较有残差连接和没有残差连接的区别。
-
-> 💡 伏笔：→ [残差连接](#9-残差连接与层归一化)
-
----
-
-## 第三幕　1997 年：会遗忘的循环网络，和一条传送带
-
-图片是二维的，语言却是一个接一个的序列。处理序列，最自然的办法是**循环神经网络（RNN）**：
-像人读书一样，一个词一个词往下读，把"读到现在的理解"存在一个隐藏状态里，每读一个新词就更新一次。
-
-问题正是第三章那篇 1991 年的毕业论文发现的：第 1 个词的信息要传到第 100 个词，要经过 99 次更新，
-每次都打一点折扣，最后几乎什么都不剩。RNN 很难记住长距离的关系。
-
-1997 年，**霍赫赖特**和**施密德胡伯**在《神经计算》上发表了**长短期记忆网络（LSTM）**。
-它在 RNN 里加了一条"传送带"（论文里叫"恒定误差传送带"），再用几个"门"控制往传送带上写什么、擦什么、读什么。
-只要"遗忘门"保持打开，信息就能沿着传送带几乎无损地传很远。论文显示，LSTM 能跨越超过 1000 个时间步学到依赖关系。
-
-此后近二十年，LSTM 一直是处理语音、文字等序列数据的主力。
-
-> 🧪 **动手**：运行 [`rnn_vs_attention.py`](./rnn_vs_attention.py)。比较第 1 个词对第 100 个词的影响：
-> 普通 RNN 只剩 10⁻⁴⁸，LSTM 还剩 0.37，注意力则永远只隔一步。
-
-> 💡 伏笔：→ [RNN 与 LSTM](#4-rnn-与-lstm)
+> 💡 Look ahead: → [Pooling and translation invariance](#3-pooling-and-translation-invariance)
 
 ---
 
-## 第四幕　2014 年：瓶颈，和"回头看"
+## Act 2 — 1989–2015: Deeper and Deeper Convolutional Networks
 
-2014 年，谷歌的**苏茨克维**、**维尼亚尔斯（Oriol Vinyals）** 和 **Quoc V. Le** 发表了 **seq2seq**（序列到序列）模型：
-用一个 LSTM 把整句英语"读"成一个固定长度的向量，再用另一个 LSTM 把这个向量"写"成法语。
-它在英法翻译任务上取得了 34.8 的 BLEU 分数，显示了神经网络做翻译的潜力。
+Earlier chapters have already told part of what happened to convolutional networks next: LeCun's networks reading checks, and AlexNet stunning everyone on ImageNet in 2012.
+After that, networks kept getting deeper, and also harder and harder to train (the vanishing gradients of Chapter 3).
 
-但这个设计有一个明显的**瓶颈**：不管句子多长，都得压缩进同一个长度的向量里。句子一长，翻译质量就明显下降。
+In 2015, **Kaiming He**, Xiangyu Zhang, Shaoqing Ren and Jian Sun at Microsoft Research Asia introduced the **residual network (ResNet)**.
+The idea is surprisingly simple: instead of outputting a new result directly, each layer outputs "a change to its input," and then the input is added back unchanged:
+`output = input + f(input)`. This "shortcut" lets signals and gradients pass through many layers without obstruction.
 
-同一年，在蒙特利尔大学**本吉奥**实验室实习的白俄罗斯学生**德米特里·巴达瑙（Dzmitry Bahdanau）**，
-和 Kyunghyun Cho、本吉奥一起发表了《通过联合学习对齐与翻译来做神经机器翻译》。
-他们的办法是：不再把整句话压成一个向量，而是保留原句每个词的表示；**每生成一个译文词，都回头"看"一遍原句**，
-按相关程度给每个原文词分配权重，再把它们加权平均。
+They trained a network with **152 layers** and won the classification task of the 2015 ImageNet challenge (ILSVRC) with a 3.57% error rate.
+Residual connections later became standard equipment in almost every deep network, the Transformer included.
 
-这就是**注意力机制**。据巴达瑙 2024 年在给卡帕西的邮件中回忆，"attention"这个名字是本吉奥起的。
+> 🧪 **Try it**: run [`transformer_block.py`](./transformer_block.py) and look at part 3. Stack 48 layers and compare having residual connections with not having them.
 
-两年后，这些技术走进了几亿人的生活。2016 年 9 月，谷歌发布了基于 LSTM 和注意力的神经机器翻译系统 **GNMT**，
-最先上线的语言对就是公认很难的**中译英**：谷歌翻译网页版和手机版的中译英全部改用了 GNMT，每天大约 1800 万次翻译。
-
-> 🧪 **动手**：运行 [`attention.py`](./attention.py)。把注意力看成"模糊查字典"，再让句子里的"它"自己找到"小猫"。
-
-> 💡 伏笔：→ [seq2seq 与瓶颈](#5-seq2seq-与瓶颈)、[注意力](#6-注意力qkv)
+> 💡 Look ahead: → [Residual connections](#9-residual-connections-and-layer-normalization)
 
 ---
 
-## 第五幕　2017 年：只要注意力
+## Act 3 — 1997: The Forgetful Recurrent Network, and a Conveyor Belt
 
-第一章讲过 Transformer 论文的八位作者和它名字的由来。这里讲它在技术上做了什么。
+Images are two-dimensional, but language is a sequence, one thing after another. The most natural way to handle a sequence is a **recurrent neural network (RNN)**:
+like a person reading a book, it reads one word after another, keeps "what it has understood so far" in a hidden state, and updates it with every new word.
 
-巴达瑙的注意力还是搭在 RNN 上的：RNN 一个词一个词地读，注意力只是辅助。
-2017 年的 Transformer 走了最激进的一步：**彻底扔掉循环**，整个网络只用注意力。
-- **自注意力**：句子里的每个词同时去看其他所有词，一步就能建立任意两个词之间的联系；
-- **多头**：同时用好几组注意力，各自关注不同的关系；
-- **位置编码**：注意力本身不知道词的顺序，所以要给每个位置加上一个独特的"编号"；
-- **残差连接 + 层归一化**：让网络能堆得很深（来自 ResNet 等前人的工作）。
+The problem is exactly what that 1991 diploma thesis from Chapter 3 found: for information from word 1 to reach word 100, it has to go through 99 updates,
+each one discounting it a little, until almost nothing is left. RNNs have a hard time remembering long-range relationships.
 
-因为不再需要一步步按顺序计算，整句话可以一次性交给 GPU 并行处理。论文里的基础模型在 8 块 P100 显卡上只训练了 12 小时，
-大模型训练了 3.5 天，就在英德翻译上取得了 28.4 的 BLEU 分数，超过了当时所有的模型，包括多个模型的集成。
+In 1997, **Hochreiter** and **Schmidhuber** published **long short-term memory (LSTM)** in *Neural Computation*.
+It added a "conveyor belt" to the RNN (the paper calls it the "constant error carousel"), and used a few "gates" to control what gets written onto the belt, what gets erased, and what gets read.
+As long as the "forget gate" stays open, information can travel a long way along the belt almost without loss. The paper showed that an LSTM can learn dependencies spanning more than 1,000 time steps.
 
-> 🧪 **动手**：运行 [`transformer_block.py`](./transformer_block.py)。把零件组装成一个完整的 Transformer，
-> 看一句话流过每一层时的形状，以及参数都花在了哪里。
+For nearly twenty years after that, the LSTM was the workhorse for sequence data such as speech and text.
 
-> 💡 伏笔：→ [自注意力与多头](#7-自注意力与多头注意力)、[位置编码](#8-位置编码)、[Transformer 块](#10-transformer-块)
+> 🧪 **Try it**: run [`rnn_vs_attention.py`](./rnn_vs_attention.py). Compare how much word 1 influences word 100:
+> a plain RNN keeps only 10⁻⁴⁸, an LSTM still keeps 0.37, and with attention it is always just one step away.
 
----
-
-## 第六幕　2020 年：一张图值 16×16 个词
-
-Transformer 本来是为语言设计的。2020 年 10 月，谷歌的**阿列克谢·多索维茨基（Alexey Dosovitskiy）** 等人
-发表了一篇标题很有趣的论文：《一张图值 16×16 个词》。
-
-他们把图片切成一个个 16×16 像素的小方块，把每个小方块当成一个"词"，直接交给 Transformer。
-没有卷积，没有专门为图片设计的结构。结果发现：只要预训练的数据足够多，这个 **Vision Transformer（ViT）**
-就能达到甚至超过最好的卷积网络，而且训练所需的计算资源更少。
-
-从此，Transformer 成了一种"通用结构"：文字、图片、语音、蛋白质，都可以切成一串"词"交给它。
-今天的 GPT、Claude、DeepSeek 都建立在它之上。
+> 💡 Look ahead: → [RNNs and LSTMs](#4-rnns-and-lstms)
 
 ---
 
-## 尾声：两种"看"的方式
+## Act 4 — 2014: The Bottleneck, and "Looking Back"
 
-| | 卷积网络 | Transformer |
+In 2014, **Sutskever**, **Oriol Vinyals** and **Quoc V. Le** at Google published the **seq2seq** (sequence-to-sequence) model:
+one LSTM "reads" a whole English sentence into a fixed-length vector, and another LSTM "writes" that vector out as French.
+It reached a BLEU score of 34.8 on English-to-French translation, showing the promise of neural networks for translation.
+
+But the design has an obvious **bottleneck**: however long the sentence, it has to be squeezed into a vector of the same length. Once sentences get long, translation quality drops noticeably.
+
+The same year, **Dzmitry Bahdanau**, a Belarusian student interning in **Bengio**'s lab at the University of Montreal,
+published *Neural Machine Translation by Jointly Learning to Align and Translate* together with Kyunghyun Cho and Bengio.
+Their approach: instead of squeezing the whole sentence into one vector, keep a representation of every word in the source sentence; **every time the model produces a word of the translation, it "looks back" over the source sentence**,
+gives each source word a weight according to how relevant it is, and takes the weighted average.
+
+This is the **attention mechanism**. According to Bahdanau's own recollection in a 2024 email to Karpathy, the name "attention" came from Bengio.
+
+Two years later, these techniques entered the lives of hundreds of millions of people. In September 2016, Google released **GNMT**, a neural machine translation system built on LSTMs and attention.
+The first language pair to go live was the notoriously hard **Chinese to English**: all Chinese-to-English translation on the Google Translate website and mobile app switched to GNMT, about 18 million translations a day.
+
+> 🧪 **Try it**: run [`attention.py`](./attention.py). Think of attention as a "fuzzy dictionary lookup," then let the word "it" in a sentence find "kitten" on its own.
+
+> 💡 Look ahead: → [seq2seq and the bottleneck](#5-seq2seq-and-the-bottleneck), [Attention](#6-attention-q-k-v)
+
+---
+
+## Act 5 — 2017: Attention Is All You Need
+
+Chapter 1 told the story of the Transformer paper's eight authors and where its name came from. Here we look at what it did technically.
+
+Bahdanau's attention was still built on top of an RNN: the RNN read one word at a time, and attention was only a helper.
+The 2017 Transformer took the most radical step: **throw out recurrence completely**, and build the whole network from attention alone.
+- **Self-attention**: every word in the sentence looks at all the other words at the same time, so a connection between any two words takes a single step;
+- **Multiple heads**: several sets of attention run at once, each watching a different relationship;
+- **Positional encoding**: attention itself doesn't know the order of the words, so each position gets its own unique "number tag" added on;
+- **Residual connections + layer normalization**: these let the network be stacked very deep (from earlier work such as ResNet).
+
+Since nothing has to be computed step by step in order anymore, a whole sentence can be handed to the GPU at once and processed in parallel. The paper's base model trained for only 12 hours on 8 P100 GPUs,
+and the big model trained for 3.5 days, reaching a BLEU score of 28.4 on English-to-German translation, better than every model at the time, including ensembles of several models.
+
+> 🧪 **Try it**: run [`transformer_block.py`](./transformer_block.py). Assemble the parts into a complete Transformer,
+> and see the shape of a sentence as it flows through each layer, and where all the parameters go.
+
+> 💡 Look ahead: → [Self-attention and multi-head attention](#7-self-attention-and-multi-head-attention), [Positional encoding](#8-positional-encoding), [The Transformer block](#10-the-transformer-block)
+
+---
+
+## Act 6 — 2020: An Image Is Worth 16×16 Words
+
+The Transformer was originally designed for language. In October 2020, **Alexey Dosovitskiy** and colleagues at Google
+published a paper with a fun title: *An Image is Worth 16x16 Words*.
+
+They cut an image into small 16×16-pixel squares, treated each square as a "word," and handed them straight to a Transformer.
+No convolutions, no structure designed especially for images. The result: given enough pre-training data, this **Vision Transformer (ViT)**
+matched or even beat the best convolutional networks, while needing less compute to train.
+
+From then on, the Transformer became a "general-purpose architecture": text, images, speech, proteins can all be cut into a string of "words" and handed to it.
+Today's GPT, Claude and DeepSeek are all built on it.
+
+---
+
+## Epilogue — Two Ways of "Seeing"
+
+| | CNNs | Transformers |
 |---|---|---|
-| 灵感 | 猫的视觉皮层 | 翻译时"回头看原文" |
-| 看什么 | 局部的小区域，逐层扩大 | 一步看到全部 |
-| 先验知识 | 内置"局部性"和"平移不变性" | 几乎没有，全靠数据学 |
-| 数据少时 | 更有优势 | 容易学不好 |
-| 数据多时 | 提升放缓 | 越多越强 |
+| Inspiration | The cat's visual cortex | "Looking back at the source" while translating |
+| What it looks at | Small local regions, widening layer by layer | Everything, in one step |
+| Prior knowledge | "Locality" and "translation invariance" built in | Almost none; everything is learned from data |
+| With little data | Has the edge | Struggles to learn well |
+| With lots of data | Gains slow down | The more data, the stronger |
 
-这背后有一条贯穿整个 AI 历史的教训：**内置的人类知识在数据少时很有用，但在海量数据和算力面前，
-更通用的方法往往笑到最后。** 强化学习先驱理查德·萨顿（Richard Sutton）2019 年把它写成了一篇短文，标题就叫《苦涩的教训》（The Bitter Lesson）。 下一章，我们看把 Transformer 做到极大规模之后发生了什么：大语言模型。
+Behind this lies a lesson that runs through the whole history of AI: **built-in human knowledge is very useful when data is scarce, but in the face of massive data and compute,
+more general methods usually have the last laugh.** In 2019, the reinforcement-learning pioneer Richard Sutton wrote this up in a short essay titled *The Bitter Lesson*. In the next chapter, we'll see what happened once Transformers were scaled up enormously: large language models.
 
 ---
 
-## 动手：四个小实验
+## Labs
 
 ```bash
 pip install numpy
-python convolution.py        # 1959/1980：边缘探测器、方向调谐曲线、池化
-python attention.py          # 2014/2017：手写注意力、多头、因果掩码
-python rnn_vs_attention.py   # 1997 vs 2017：长距离依赖与并行计算
-python transformer_block.py  # 2017：组装一个完整的 Transformer，看残差连接的作用
+python convolution.py        # 1959/1980: edge detectors, orientation tuning curves, pooling
+python attention.py          # 2014/2017: attention by hand, multiple heads, causal mask
+python rnn_vs_attention.py   # 1997 vs 2017: long-range dependencies and parallel computation
+python transformer_block.py  # 2017: assemble a complete Transformer and see what residual connections do
 ```
 
-| 实验 | 你应该看到 | 思考题（脚本末尾也有） |
+| Lab | What you should see | Think about it (also at the end of each script) |
 |---|---|---|
-| `convolution.py` | 竖直探测器只在竖边上亮；调谐曲线在 90° 达到峰值；池化后平移几乎不影响结果 | 两层卷积叠起来，能看到多大的区域？ |
-| `attention.py` | "它"把全部注意力给了"小猫"；"前一个词头"画出一条对角线；不除以 √d 时权重变得极端 | 句子长度翻倍，计算量变成几倍？ |
-| `rnn_vs_attention.py` | 距离 100 时，RNN 剩 10⁻⁴⁸，LSTM 剩 0.37；RNN 要顺序算 n 步，注意力 1 步 | 为什么巴达瑙注意力还是搭在 RNN 上？ |
-| `transformer_block.py` | 每层形状保持 (10, 64)；前馈网络参数是注意力的 2 倍；没有残差连接时，6 层后所有词的向量变得一模一样 | 去掉位置编码，模型还能分清"猫追狗"和"狗追猫"吗？ |
+| `convolution.py` | The vertical detector lights up only on vertical edges; the tuning curve peaks at 90°; after pooling, a shift barely affects the result | Stack two convolution layers: how big a region can they see? |
+| `attention.py` | "it" gives all its attention to "kitten"; the "previous-word head" draws a diagonal line; without dividing by √d, the weights become extreme | If the sentence doubles in length, how many times more computation is that? |
+| `rnn_vs_attention.py` | At distance 100, the RNN keeps 10⁻⁴⁸ and the LSTM keeps 0.37; the RNN needs n sequential steps, attention just 1 | Why was Bahdanau attention still built on top of an RNN? |
+| `transformer_block.py` | The shape stays (10, 64) at every layer; the feed-forward network has 2 times the parameters of attention; without residual connections, after 6 layers every word's vector becomes identical | Without positional encoding, can the model still tell "the cat chases the dog" from "the dog chases the cat"? |
 
 ---
 
-## 概念解释
+## Concepts
 
-### 1. 卷积
+### 1. Convolution
 
-用一个小窗口（卷积核，比如 3×3）在整张图上滑动，每到一个位置，就把窗口里的像素和卷积核对应相乘再相加。
-结果是一张新的"特征图"，表示"这种图案在每个位置出现得有多强"。
+Slide a small window (the kernel, say 3×3) across the whole image. At each position, multiply the pixels in the window by the matching kernel entries and add them up.
+The result is a new "feature map" that says "how strongly this pattern shows up at each position."
 
-卷积有两个关键性质：
-- **局部连接**：每个输出只看输入的一小块；
-- **权重共享**：同一个卷积核在所有位置重复使用。
+Convolution has two key properties:
+- **Local connections**: each output looks at only a small patch of the input;
+- **Weight sharing**: the same kernel is reused at every position.
 
-这两点让参数量减少了几个数量级，也让网络天生就知道"同一个图案出现在不同位置，是同一种东西"。
-CNN 里的卷积核是训练出来的。训练好之后，第一层的卷积核往往真的很像边缘探测器，和猫的简单细胞一样。
+Together, these cut the number of parameters by several orders of magnitude, and they also give the network a built-in sense that "the same pattern in a different place is the same thing."
+In a CNN the kernels are learned. After training, the first layer's kernels often really do look like edge detectors, just like the cat's simple cells.
 
-📖 登场：[序幕](#序幕1959-年一张幻灯片的边缘)　🧪 `convolution.py`
+📖 First appears in: [Prologue](#prologue--1959-the-edge-of-a-slide)　🧪 `convolution.py`
 
-### 2. 感受野
+### 2. Receptive fields
 
-一个神经元能"看到"的输入区域，叫它的感受野。一个 3×3 卷积看 3×3 的区域；两层叠起来就是 5×5；层数越多，看得越大。
-所以 CNN 是**由局部到整体**逐层构建理解的：浅层看边缘，中层看纹理和零件，深层看整个物体。
+The region of the input a neuron can "see" is called its receptive field. A 3×3 convolution sees a 3×3 region; stack two and it's 5×5; the more layers, the bigger the view.
+That is why a CNN builds its understanding **from local to global**, layer by layer: shallow layers see edges, middle layers see textures and parts, deep layers see whole objects.
 
-### 3. 池化与平移不变性
+### 3. Pooling and translation invariance
 
-**最大池化**把一小块区域（比如 2×2）里的值只保留最大的那个。
-它只关心"这一片里有没有出现这个特征"，不关心精确在哪个像素。图像平移一点点，池化后的结果几乎不变，这叫**平移不变性**。
-这正是福岛邦彦"C 层"的作用，对应休伯尔和维泽尔的"复杂细胞"。
+**Max pooling** keeps only the largest value in a small region (say, 2×2).
+It only cares whether "this feature shows up somewhere in this patch," not exactly which pixel it's on. Shift the image a little, and the pooled result barely changes. This is called **translation invariance**.
+It is exactly what Fukushima's "C layers" do, corresponding to Hubel and Wiesel's "complex cells."
 
-📖 登场：[第一幕](#第一幕1980-年东京neocognitron)　🧪 `convolution.py`
+📖 First appears in: [Act 1](#act-1--1980-tokyo-the-neocognitron)　🧪 `convolution.py`
 
-### 4. RNN 与 LSTM
+### 4. RNNs and LSTMs
 
-**RNN**：`h_t = tanh(W·h_{t-1} + U·x_t)`。每读一个词，就用"旧状态 + 新词"算出新状态。
-它天然适合序列，但信息每传一步都要被矩阵乘一次，传远了就消失（或爆炸）。
+**RNN**: `h_t = tanh(W·h_{t-1} + U·x_t)`. For each word it reads, it computes a new state from "the old state + the new word."
+It is a natural fit for sequences, but at every step the information gets multiplied by a matrix once more, so over long distances it vanishes (or explodes).
 
-**LSTM** 多了一个单独的**记忆单元** c，以及三个门：
-- **遗忘门**：旧记忆保留多少；
-- **输入门**：新信息写入多少；
-- **输出门**：对外输出多少。
+An **LSTM** adds a separate **memory cell** c, plus three gates:
+- **Forget gate**: how much of the old memory to keep;
+- **Input gate**: how much new information to write in;
+- **Output gate**: how much to output.
 
-记忆单元的更新主要是"乘遗忘门 + 加新内容"。遗忘门接近 1 时，信息和梯度都能几乎无损地传很远。
+Updating the memory cell is mainly "multiply by the forget gate + add new content." When the forget gate is close to 1, information and gradients can both travel a long way almost without loss.
 
-📖 登场：[第三幕](#第三幕1997-年会遗忘的循环网络和一条传送带)　🧪 `rnn_vs_attention.py`
+📖 First appears in: [Act 3](#act-3--1997-the-forgetful-recurrent-network-and-a-conveyor-belt)　🧪 `rnn_vs_attention.py`
 
-### 5. seq2seq 与瓶颈
+### 5. seq2seq and the bottleneck
 
-**seq2seq** = 编码器 + 解码器：编码器把输入序列读成一个向量，解码器根据这个向量生成输出序列。
-翻译、摘要、对话都可以看成 seq2seq 问题。
-它的**瓶颈**是：整句话的信息被压缩进一个固定长度的向量，句子越长，丢得越多。注意力正是为了解决这个问题而诞生的。
+**seq2seq** = encoder + decoder: the encoder reads the input sequence into a vector, and the decoder generates the output sequence from that vector.
+Translation, summarization and dialogue can all be seen as seq2seq problems.
+Its **bottleneck**: the information of the whole sentence is squeezed into one fixed-length vector, and the longer the sentence, the more gets lost. Attention was born precisely to solve this problem.
 
-📖 登场：[第四幕](#第四幕2014-年瓶颈和回头看)
+📖 First appears in: [Act 4](#act-4--2014-the-bottleneck-and-looking-back)
 
-### 6. 注意力（Q、K、V）
+### 6. Attention (Q, K, V)
 
-注意力可以理解成一次"模糊查字典"：
-- **Query（查询）**：我想找什么；
-- **Key（键）**：每个候选项的"标签"；
-- **Value（值）**：每个候选项真正的内容。
+You can think of attention as a "fuzzy dictionary lookup":
+- **Query**: what I'm looking for;
+- **Key**: each candidate's "label";
+- **Value**: each candidate's actual content.
 
-计算方法：
-1. 用查询和每个键做点积，得到"匹配分数"；
-2. 除以 √d（d 是向量维度），防止分数太大；
-3. 用 softmax 把分数变成加起来等于 1 的权重；
-4. 用权重对所有的值做加权平均。
+How it's computed:
+1. Take the dot product of the query with each key to get a "match score";
+2. Divide by √d (d is the vector dimension) to keep the scores from getting too big;
+3. Use softmax to turn the scores into weights that add up to 1;
+4. Use the weights to take a weighted average of all the values.
 
 ```
 Attention(Q, K, V) = softmax(Q·Kᵀ / √d) · V
 ```
 
-和普通字典不同，注意力不是"只取一个"，而是"按相关程度各取一点"。这让它处处可导，可以用反向传播训练。
+Unlike a normal dictionary, attention doesn't "take just one"; it "takes a little of each, according to relevance." This makes it differentiable everywhere, so it can be trained with backpropagation.
 
-📖 登场：[第四幕](#第四幕2014-年瓶颈和回头看)　🧪 `attention.py`
+📖 First appears in: [Act 4](#act-4--2014-the-bottleneck-and-looking-back)　🧪 `attention.py`
 
-### 7. 自注意力与多头注意力
+### 7. Self-attention and multi-head attention
 
-**自注意力**：Q、K、V 都来自同一句话。每个词都用自己的查询，去匹配句子里所有词的键。
-这样，"它"可以直接找到"小猫"，不管中间隔了多少个词。
+**Self-attention**: Q, K and V all come from the same sentence. Every word uses its own query to match against the keys of all the words in the sentence.
+That way, "it" can find "kitten" directly, no matter how many words lie in between.
 
-**多头注意力**：同时用好几套 Q/K/V 投影（几个"头"），每个头可以学会关注不同的关系：
-指代、语法、前后相邻……最后把各个头的结果拼起来。
+**Multi-head attention**: use several sets of Q/K/V projections at once (several "heads"). Each head can learn to watch a different relationship:
+what a word refers to, grammar, which words sit next to each other... Finally, the heads' results are concatenated.
 
-**因果掩码**：生成文字时，每个词只允许看它前面的词（把注意力矩阵的右上角遮住），
-否则模型在训练时就能"偷看答案"。GPT 这类模型都用因果掩码。
+**Causal mask**: when generating text, each word may only look at the words before it (the upper-right corner of the attention matrix is masked out);
+otherwise the model could "peek at the answer" during training. Models like GPT all use a causal mask.
 
-📖 登场：[第五幕](#第五幕2017-年只要注意力)　🧪 `attention.py`
+📖 First appears in: [Act 5](#act-5--2017-attention-is-all-you-need)　🧪 `attention.py`
 
-### 8. 位置编码
+### 8. Positional encoding
 
-注意力本身是"无序"的：把句子里的词打乱，每个词得到的注意力结果不会变。但"猫追狗"和"狗追猫"意思完全不同。
-所以要给每个位置加上一个独特的向量（**位置编码**）。2017 年的论文用不同频率的正弦和余弦波来组合；
-今天的大模型多用"旋转位置编码"（RoPE）等改进方法。
+Attention by itself is "orderless": shuffle the words in a sentence, and the attention result each word gets doesn't change. But "the cat chases the dog" and "the dog chases the cat" mean completely different things.
+So each position gets a unique vector added to it (the **positional encoding**). The 2017 paper combined sine and cosine waves of different frequencies;
+today's large models mostly use improved methods such as rotary positional embeddings (RoPE).
 
-📖 登场：[第五幕](#第五幕2017-年只要注意力)　🧪 `attention.py`、`transformer_block.py`
+📖 First appears in: [Act 5](#act-5--2017-attention-is-all-you-need)　🧪 `attention.py`, `transformer_block.py`
 
-### 9. 残差连接与层归一化
+### 9. Residual connections and layer normalization
 
-- **残差连接**：`输出 = 输入 + f(输入)`。每一层只学"修改量"，原始信息有一条直通的捷径。
-  它解决了深层网络的梯度消失问题，也防止了实验 4 里看到的"所有词的向量变得一模一样"（研究者称之为秩崩塌）。
-- **层归一化**：把每个词的向量调整成均值 0、方差 1，让各层的数值保持在稳定的范围内，训练更顺利。
+- **Residual connections**: `output = input + f(input)`. Each layer only learns "a change," and the original information has a direct shortcut through.
+  This solved the vanishing-gradient problem of deep networks, and it also prevents what you saw in Lab 4, where "every word's vector becomes identical" (researchers call this rank collapse).
+- **Layer normalization**: adjust each word's vector to mean 0 and variance 1, so the numbers at every layer stay in a stable range and training goes more smoothly.
 
-📖 登场：[第二幕](#第二幕19892015-年越来越深的卷积网络)　🧪 `transformer_block.py`
+📖 First appears in: [Act 2](#act-2--19892015-deeper-and-deeper-convolutional-networks)　🧪 `transformer_block.py`
 
-### 10. Transformer 块
+### 10. The Transformer block
 
-一个 Transformer 块 = **多头自注意力**（词与词交流信息）+ **前馈网络**（每个词各自做一次两层的变换），
-每一部分都包着残差连接和层归一化。把几十到上百个这样的块叠起来，就是一个大模型的主体。
+One Transformer block = **multi-head self-attention** (words exchange information with each other) + a **feed-forward network** (each word goes through a two-layer transformation on its own),
+with each part wrapped in a residual connection and layer normalization. Stack dozens to a hundred or more of these blocks, and you have the body of a large model.
 
-参数主要分布在三个地方：词嵌入和输出层、注意力的 Q/K/V/O 矩阵、前馈网络。其中前馈网络通常占大头。
+The parameters live mainly in three places: the word embeddings and output layer, the Q/K/V/O matrices of attention, and the feed-forward networks. The feed-forward networks usually take the largest share.
 
-📖 登场：[第五幕](#第五幕2017-年只要注意力)　🧪 `transformer_block.py`
+📖 First appears in: [Act 5](#act-5--2017-attention-is-all-you-need)　🧪 `transformer_block.py`
 
 ### 11. ViT
 
-把图片切成固定大小的小块（比如 16×16 像素），每块拉平后当作一个"词"，加上位置编码，交给标准的 Transformer。
-它说明 Transformer 是一种通用的序列处理器：任何东西只要能切成"一串词"，就能用它来学。
+Cut an image into small patches of a fixed size (say, 16×16 pixels), flatten each patch and treat it as a "word," add positional encoding, and hand it to a standard Transformer.
+It shows that the Transformer is a general-purpose sequence processor: anything that can be cut into "a string of words" can be learned with it.
 
-📖 登场：[第六幕](#第六幕2020-年一张图值-1616-个词)
+📖 First appears in: [Act 6](#act-6--2020-an-image-is-worth-1616-words)
 
 ---
 
-## 参考资料
+## References
 
-- D. Hubel, [Evolution of Ideas on the Primary Visual Cortex, 1955–1978](https://www.nobelprize.org/prizes/medicine/1981/hubel/lecture/)（诺贝尔奖演讲, 1981）；[An accidental experiment discovered new cells in cat brains](https://next.massivesci.com/notes/simple-complex-cells-neurons-cats-eyes/)
+- D. Hubel, [Evolution of Ideas on the Primary Visual Cortex, 1955–1978](https://www.nobelprize.org/prizes/medicine/1981/hubel/lecture/) (Nobel lecture, 1981); [An accidental experiment discovered new cells in cat brains](https://next.massivesci.com/notes/simple-complex-cells-neurons-cats-eyes/)
 - K. Fukushima, [Neocognitron: A Self-organizing Neural Network Model for a Mechanism of Pattern Recognition Unaffected by Shift in Position](https://www.cs.princeton.edu/courses/archive/spring08/cos598B/Readings/Fukushima1980.pdf), *Biological Cybernetics*, 1980
 - K. He, X. Zhang, S. Ren, J. Sun, [Deep Residual Learning for Image Recognition](https://arxiv.org/abs/1512.03385), 2015
 - S. Hochreiter & J. Schmidhuber, *Long Short-Term Memory*, *Neural Computation* 9(8), 1997
 - I. Sutskever, O. Vinyals, Q. V. Le, *Sequence to Sequence Learning with Neural Networks*, NIPS 2014
 - D. Bahdanau, K. Cho, Y. Bengio, [Neural Machine Translation by Jointly Learning to Align and Translate](https://arxiv.org/abs/1409.0473), 2014
-- Turing Post, [Who came up with the term "attention"?](https://www.turingpost.com/p/attention), 2024（巴达瑙给卡帕西的邮件）
+- Turing Post, [Who came up with the term "attention"?](https://www.turingpost.com/p/attention), 2024 (Bahdanau's email to Karpathy)
 - Google, [A Neural Network for Machine Translation, at Production Scale](https://research.google/blog/a-neural-network-for-machine-translation-at-production-scale/), 2016
 - A. Vaswani et al., [Attention Is All You Need](https://arxiv.org/abs/1706.03762), 2017
 - A. Dosovitskiy et al., [An Image is Worth 16x16 Words: Transformers for Image Recognition at Scale](https://arxiv.org/abs/2010.11929), 2020
 - R. Sutton, [The Bitter Lesson](http://www.incompleteideas.net/IncIdeas/BitterLesson.html), 2019
-- Y. Dong, J.-B. Cordonnier, A. Loukas, [Attention is Not All You Need: Pure Attention Loses Rank Doubly Exponentially with Depth](https://arxiv.org/abs/2103.03404), 2021（秩崩塌）
+- Y. Dong, J.-B. Cordonnier, A. Loukas, [Attention is Not All You Need: Pure Attention Loses Rank Doubly Exponentially with Depth](https://arxiv.org/abs/2103.03404), 2021 (rank collapse)
 
 ---
 
-⬅️ [第三章 神经网络与自动求导](../03-neural-nets/)　|　[返回目录](../README.md)　|　➡️ [第五章 大语言模型与 API](../05-llm-and-api/)
+⬅️ [Chapter 3 · Neural Networks and Autodiff](../03-neural-nets/) | [Contents](../README.md) | ➡️ [Chapter 5 · Large Language Models and APIs](../05-llm-and-api/)
