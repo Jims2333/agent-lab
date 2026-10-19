@@ -1,304 +1,304 @@
-# 第三章　神经网络与自动求导：让机器自己算导数
+# Chapter 3 — Neural Networks and Autodiff: Teaching Machines to Take Their Own Derivatives
 
-> 第一章里，我们手写了 XOR 网络的反向传播，每一个导数都要自己推。
-> 网络有三层的时候还行，有一百层、几千亿个参数的时候呢？
-> 这一章讲的是：人类怎么把"求导"这件事彻底交给了机器，以及为什么网络一深就很难训练。
+> In Chapter 1 we wrote backpropagation for the XOR network by hand, and we had to work out every derivative ourselves.
+> That's fine for a three-layer network. But what about a hundred layers and hundreds of billions of parameters?
+> This chapter is about how people handed the job of "taking derivatives" over to the machine completely, and why deep networks are so hard to train.
 
-**怎么读这一章：** 先看故事，再跑实验，最后看[概念解释](#概念解释)。
+**How to read this chapter:** Read the stories first, then run the labs, and save the [Concepts](#concepts) for last. These labs need only Python and NumPy, so no API key is needed.
 
-| 年份 | 发生了什么 | 对应实验 / 概念 |
+| When | What happened | Lab / concept |
 |---|---|---|
-| 1970 | 林纳因马在硕士论文里提出反向模式自动微分 | 🧪 `autograd.py` |
-| 1989 | 万能逼近定理 | 🧪 `mlp_moons.py` |
-| 1991 | 霍赫赖特在毕业论文里分析梯度消失 | 🧪 `vanishing_gradient.py` |
-| 2010–2011 | 初始化研究和 ReLU 的兴起 | 激活函数、初始化 |
-| 2012 | Dropout | 正则化 |
-| 2015 | 何恺明初始化 | 🧪 `mlp_moons.py`、`vanishing_gradient.py` |
-| 2007–2017 | Theano、TensorFlow、PyTorch | 深度学习框架 |
-| 2020–2022 | Karpathy 的 micrograd | 🧪 `autograd.py` |
+| 1970 | Linnainmaa proposes reverse-mode automatic differentiation in his master's thesis | 🧪 `autograd.py` |
+| 1989 | The universal approximation theorem | 🧪 `mlp_moons.py` |
+| 1991 | Hochreiter analyzes vanishing gradients in his diploma thesis | 🧪 `vanishing_gradient.py` |
+| 2010–2011 | Research on initialization, and the rise of ReLU | Activation functions, initialization |
+| 2012 | Dropout | Regularization |
+| 2015 | He initialization | 🧪 `mlp_moons.py`, `vanishing_gradient.py` |
+| 2007–2017 | Theano, TensorFlow, PyTorch | Deep learning frameworks |
+| 2020–2022 | Karpathy's micrograd | 🧪 `autograd.py` |
 
 ---
 
-## 序幕　1970 年，哥本哈根的一个下午
+## Prologue — 1970, Copenhagen: An Afternoon in the Park
 
-1970 年，芬兰赫尔辛基大学的学生**塞波·林纳因马（Seppo Linnainmaa）** 正在写硕士论文。
-他研究的问题和神经网络毫无关系：计算机做浮点运算时，每一步都会产生一点点舍入误差，
-这些小误差一路累积下来，最后的结果会偏离多少？
+In 1970, **Seppo Linnainmaa**, a student at the University of Helsinki in Finland, was writing his master's thesis.
+His problem had nothing to do with neural networks. Every time a computer does a floating-point operation, it makes a tiny rounding error.
+As those little errors pile up step after step, how far off does the final result end up?
 
-要回答这个问题，就得知道**最终结果对每一个中间步骤有多敏感**，也就是一大堆导数。
-据数学家安德烈亚斯·格里万克（Andreas Griewank）后来的记述，林纳因马说，
-解决办法是 1970 年在哥本哈根一个阳光明媚的下午，在公园里想到的：
-**把计算过程记下来，然后从最终结果出发，倒着走一遍**，用链式法则把敏感度一步步传回去。
-这样只需倒着走一遍，就能得到结果对所有中间量的导数。他还用 FORTRAN 把它实现了出来。
+To answer that, you need to know **how sensitive the final result is to every intermediate step**. In other words, a whole pile of derivatives.
+According to a later account by the mathematician Andreas Griewank, Linnainmaa said
+the solution came to him on a sunny afternoon in 1970, in a park in Copenhagen:
+**record the computation, then start from the final result and walk through it backward**, using the chain rule to pass the sensitivities back one step at a time.
+A single backward pass gives you the derivative of the result with respect to every intermediate quantity. He even implemented it in FORTRAN.
 
-这就是**反向模式自动微分**。十几年后人们用它来训练神经网络，给它起了另一个名字：**反向传播**。
+This is **reverse-mode automatic differentiation**. More than a decade later, people used it to train neural networks and gave it another name: **backpropagation**.
 
-> 🧪 **动手**：运行 [`autograd.py`](./autograd.py)。用不到 100 行代码实现一个自动求导引擎，
-> 画出计算图，并用"数值梯度"检查它算得对不对。
+> 🧪 **Try it**: run [`autograd.py`](./autograd.py). It implements an autodiff engine in under 100 lines of code,
+> draws the computational graph, and uses "numerical gradients" to check that it computes correctly.
 
-> 💡 伏笔：→ [计算图](#1-计算图)、[前向模式与反向模式](#3-前向模式与反向模式)
-
----
-
-## 第一幕　1989 年：一层就够了？
-
-第一章讲到，1986 年反向传播让多层网络重新热了起来。但一个根本问题还没人回答：
-**多层网络到底能表示多复杂的东西？**
-
-1989 年，两篇论文几乎同时给出了答案。数学家**乔治·西本科（George Cybenko）**
-在《控制、信号与系统数学》上证明：只要有**一个**隐藏层、用 sigmoid 这样的 S 形激活函数，
-网络就能以任意精度逼近任何连续函数。同一年，**霍尼克（Kurt Hornik）、斯廷奇科姆和怀特**
-在《Neural Networks》上发表了题目很响亮的论文《多层前馈网络是万能逼近器》。
-
-这就是**万能逼近定理**。它让人安心：神经网络在原理上没有"画不出来"的形状。
-但它没说的两件事，后来成了几十年的难题：**需要多少个神经元**？以及**怎么才能真的把权重训练出来**？
-
-> 🧪 **动手**：运行 [`mlp_moons.py`](./mlp_moons.py)。用你自己写的引擎训练一个网络，
-> 去分开两个交错的"月亮"。没有隐藏层的网络只能画直线；加上隐藏层，边界就弯了起来。
-
-> 💡 伏笔：→ [万能逼近定理](#5-万能逼近定理)
+> 💡 Look ahead: → [Computational graphs](#1-computational-graphs), [Forward mode and reverse mode](#3-forward-mode-and-reverse-mode)
 
 ---
 
-## 第二幕　1991 年，慕尼黑：越深越学不动
+## Act 1 — 1989: Is One Layer Enough?
 
-1991 年 6 月 15 日，慕尼黑工业大学的学生**塞普·霍赫赖特（Sepp Hochreiter）** 交上了他的毕业论文（Diplom），
-题目是《动态神经网络研究》，用德语写成，指导老师是**于尔根·施密德胡伯（Jürgen Schmidhuber）**。
+As Chapter 1 told it, in 1986 backpropagation made multi-layer networks hot again. But one basic question was still unanswered:
+**how complicated a thing can a multi-layer network actually represent?**
 
-论文里分析了一个让所有人头疼的现象：误差信号沿着网络往回传的时候，每经过一层都要乘上一些系数。
-如果这些系数普遍小于 1，传几十层之后信号就小到几乎为零，靠近输入的那些层根本学不到东西，这叫**梯度消失**；
-如果普遍大于 1，信号就会越传越大，这叫**梯度爆炸**。
+In 1989, two papers gave the answer almost at the same time. The mathematician **George Cybenko**
+proved in *Mathematics of Control, Signals and Systems* that with just **one** hidden layer and an S-shaped activation function like the sigmoid,
+a network can approximate any continuous function to any accuracy you like. The same year, **Kurt Hornik**, Stinchcombe and White
+published a paper with a resounding title in *Neural Networks*: *Multilayer Feedforward Networks are Universal Approximators*.
 
-施密德胡伯后来称这篇论文是"机器学习史上最重要的文献之一"。
-六年后，霍赫赖特和施密德胡伯正是为了绕开这个问题，发明了 LSTM（第四章会讲）。
+This is the **universal approximation theorem**. It is reassuring: in principle, there is no shape a neural network "can't draw."
+But two things it doesn't say went on to become problems for decades: **how many neurons do you need**? And **how do you actually train the weights**?
 
-> 🧪 **动手**：运行 [`vanishing_gradient.py`](./vanishing_gradient.py)。搭一个 30 层的网络，
-> 看误差信号传回第 1 层时还剩多少：sigmoid 网络只剩 10⁻²⁰ 倍，初始化太大的网络则被放大了上万倍。
+> 🧪 **Try it**: run [`mlp_moons.py`](./mlp_moons.py). Use the engine you wrote yourself to train a network
+> that separates two interlocking "moons." A network with no hidden layer can only draw a straight line; add hidden layers, and the boundary starts to bend.
 
-> 💡 伏笔：→ [梯度消失与梯度爆炸](#7-梯度消失与梯度爆炸)
-
----
-
-## 第三幕　2010–2015 年：换个激活函数，选对初始值
-
-整个 2000 年代，深层网络都以"难训练"著称。2010 年前后，几项看起来很朴素的改进，让局面彻底改观：
-
-- **2010 年**，蒙特利尔大学的**泽维尔·格洛罗（Xavier Glorot）** 和**约书亚·本吉奥（Yoshua Bengio）**
-  发表《理解训练深度前馈网络的困难》，仔细分析了信号在各层之间如何变大变小，
-  提出了一种按"输入和输出个数"来缩放初始权重的方法，后来被称为 **Xavier 初始化**。
-- **2010 年**，多伦多大学的**奈尔（Vinod Nair）** 和**辛顿**在 ICML 上提出用**修正线性单元（ReLU）** 改进模型：
-  它的规则简单到极点，大于 0 就原样输出，小于 0 就输出 0。
-- **2011 年**，格洛罗、博尔德斯和本吉奥的《深度稀疏修正神经网络》显示，用 ReLU 的深层网络
-  不需要复杂的预训练技巧也能训练得很好。
-- **2012 年**，AlexNet 的论文报告：在 CIFAR-10 数据集上，用 ReLU 的网络达到 25% 训练错误率的速度，
-  是用 tanh 的**六倍**。ReLU 从此成了默认选择。
-- **2015 年**，微软亚洲研究院的**何恺明**等人发表《深入研究修正函数》，提出了专门为 ReLU 设计的初始化方法
-  （**何恺明初始化**），让非常深的网络可以直接从零训练。这篇论文的模型在 ImageNet 上达到 4.94% 的 top-5 错误率，
-  是第一个在这项挑战上超过人类水平（5.1%）的结果。
-
-在实验 2 里，你会亲眼看到初始化有多重要：同样的网络、同样的数据，初始权重的尺度选小了，
-准确率会卡在九成左右；换成何恺明初始化，80 步就能达到 100%。
-
-> 💡 伏笔：→ [激活函数](#6-激活函数)、[初始化](#8-初始化)
+> 💡 Look ahead: → [The universal approximation theorem](#5-the-universal-approximation-theorem)
 
 ---
 
-## 第四幕　2012 年：银行柜员的启发
+## Act 2 — 1991, Munich: The Deeper, the Harder to Learn
 
-网络越大，越容易**过拟合**：把训练数据背下来，遇到新数据就不灵。
+On June 15, 1991, **Sepp Hochreiter**, a student at the Technical University of Munich, turned in his diploma thesis (Diplom).
+It was titled *Untersuchungen zu dynamischen neuronalen Netzen* ("Studies of Dynamic Neural Networks"), it was written in German, and his advisor was **Jürgen Schmidhuber**.
 
-据辛顿自己在一次网上问答（Reddit）中回忆，有一次他去银行，发现柜员总是在换人。他问其中一位为什么，
-对方说不知道，只知道大家经常被调来调去。辛顿想：这大概是因为，要骗银行的钱，需要几个员工互相配合；
-经常轮岗，他们就串通不起来。他由此想到：**每次训练时随机"关掉"一部分神经元**，
-它们就没法形成脆弱的"小团伙"，网络就不容易过拟合。
+The thesis analyzed a phenomenon that gave everyone headaches. As the error signal travels backward through the network, it gets multiplied by some factors at every layer.
+If those factors are mostly smaller than 1, after a few dozen layers the signal is almost zero, and the layers near the input learn nothing at all. This is called **vanishing gradients**.
+If they are mostly larger than 1, the signal grows bigger and bigger as it travels. This is called **exploding gradients**.
 
-2012 年 7 月，辛顿和学生们在 arXiv 上发表了《通过防止特征检测器的共同适应来改进神经网络》，
-这个方法叫 **Dropout**。同年的 AlexNet 也用上了它。
+Schmidhuber later called this thesis one of the most important documents in the history of machine learning.
+Six years later, Hochreiter and Schmidhuber invented the LSTM precisely to get around this problem (more on that in Chapter 4).
 
-> 💡 伏笔：→ [过拟合、正则化与 Dropout](#9-过拟合正则化与-dropout)
+> 🧪 **Try it**: run [`vanishing_gradient.py`](./vanishing_gradient.py). Build a 30-layer network
+> and see how much of the error signal is left when it gets back to layer 1: the sigmoid network keeps only 10⁻²⁰ of it, while a network with too large an initialization amplifies it more than ten thousand times.
 
----
-
-## 第五幕　2007–2017 年：再也不用手推导数了
-
-第一章的实验 3 里，反向传播的每一行公式都要自己推。只要网络结构改一点，就得重新推一遍，非常容易出错。
-
-**深度学习框架**改变了这一切。它们的核心正是林纳因马的反向模式自动微分：
-你只需要写出前向计算，框架会自动记录计算图，再自动算出所有梯度。
-
-- **2007 年**，蒙特利尔大学的研究团队（后来的 MILA）发布了 **Theano**，最早一批支持自动求导和 GPU 的 Python 框架之一；
-- **2015 年 11 月 9 日**，谷歌开源了 **TensorFlow**；
-- **2017 年 1 月**，Facebook 的研究团队公开发布了 **PyTorch**。它"边运行边建图"的方式和我们的 Value 类一样直观，
-  很快成为研究者最喜欢的工具。
-
-从此，研究者可以把精力放在设计新的网络结构上，而不是推导公式。
-
-> 💡 伏笔：→ [深度学习框架](#10-深度学习框架)
+> 💡 Look ahead: → [Vanishing and exploding gradients](#7-vanishing-and-exploding-gradients)
 
 ---
 
-## 第六幕　2020–2022 年：一百行代码讲清楚
+## Act 3 — 2010–2015: A New Activation Function and the Right Starting Weights
 
-框架越来越强大，内部也越来越复杂，初学者很难看清它到底做了什么。
+All through the 2000s, deep networks were known for being "hard to train." Around 2010, a few improvements that looked very plain turned the situation around completely:
 
-2020 年，曾任特斯拉 AI 负责人、也是 OpenAI 创始成员之一的**安德烈·卡帕西（Andrej Karpathy）**
-在 GitHub 上发布了 **micrograd**：一个大约 100 行的自动求导引擎，加上大约 50 行的神经网络库，
-API 和 PyTorch 很像。2022 年 8 月，他又录了一个两个多小时的视频，从零开始一行行写出它。
+- **In 2010**, **Xavier Glorot** and **Yoshua Bengio** of the University of Montreal
+  published *Understanding the Difficulty of Training Deep Feedforward Neural Networks*. They carefully analyzed how the signal grows and shrinks from layer to layer,
+  and proposed scaling the initial weights by "the number of inputs and outputs." This later became known as **Xavier initialization**.
+- **In 2010**, **Vinod Nair** and **Hinton** at the University of Toronto proposed at ICML improving models with **rectified linear units (ReLU)**.
+  The rule could hardly be simpler: if the input is above 0, pass it through unchanged; if it is below 0, output 0.
+- **In 2011**, *Deep Sparse Rectifier Neural Networks* by Glorot, Bordes and Bengio showed that deep networks using ReLU
+  can train very well even without complicated pre-training tricks.
+- **In 2012**, the AlexNet paper reported that on the CIFAR-10 dataset, a network with ReLU reached a 25% training error rate
+  **six times** faster than one with tanh. From then on, ReLU became the default choice.
+- **In 2015**, **Kaiming He** and colleagues at Microsoft Research Asia published *Delving Deep into Rectifiers*. It proposed an initialization method designed specifically for ReLU
+  (**He initialization**), which made it possible to train very deep networks from scratch. The paper's model reached a 4.94% top-5 error rate on ImageNet,
+  the first result to beat human-level performance (5.1%) on this challenge.
 
-这一章的实验 1 和 2 走的就是同一条路：自己写引擎，再用它训练网络。
-等你下次用 PyTorch 调用 `loss.backward()` 时，就会知道它背后发生了什么。
+In Lab 2 you'll see for yourself how much initialization matters: same network, same data, but if you pick too small a scale for the initial weights,
+accuracy gets stuck at around 90%; switch to He initialization, and it reaches 100% in 80 steps.
+
+> 💡 Look ahead: → [Activation functions](#6-activation-functions), [Initialization](#8-initialization)
 
 ---
 
-## 尾声
+## Act 4 — 2012: A Lesson from the Bank Tellers
 
-这一章的三个故事，对应训练神经网络的三个关键问题：
-1. **怎么求导**：反向模式自动微分，一次反向就得到所有梯度；
-2. **能不能表示**：万能逼近定理说可以，但要靠足够的神经元和正确的训练；
-3. **能不能训练**：梯度消失和爆炸曾让深层网络寸步难行，ReLU 和合适的初始化（后来还有残差连接）把路打通了。
+The bigger the network, the easier it is to **overfit**: it memorizes the training data and then falls apart on new data.
 
-下一章，我们看研究者如何为图像和语言设计专门的网络结构：从卷积网络，一直到 Transformer。
+As Hinton himself recalled in an online Q&A (on Reddit), he once went to the bank and noticed that the tellers kept changing. He asked one of them why.
+The teller didn't know, only that they got moved around a lot. Hinton figured it was probably because defrauding the bank would take several employees working together;
+if they were rotated often, they couldn't conspire. That gave him an idea: **at every training step, randomly "switch off" some of the neurons**.
+Then they can't form fragile little "cliques," and the network is less likely to overfit.
+
+In July 2012, Hinton and his students posted *Improving Neural Networks by Preventing Co-adaptation of Feature Detectors* on arXiv.
+The method is called **Dropout**. AlexNet used it the same year.
+
+> 💡 Look ahead: → [Overfitting, regularization and Dropout](#9-overfitting-regularization-and-dropout)
 
 ---
 
-## 动手：三个小实验
+## Act 5 — 2007–2017: No More Derivatives by Hand
+
+In Chapter 1's Lab 3, we had to work out every backpropagation formula ourselves. Change the network structure even a little, and you have to derive it all over again. It is very easy to make mistakes.
+
+**Deep learning frameworks** changed all that. At their core is exactly Linnainmaa's reverse-mode automatic differentiation:
+you just write the forward computation, and the framework records the computational graph automatically and then computes all the gradients for you.
+
+- **In 2007**, a research team at the University of Montreal (later MILA) released **Theano**, one of the first Python frameworks to support automatic differentiation and GPUs;
+- **On November 9, 2015**, Google open-sourced **TensorFlow**;
+- **In January 2017**, Facebook's research team publicly released **PyTorch**. Its "build the graph as the code runs" approach is just as intuitive as our Value class,
+  and it quickly became researchers' favorite tool.
+
+From then on, researchers could spend their energy designing new network architectures instead of deriving formulas.
+
+> 💡 Look ahead: → [Deep learning frameworks](#10-deep-learning-frameworks)
+
+---
+
+## Act 6 — 2020–2022: The Whole Idea in a Hundred Lines of Code
+
+As frameworks grew more powerful, their insides grew more complicated too, and it became hard for beginners to see what they were actually doing.
+
+In 2020, **Andrej Karpathy**, former head of AI at Tesla and one of the founding members of OpenAI,
+released **micrograd** on GitHub: an autodiff engine of about 100 lines, plus a neural network library of about 50 lines,
+with an API a lot like PyTorch's. In August 2022 he also recorded a video, more than two hours long, writing it line by line from scratch.
+
+Labs 1 and 2 in this chapter follow the same path: write the engine yourself, then use it to train a network.
+The next time you call `loss.backward()` in PyTorch, you'll know what is happening behind it.
+
+---
+
+## Epilogue — Three Questions
+
+The three stories in this chapter match three key questions in training neural networks:
+1. **How do we take derivatives?** Reverse-mode automatic differentiation: one backward pass gives you all the gradients;
+2. **Can a network represent the answer?** The universal approximation theorem says yes, but it takes enough neurons and the right training;
+3. **Can it be trained?** Vanishing and exploding gradients once stopped deep networks in their tracks; ReLU and good initialization (and later residual connections) cleared the way.
+
+In the next chapter, we'll see how researchers designed network architectures specifically for images and language: from convolutional networks all the way to the Transformer.
+
+---
+
+## Labs
 
 ```bash
 pip install numpy
-python autograd.py            # 手写自动求导引擎 + 梯度检查
-python mlp_moons.py           # 用自己的引擎训练网络（纯 Python，约半分钟）
-python vanishing_gradient.py  # 30 层网络里的梯度消失与爆炸
+python autograd.py            # a hand-written autodiff engine + gradient check
+python mlp_moons.py           # train a network with your own engine (pure Python, about half a minute)
+python vanishing_gradient.py  # vanishing and exploding gradients in a 30-layer network
 ```
 
-| 实验 | 你应该看到 | 思考题（脚本末尾也有） |
+| Lab | What you should see | Think about it (also at the end of each script) |
 |---|---|---|
-| `autograd.py` | 计算图上每个节点的梯度；和数值梯度的差别在 10⁻¹⁰ 量级 | 为什么 `_backward` 里要用 `+=`？ |
-| `mlp_moons.py` | 没有隐藏层只有约 90%；2→10→10→1 的 ReLU 网络 80 步达到 100%，边界弯成了 S 形 | 把初始化改小，准确率掉到多少？ |
-| `vanishing_gradient.py` | sigmoid 传到第 1 层只剩 10⁻²⁰ 倍；ReLU + 何恺明初始化基本不衰减；初始化太大则放大上万倍 | 为什么早期的网络都很浅？ |
+| `autograd.py` | The gradient at every node of the computational graph; differences from the numerical gradient on the order of 10⁻¹⁰ | Why does `_backward` use `+=`? |
+| `mlp_moons.py` | With no hidden layer, only about 90%; the 2→10→10→1 ReLU network reaches 100% in 80 steps, and the boundary bends into an S shape | Make the initialization smaller: how far does accuracy drop? |
+| `vanishing_gradient.py` | With sigmoid, only 10⁻²⁰ of the signal reaches layer 1; with ReLU + He initialization it barely decays; with too large an initialization it is amplified more than ten thousand times | Why were early networks all shallow? |
 
 ---
 
-## 概念解释
+## Concepts
 
-### 1. 计算图
+### 1. Computational graphs
 
-任何计算都可以拆成一步步的小运算：加、乘、tanh……把它们画成一张图，每个节点是一个值，
-边表示"谁由谁算出来"，这就是**计算图**。实验 1 里，`Value` 对象的 `_prev` 就是它的入边。
-框架做的第一件事，就是在你写前向计算时，悄悄把这张图记下来。
+Any computation can be broken down into small steps: add, multiply, tanh... Draw them as a graph, with each node a value
+and each edge saying "who was computed from whom," and you have a **computational graph**. In Lab 1, a `Value` object's `_prev` holds its incoming edges.
+The first thing a framework does is quietly record this graph while you write the forward computation.
 
-📖 登场：[序幕](#序幕1970-年哥本哈根的一个下午)　🧪 `autograd.py`
+📖 First appears in: [Prologue](#prologue--1970-copenhagen-an-afternoon-in-the-park)　🧪 `autograd.py`
 
-### 2. 链式法则
+### 2. The chain rule
 
-如果 `L` 依赖 `d`，`d` 又依赖 `e`，那么 `dL/de = dL/dd × dd/de`。
-反向传播就是在计算图上反复使用链式法则：每个节点只需要知道"自己的局部导数"，
-再乘上从后面传来的梯度，然后传给前面。每种运算的局部导数都很简单：
-- 加法：原样分给两边；
-- 乘法：乘以对方的值；
-- tanh：乘以 `1 - tanh²`。
+If `L` depends on `d`, and `d` depends on `e`, then `dL/de = dL/dd × dd/de`.
+Backpropagation is just the chain rule applied over and over on the computational graph: each node only needs to know "its own local derivative,"
+multiply that by the gradient arriving from the nodes after it, and pass the result on to the nodes before it. The local derivative of each operation is simple:
+- Addition: pass it unchanged to both sides;
+- Multiplication: multiply by the other side's value;
+- tanh: multiply by `1 - tanh²`.
 
-### 3. 前向模式与反向模式
+### 3. Forward mode and reverse mode
 
-自动微分有两个方向：
-- **前向模式**：从某一个输入出发，算出所有结果对**这一个输入**的导数。有 n 个输入，就要算 n 遍。
-- **反向模式**：从某一个结果出发，倒着走一遍，算出**这一个结果**对所有输入的导数。
+Automatic differentiation can run in two directions:
+- **Forward mode**: start from one input and compute the derivatives of all the results with respect to **that one input**. With n inputs, you need n passes.
+- **Reverse mode**: start from one result, walk backward once, and get the derivatives of **that one result** with respect to all the inputs.
 
-神经网络的情况是：输入（参数）几百万到几千亿个，结果（损失）只有 1 个。所以反向模式完胜，这就是反向传播。
+Here is the situation in a neural network: millions to hundreds of billions of inputs (parameters), and only 1 result (the loss). So reverse mode wins hands down. That is backpropagation.
 
-📖 登场：[序幕](#序幕1970-年哥本哈根的一个下午)
+📖 First appears in: [Prologue](#prologue--1970-copenhagen-an-afternoon-in-the-park)
 
-### 4. 梯度检查
+### 4. Gradient checking
 
-数值梯度用最笨的办法求导：把某个参数挪一点点（比如 10⁻⁶），看损失变了多少。
-它很慢（每个参数都要单独算两遍），但几乎不会出错，所以专门用来**检查自动求导写得对不对**。
-实验 1 里，两种方法的差别在 10⁻¹⁰ 量级，说明引擎是对的。
+A numerical gradient takes the derivative the dumbest way possible: nudge one parameter a tiny bit (say, 10⁻⁶) and see how much the loss changes.
+It is slow (every parameter needs two separate evaluations), but it almost never goes wrong, so it is used specifically to **check whether your autodiff is correct**.
+In Lab 1, the two methods differ on the order of 10⁻¹⁰, which shows the engine is right.
 
-### 5. 万能逼近定理
+### 5. The universal approximation theorem
 
-只要隐藏层的神经元足够多，一个隐藏层的网络就能以任意精度逼近任何连续函数。
-它说明了神经网络的**表达能力**，但没说需要多少神经元，也没说训练算法能不能找到这组权重。
-实践中，"更深"往往比"更宽"高效得多：多层网络可以逐层组合出越来越复杂的特征。
+With enough neurons in the hidden layer, a network with one hidden layer can approximate any continuous function to any accuracy.
+It describes a neural network's **expressive power**, but it doesn't say how many neurons you need, or whether a training algorithm can find those weights.
+In practice, "deeper" is often far more efficient than "wider": a multi-layer network can combine features layer by layer into more and more complex ones.
 
-📖 登场：[第一幕](#第一幕1989-年一层就够了)　🧪 `mlp_moons.py`
+📖 First appears in: [Act 1](#act-1--1989-is-one-layer-enough)　🧪 `mlp_moons.py`
 
-### 6. 激活函数
+### 6. Activation functions
 
-| 函数 | 形状 | 优点 | 缺点 |
+| Function | Shape | Strengths | Weaknesses |
 |---|---|---|---|
-| sigmoid | 0～1 的 S 形 | 可以当概率 | 导数最大只有 0.25；两端饱和，梯度几乎为 0 |
-| tanh | -1～1 的 S 形 | 以 0 为中心 | 两端同样饱和 |
-| ReLU | `max(0, x)` | 正半轴导数恒为 1，计算极快 | 负半轴导数为 0，神经元可能"死掉" |
+| sigmoid | S-shape from 0 to 1 | Can be read as a probability | Its derivative is at most 0.25; it saturates at both ends, where the gradient is almost 0 |
+| tanh | S-shape from -1 to 1 | Centered on 0 | Also saturates at both ends |
+| ReLU | `max(0, x)` | Derivative is always 1 on the positive side; extremely fast to compute | Derivative is 0 on the negative side, so neurons can "die" |
 
-没有激活函数（或者只用线性函数），多层网络就等于一层。激活函数提供了**非线性**，网络才能画出弯曲的边界。
-今天的大模型多用 ReLU 的平滑版本，比如 GELU、SwiGLU。
+Without an activation function (or with only linear ones), a multi-layer network is no better than a single layer. The activation function supplies the **nonlinearity** that lets the network draw curved boundaries.
+Today's large models mostly use smooth versions of ReLU, such as GELU and SwiGLU.
 
-📖 登场：[第三幕](#第三幕20102015-年换个激活函数选对初始值)
+📖 First appears in: [Act 3](#act-3--20102015-a-new-activation-function-and-the-right-starting-weights)
 
-### 7. 梯度消失与梯度爆炸
+### 7. Vanishing and exploding gradients
 
-反向传播时，梯度每经过一层，都要乘以"这一层的权重"和"激活函数的导数"。
-- 这些因子普遍**小于 1** → 连乘几十次趋近于 0 → **梯度消失**，前面的层学不动；
-- 普遍**大于 1** → 连乘几十次趋向无穷 → **梯度爆炸**，训练直接发散。
+During backpropagation, every time the gradient passes through a layer, it is multiplied by "this layer's weights" and "the derivative of the activation function."
+- If these factors are mostly **smaller than 1** → multiplied dozens of times, they head toward 0 → **vanishing gradients**, and the early layers can't learn;
+- If they are mostly **larger than 1** → multiplied dozens of times, they head toward infinity → **exploding gradients**, and training simply diverges.
 
-解决办法有：ReLU 类激活函数、合适的初始化、归一化层、残差连接（第四章），以及专门为序列设计的 LSTM（第四章）。
-对付爆炸，还有一个简单粗暴的办法：**梯度裁剪**，梯度太大时直接把它缩小到上限以内。
+The fixes include ReLU-style activation functions, good initialization, normalization layers, residual connections (Chapter 4), and the LSTM, designed specifically for sequences (Chapter 4).
+For exploding gradients there is also a quick and blunt fix: **gradient clipping**, which just shrinks the gradient back under a cap when it gets too big.
 
-📖 登场：[第二幕](#第二幕1991-年慕尼黑越深越学不动)　🧪 `vanishing_gradient.py`
+📖 First appears in: [Act 2](#act-2--1991-munich-the-deeper-the-harder-to-learn)　🧪 `vanishing_gradient.py`
 
-### 8. 初始化
+### 8. Initialization
 
-训练开始前，权重不能全是 0：那样每个神经元都一模一样，永远学不出区别。所以要随机初始化。
-但随机数的**尺度**很关键：
-- 太小 → 信号一层层变弱 → 梯度消失；
-- 太大 → 信号一层层变强 → 梯度爆炸。
+Before training starts, the weights can't all be 0: then every neuron would be identical and could never learn to be different. So we initialize them randomly.
+But the **scale** of the random numbers is crucial:
+- Too small → the signal gets weaker layer by layer → vanishing gradients;
+- Too large → the signal gets stronger layer by layer → exploding gradients.
 
-常用规则是按"输入个数 n"缩放：
-- **Xavier 初始化**（标准差约 √(1/n)）：适合 tanh、sigmoid；
-- **何恺明初始化**（标准差 √(2/n)）：适合 ReLU。ReLU 会把一半的信号置零，所以要大一点来补偿。
+The usual rule is to scale by "the number of inputs, n":
+- **Xavier initialization** (standard deviation about √(1/n)): suits tanh and sigmoid;
+- **He initialization** (standard deviation √(2/n)): suits ReLU. ReLU zeroes out half of the signal, so the scale is a bit bigger to make up for it.
 
-📖 登场：[第三幕](#第三幕20102015-年换个激活函数选对初始值)　🧪 `mlp_moons.py`、`vanishing_gradient.py`
+📖 First appears in: [Act 3](#act-3--20102015-a-new-activation-function-and-the-right-starting-weights)　🧪 `mlp_moons.py`, `vanishing_gradient.py`
 
-### 9. 过拟合、正则化与 Dropout
+### 9. Overfitting, regularization and Dropout
 
-**过拟合**是把训练数据背得太熟，在新数据上反而表现差（第一章概念 6）。对抗它的方法统称**正则化**：
-- **L2 正则（权重衰减）**：在损失里加上"权重的平方和"，鼓励权重小一点、模型简单一点；
-- **Dropout**：训练时每一步随机关掉一部分神经元（比如一半），迫使网络不依赖任何特定的"小团伙"；
-  测试时全部打开。可以把它看成同时训练了很多个子网络，再取平均；
-- **早停**：在验证集上的表现开始变差时，就停止训练；
-- **更多数据**：最根本的办法。
+**Overfitting** means learning the training data too well and then doing worse on new data (Chapter 1, concept 6). The methods for fighting it are collectively called **regularization**:
+- **L2 regularization (weight decay)**: add "the sum of the squared weights" to the loss, which nudges the weights to stay small and the model to stay simple;
+- **Dropout**: at every training step, randomly switch off some of the neurons (say, half), forcing the network not to rely on any particular "clique";
+  at test time, switch them all back on. You can think of it as training many sub-networks at once and then averaging them;
+- **Early stopping**: stop training once performance on the validation set starts getting worse;
+- **More data**: the most fundamental fix of all.
 
-📖 登场：[第四幕](#第四幕2012-年银行柜员的启发)
+📖 First appears in: [Act 4](#act-4--2012-a-lesson-from-the-bank-tellers)
 
-### 10. 深度学习框架
+### 10. Deep learning frameworks
 
-PyTorch、TensorFlow、JAX 这些框架，核心功能和实验 1 的 Value 类一样：记录计算图，自动反向传播。
-区别在于：
-- 它们操作的是**张量**（多维数组），不是一个个标量。一次矩阵乘法能代替成千上万次标量运算；
-- 计算可以放在 **GPU** 上并行执行；
-- 它们提供现成的层、优化器（第二章讲过的 Adam）、数据加载工具。
+Frameworks like PyTorch, TensorFlow and JAX do the same core job as Lab 1's Value class: record the computational graph and backpropagate automatically.
+The differences:
+- They work on **tensors** (multi-dimensional arrays), not individual scalars. One matrix multiplication can replace thousands upon thousands of scalar operations;
+- The computation can run in parallel on a **GPU**;
+- They come with ready-made layers, optimizers (like Adam from Chapter 2) and data-loading tools.
 
-实验 2 用纯 Python 标量训练 151 个参数要半分钟。同样的事，PyTorch 在 GPU 上只要一眨眼。这就是向量化和硬件加速的威力。
+In Lab 2, training 151 parameters with pure-Python scalars takes half a minute. PyTorch on a GPU does the same thing in the blink of an eye. That is the power of vectorization and hardware acceleration.
 
-📖 登场：[第五幕](#第五幕20072017-年再也不用手推导数了)、[第六幕](#第六幕20202022-年一百行代码讲清楚)
+📖 First appears in: [Act 5](#act-5--20072017-no-more-derivatives-by-hand), [Act 6](#act-6--20202022-the-whole-idea-in-a-hundred-lines-of-code)
 
 ---
 
-## 参考资料
+## References
 
-- Wikipedia, [Seppo Linnainmaa](https://en.wikipedia.org/wiki/Seppo_Linnainmaa)；A. Griewank, [Who Invented the Reverse Mode of Differentiation?](https://papers.baulab.info/papers/also/Griewank-2012.pdf), *Documenta Mathematica*, 2012
+- Wikipedia, [Seppo Linnainmaa](https://en.wikipedia.org/wiki/Seppo_Linnainmaa); A. Griewank, [Who Invented the Reverse Mode of Differentiation?](https://papers.baulab.info/papers/also/Griewank-2012.pdf), *Documenta Mathematica*, 2012
 - G. Cybenko, [Approximation by Superpositions of a Sigmoidal Function](https://papers.baulab.info/papers/Cybenko-1989.pdf), *Mathematics of Control, Signals and Systems*, 1989
 - K. Hornik, M. Stinchcombe, H. White, *Multilayer Feedforward Networks are Universal Approximators*, *Neural Networks* 2(5), 1989
-- S. Hochreiter, [Untersuchungen zu dynamischen neuronalen Netzen](https://www.bioinf.jku.at/publications/older/3804.pdf), Diplomarbeit, TU München, 1991；Wikipedia, [Sepp Hochreiter](https://en.wikipedia.org/wiki/Sepp_Hochreiter)
+- S. Hochreiter, [Untersuchungen zu dynamischen neuronalen Netzen](https://www.bioinf.jku.at/publications/older/3804.pdf), Diplomarbeit, TU München, 1991; Wikipedia, [Sepp Hochreiter](https://en.wikipedia.org/wiki/Sepp_Hochreiter)
 - X. Glorot & Y. Bengio, [Understanding the Difficulty of Training Deep Feedforward Neural Networks](https://proceedings.mlr.press/v9/glorot10a), AISTATS 2010
 - V. Nair & G. Hinton, *Rectified Linear Units Improve Restricted Boltzmann Machines*, ICML 2010
 - X. Glorot, A. Bordes, Y. Bengio, [Deep Sparse Rectifier Neural Networks](https://proceedings.mlr.press/v15/glorot11a.html), AISTATS 2011
 - A. Krizhevsky, I. Sutskever, G. Hinton, *ImageNet Classification with Deep Convolutional Neural Networks*, NIPS 2012
 - K. He, X. Zhang, S. Ren, J. Sun, [Delving Deep into Rectifiers](https://arxiv.org/abs/1502.01852), ICCV 2015
 - G. Hinton et al., [Improving Neural Networks by Preventing Co-adaptation of Feature Detectors](https://arxiv.org/abs/1207.0580), 2012
-- Import AI 通讯对 Hinton 银行柜员说法的转述：[jack-clark.net, 2016-08-15](https://jack-clark.net/2016/08/15/)
-- Wikipedia, [Theano](https://en.wikipedia.org/wiki/Theano_(software))；Google, [TensorFlow 开源公告](https://research.google/blog/tensorflow-googles-latest-machine-learning-system-open-sourced-for-everyone/), 2015
-- A. Karpathy, [micrograd](https://github.com/karpathy/micrograd)；视频 *The spelled-out intro to neural networks and backpropagation: building micrograd*, 2022
+- The Import AI newsletter's retelling of Hinton's bank-teller story: [jack-clark.net, 2016-08-15](https://jack-clark.net/2016/08/15/)
+- Wikipedia, [Theano](https://en.wikipedia.org/wiki/Theano_(software)); Google, [TensorFlow open-source announcement](https://research.google/blog/tensorflow-googles-latest-machine-learning-system-open-sourced-for-everyone/), 2015
+- A. Karpathy, [micrograd](https://github.com/karpathy/micrograd); video: *The spelled-out intro to neural networks and backpropagation: building micrograd*, 2022
 
 ---
 
-⬅️ [第二章 线性模型与梯度下降](../02-linear-models/)　|　[返回目录](../README.md)　|　➡️ [第四章 从 CNN 到 Transformer](../04-cnn-to-transformer/)
+⬅️ [Chapter 2 · Linear Models and Gradient Descent](../02-linear-models/) | [Contents](../README.md) | ➡️ [Chapter 4 · From CNNs to Transformers](../04-cnn-to-transformer/)

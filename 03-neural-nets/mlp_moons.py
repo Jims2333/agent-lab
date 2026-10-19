@@ -1,14 +1,17 @@
 """
-实验 2：用自己写的引擎训练一个神经网络
-========================================
+Lab 2: Train a neural network with the engine you wrote
+=======================================================
 
-第一章的感知机只能画一条直线。这里的数据是两个交错的"月亮"，任何一条直线都分不开。
-1989 年的"万能逼近定理"说：只要隐藏层的神经元够多，网络在理论上能逼近任何形状的边界。
-我们就用实验 1 写的 Value 引擎，从零训练一个小网络，看它能不能画出弯曲的边界。
+Chapter 1's perceptron could only draw a straight line. The data here is two interlocking "moons,"
+which no straight line can separate. The 1989 "universal approximation theorem" says that with enough
+neurons in the hidden layer, a network can in theory approximate a boundary of any shape.
+So we take the Value engine from Lab 1, train a small network from scratch, and see whether it can
+draw a curved boundary.
 
-全部是纯 Python 标量运算，所以会慢一点（大约半分钟），这正好让你感受到：为什么后来需要 GPU 和向量化。
+Everything is pure-Python scalar arithmetic, so it's a bit slow (about half a minute). That is exactly
+what lets you feel why GPUs and vectorization were needed later.
 
-运行：python mlp_moons.py
+Run: python mlp_moons.py
 """
 
 import math
@@ -19,27 +22,27 @@ from autograd import Value
 random.seed(1989)
 
 
-# ---------------------------------------------------------------- 数据：两个月亮
+# ---------------------------------------------------------------- data: two moons
 def make_moons(n, noise=0.12):
     pts = []
     for i in range(n):
         t = math.pi * random.random()
-        if i % 2 == 0:                                  # 上面的月亮，标签 +1
+        if i % 2 == 0:                                  # upper moon, label +1
             x, y, label = math.cos(t), math.sin(t), 1
-        else:                                           # 下面的月亮，标签 -1
+        else:                                           # lower moon, label -1
             x, y, label = 1 - math.cos(t), 0.5 - math.sin(t), -1
         pts.append((x + random.gauss(0, noise), y + random.gauss(0, noise), label))
     return pts
 
 
-# ---------------------------------------------------------------- 网络：神经元 → 层 → 多层感知机
+# ---------------------------------------------------------------- network: neuron → layer → multi-layer perceptron
 class Neuron:
     def __init__(self, n_in, act="relu"):
-        # 初始化：按输入个数缩放。ReLU 会"关掉"一半信号，所以用何恺明 2015 年提出的更大一点的尺度
+        # Initialization: scale by the number of inputs. ReLU "switches off" half the signal, so use the slightly larger scale Kaiming He proposed in 2015
         scale = math.sqrt(3 / n_in) if act == "tanh" else math.sqrt(6 / n_in)
         self.w = [Value(random.uniform(-1, 1) * scale) for _ in range(n_in)]
         self.b = Value(0.0)
-        self.act = act                                  # "relu"、"tanh"，或 None（输出层不加激活）
+        self.act = act                                  # "relu", "tanh", or None (no activation on the output layer)
 
     def __call__(self, x):
         z = sum((wi * xi for wi, xi in zip(self.w, x)), self.b)
@@ -66,7 +69,7 @@ class Layer:
 
 class MLP:
     def __init__(self, sizes, act="relu"):
-        last = len(sizes) - 2                           # 最后一层输出分数，不加激活
+        last = len(sizes) - 2                           # the last layer outputs a score, with no activation
         self.layers = [Layer(a, b, act=None if i == last else act)
                        for i, (a, b) in enumerate(zip(sizes, sizes[1:]))]
 
@@ -83,26 +86,26 @@ def train(model, data, steps, lr, quiet=False):
     params = model.parameters()
     for step in range(steps + 1):
         scores = [model([x, y]) for x, y, _ in data]
-        # 合页损失（hinge loss）：分对了并且有足够把握，损失就是 0
+        # hinge loss: if the point is classified correctly with enough margin, the loss is 0
         losses = [(1 - label * s).relu() for (_, _, label), s in zip(data, scores)]
         loss = sum(losses, Value(0.0)) * (1.0 / len(data))
         acc = sum((s.data > 0) == (label > 0) for (_, _, label), s in zip(data, scores)) / len(data)
         if not quiet and step % 10 == 0:
-            print(f"   第 {step:3d} 步  损失 {loss.data:.4f}  准确率 {acc:.0%}")
+            print(f"   step {step:3d}  loss {loss.data:.4f}  accuracy {acc:.0%}")
         if step == steps:
             break
 
-        for p in params:                       # 1. 梯度清零
+        for p in params:                       # 1. zero the gradients
             p.grad = 0.0
-        loss.backward()                        # 2. 反向传播
-        step_lr = lr * (1 - 0.9 * step / steps)   # 学习率慢慢变小（第二章讲过）
-        for p in params:                       # 3. 梯度下降
+        loss.backward()                        # 2. backpropagation
+        step_lr = lr * (1 - 0.9 * step / steps)   # the learning rate slowly shrinks (see Chapter 2)
+        for p in params:                       # 3. gradient descent
             p.data -= step_lr * p.grad
     return acc
 
 
 def draw(model, data, title):
-    """ASCII 决策边界：'+' 区域判为上面的月亮，'.' 区域判为下面的月亮。"""
+    """ASCII decision boundary: the '+' region is classified as the upper moon, the '.' region as the lower moon."""
     print(title)
     xs = [-1.4 + i * 0.1 for i in range(36)]
     ys = [1.4 - j * 0.15 for j in range(16)]
@@ -115,26 +118,26 @@ def draw(model, data, title):
             else:
                 row += "+" if model([x0, y0]).data > 0 else "."
         print("   " + row)
-    print("   （● 上面的月亮，○ 下面的月亮）\n")
+    print("   (● upper moon, ○ lower moon)\n")
 
 
 data = make_moons(80)
 
-print("【对照组】没有隐藏层的网络（就是一个线性分类器，相当于第一章的感知机）")
+print("[Control group] A network with no hidden layer (just a linear classifier, like Chapter 1's perceptron)")
 linear = MLP([2, 1])
 acc = train(linear, data, 80, lr=1.0, quiet=True)
-print(f"   训练 80 步后准确率：{acc:.0%}")
-draw(linear, data, "   它只能画一条直线：")
+print(f"   Accuracy after 80 training steps: {acc:.0%}")
+draw(linear, data, "   All it can draw is a straight line:")
 
-print("【实验组】两个隐藏层、每层 10 个 ReLU 神经元：2 → 10 → 10 → 1")
+print("[Experimental group] Two hidden layers with 10 ReLU neurons each: 2 → 10 → 10 → 1")
 random.seed(2015)
 model = MLP([2, 10, 10, 1])
-print(f"   一共 {len(model.parameters())} 个参数，每一个都是实验 1 里的 Value。")
+print(f"   {len(model.parameters())} parameters in total, and every one of them is a Value from Lab 1.")
 acc = train(model, data, 80, lr=1.0)
-draw(model, data, f"\n   训练后的决策边界（准确率 {acc:.0%}）：")
+draw(model, data, f"\n   The decision boundary after training (accuracy {acc:.0%}):")
 
-print("""想一想：
-  1. 把隐藏层改成 [2, 2, 1]（只有 2 个神经元），还能分开两个月亮吗？
-  2. 把激活函数换成 tanh（MLP([2, 10, 10, 1], act="tanh")），训练速度和边界形状有什么不同？
-  3. 把 Neuron 里的 scale 改成 1 / math.sqrt(n_in)（更小的初始化），准确率会掉到多少？
-  4. 这个网络每走一步，要创建多少个 Value 对象？为什么真正的框架要用矩阵运算和 GPU？""")
+print("""Think about it:
+  1. Change the network to [2, 2, 1] (only 2 hidden neurons). Can it still separate the two moons?
+  2. Switch the activation to tanh (MLP([2, 10, 10, 1], act="tanh")). How do the training speed and the boundary shape change?
+  3. Change scale in Neuron to 1 / math.sqrt(n_in) (a smaller initialization). How far does accuracy drop?
+  4. How many Value objects does this network create at every step? Why do real frameworks use matrix operations and GPUs?""")

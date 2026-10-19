@@ -1,18 +1,20 @@
 """
-实验 3：梯度消失与梯度爆炸
-============================
+Lab 3: Vanishing and exploding gradients
+========================================
 
-1991 年，霍赫赖特（Hochreiter）在毕业论文里分析了一个让人头疼的现象：
-网络一深，靠近输入那几层的梯度会变得极小（消失）或极大（爆炸），根本训练不动。
+In 1991, Hochreiter analyzed a troublesome phenomenon in his diploma thesis:
+once a network gets deep, the gradients in the layers near the input become tiny (vanish) or huge
+(explode), and the network simply can't be trained.
 
-这里搭一个 30 层的网络，不训练，只做一次反向传播，看看误差信号传回到每一层时还剩多大。
-比较不同的激活函数和初始化：
-  * sigmoid：导数最大只有 0.25，每往回传一层就打一次折扣
-  * ReLU + 太小的初始化：信号一层层变弱
-  * ReLU + 何恺明初始化（2015）：每层的梯度大小基本不变
-  * ReLU + 太大的初始化：梯度一层层放大，爆炸
+Here we build a 30-layer network, skip training, and do just one backward pass to see how big the
+error signal still is when it gets back to each layer. We compare different activation functions
+and initializations:
+  * sigmoid: its derivative is at most 0.25, so the signal gets discounted at every layer on the way back
+  * ReLU + too small an initialization: the signal gets weaker layer by layer
+  * ReLU + He initialization (2015): the gradient stays about the same size at every layer
+  * ReLU + too large an initialization: the gradient grows layer by layer and explodes
 
-运行：python vanishing_gradient.py
+Run: python vanishing_gradient.py
 """
 
 import numpy as np
@@ -20,18 +22,18 @@ import numpy as np
 DEPTH, WIDTH, BATCH = 30, 64, 128
 
 ACTS = {
-    # 名字: (激活函数, 它的导数)
+    # name: (activation function, its derivative)
     "sigmoid": (lambda z: 1 / (1 + np.exp(-z)), lambda z, a: a * (1 - a)),
     "tanh": (np.tanh, lambda z, a: 1 - a ** 2),
     "relu": (lambda z: np.maximum(z, 0), lambda z, a: (z > 0).astype(float)),
 }
 
 CONFIGS = [
-    ("sigmoid，初始化标准差 1/√n", "sigmoid", 1.0),
-    ("tanh，   初始化标准差 1/√n", "tanh", 1.0),
-    ("ReLU，   初始化标准差 1/√n（偏小）", "relu", 1.0),
-    ("ReLU，   何恺明初始化 √(2/n)", "relu", np.sqrt(2)),
-    ("ReLU，   初始化标准差 1.5×√(2/n)（偏大）", "relu", 1.5 * np.sqrt(2)),
+    ("sigmoid, init std 1/√n", "sigmoid", 1.0),
+    ("tanh,    init std 1/√n", "tanh", 1.0),
+    ("ReLU,    init std 1/√n (too small)", "relu", 1.0),
+    ("ReLU,    He init √(2/n)", "relu", np.sqrt(2)),
+    ("ReLU,    init std 1.5×√(2/n) (too large)", "relu", 1.5 * np.sqrt(2)),
 ]
 
 
@@ -40,7 +42,7 @@ def layer_grad_norms(act_name, gain, seed=1991):
     f, df = ACTS[act_name]
     Ws = [rng.normal(0, gain / np.sqrt(WIDTH), (WIDTH, WIDTH)) for _ in range(DEPTH)]
 
-    # 前向：记下每一层的输入、加权和、输出
+    # forward: record each layer's input, weighted sum and output
     h = rng.normal(size=(BATCH, WIDTH))
     cache = []
     for W in Ws:
@@ -49,30 +51,30 @@ def layer_grad_norms(act_name, gain, seed=1991):
         cache.append((h, z, a))
         h = a
 
-    # 反向：假设损失对最后一层输出的梯度是"标准大小"的随机数，看它一层层传回去还剩多少
+    # backward: assume the gradient of the loss w.r.t. the last layer's output is random noise of "standard size", and see how much is left as it travels back layer by layer
     g = rng.normal(size=(BATCH, WIDTH))
     top = np.linalg.norm(g)
     norms = [0.0] * DEPTH
     for i in reversed(range(DEPTH)):
         _, z, a = cache[i]
-        gz = g * df(z, a)                       # 穿过激活函数：乘上它的导数
-        g = gz @ Ws[i].T                        # 穿过权重：乘上权重矩阵，传给前一层
-        norms[i] = np.linalg.norm(g) / top      # 传到第 i 层输入时，信号是原来的多少倍
+        gz = g * df(z, a)                       # through the activation function: multiply by its derivative
+        g = gz @ Ws[i].T                        # through the weights: multiply by the weight matrix, pass to the previous layer
+        norms[i] = np.linalg.norm(g) / top      # at layer i's input, how many times its original size the signal is
     return norms
 
 
 def bar(value, ref):
-    """用对数刻度画条：每个 █ 代表 10 倍。"""
+    """Draw a bar on a log scale: every two █ stand for 10×."""
     if value == 0:
-        return "（完全为 0）"
+        return "(exactly 0)"
     k = np.log10(value / ref)
     if k >= 0:
         return "│" + "█" * min(int(round(k * 2)), 30) + f"  ×{value / ref:.1e}"
     return "█" * min(int(round(-k * 2)), 30) + f"│  ×{value / ref:.1e}"
 
 
-print(f"一个 {DEPTH} 层、每层 {WIDTH} 个神经元的网络：误差信号从输出端传回来，到达各层时还剩多大")
-print("（以输出端的信号为 ×1。往左的条表示变小了，往右表示变大了；每两格 = 10 倍）\n")
+print(f"A {DEPTH}-layer network with {WIDTH} neurons per layer: as the error signal travels back from the output, how big is it when it reaches each layer?")
+print("(The signal at the output is ×1. A bar to the left means it shrank, a bar to the right means it grew; every two blocks = 10×.)\n")
 
 for title, act, gain in CONFIGS:
     norms = layer_grad_norms(act, gain)
@@ -80,18 +82,18 @@ for title, act, gain in CONFIGS:
     for i in (DEPTH - 1, 24, 19, 14, 9, 4, 0):
         b = bar(norms[i], 1.0)
         pad = 30 - (len(b.split("│")[0]) if "│" in b else 0)
-        print(f"   第 {i + 1:2d} 层 {' ' * pad}{b}")
+        print(f"   layer {i + 1:2d} {' ' * pad}{b}")
     ratio = norms[0]
-    verdict = "梯度消失" if ratio < 1e-2 else ("梯度爆炸" if ratio > 1e2 else "基本稳定 ✓")
-    print(f"   传到第 1 层时是原来的 {ratio:.1e} 倍  → {verdict}\n")
+    verdict = "vanishing gradients" if ratio < 1e-2 else ("exploding gradients" if ratio > 1e2 else "roughly stable ✓")
+    print(f"   By layer 1 it is {ratio:.1e} times its original size  → {verdict}\n")
 
-print("""为什么会这样？
-  反向传播时，梯度每经过一层，都要乘上"这一层的权重"和"激活函数的导数"。
-  * sigmoid 的导数最大是 0.25，30 层乘下来，就是好多个小于 1 的数连乘，越乘越小；
-  * 初始化太小，每层的权重把信号缩小一点；太大，每层放大一点。30 次方之后都会走向极端；
-  * ReLU 在正半轴导数恰好是 1，配合合适的初始化（何恺明初始化），每一层的信号大小正好保持不变。
+print("""Why does this happen?
+  During backpropagation, every time the gradient passes through a layer, it gets multiplied by "this layer's weights" and "the derivative of the activation function."
+  * The sigmoid's derivative is at most 0.25, so over 30 layers you multiply lots of numbers smaller than 1 together, and the product keeps shrinking;
+  * Too small an initialization, and each layer's weights shrink the signal a little; too large, and each layer grows it a little. Raised to the 30th power, both go to extremes;
+  * ReLU's derivative is exactly 1 on the positive side, so with the right initialization (He initialization), the signal keeps just the same size at every layer.
 
-想一想：
-  1. 把 DEPTH 改成 5，sigmoid 的问题还严重吗？为什么早期的网络都很浅？
-  2. 如果每一层都有一条"捷径"直接把输入加到输出上（残差连接，第四章会讲），梯度会怎样？
-  3. 第一章实验 3 里用的是 sigmoid，为什么它没遇到这个问题？""")
+Think about it:
+  1. Change DEPTH to 5. Is the sigmoid problem still serious? Why were early networks all shallow?
+  2. If every layer had a "shortcut" that adds its input straight to its output (residual connections, coming in Chapter 4), what would happen to the gradient?
+  3. Chapter 1's Lab 3 used sigmoid. Why didn't it run into this problem?""")
